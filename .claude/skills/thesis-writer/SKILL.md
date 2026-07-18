@@ -11,7 +11,7 @@ All report work happens in `report/`. Delegate LaTeX mechanics to global `latex-
 
 - Vietnamese academic prose (văn phong học thuật), third person, no first-person singular.
 - English technical terms kept untranslated where standard: mAP, quantization, inference, OCR, bounding box, dataset, precision/recall, F1, FPS. Vietnamese term first with English in parentheses on first use: "lượng tử hóa (quantization)".
-- Numbers + units: SI, comma as decimal separator in Vietnamese convention only in prose; keep `siunitx` defaults in tables.
+- Numbers + units: SI. Configure `siunitx` with `output-decimal-marker={,}` so tables match Vietnamese comma-decimal prose convention.
 
 ## LaTeX setup
 

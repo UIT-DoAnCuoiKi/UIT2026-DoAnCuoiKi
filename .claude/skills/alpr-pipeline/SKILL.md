@@ -36,10 +36,10 @@ One call per vehicle at the gate (stationary vehicle per scope — no tracking n
 
 ## VN plate normalization
 
-- Charset: A–Z (no I, O in series), 0–9. Common OCR confusions to correct by position: 0↔O, 1↔I, 8↔B, 5↔S, 2↔Z.
+- Charset: A–Z (no I, O in series), 0–9. Common OCR confusions to correct by position — in numeric positions always resolve toward the digit (O→0, I→1, B→8, S→5, Z→2); in the series letter position resolve toward the letter (0→O is invalid since O never appears in series — prefer D or Q by visual similarity, flag low confidence).
 - Patterns (validate after uppercase + strip separators):
   - Car (1-row): `^\d{2}[A-Z]\d{4,5}$` (e.g. 51A12345)
-  - Motorbike (2-row): `^\d{2}[A-Z]\d{1}\d{4,5}$` (row1: province+series, row2: number)
+  - Motorbike (2-row): `^\d{2}[A-Z]\d{1}\d{4,5}$` (row1: province+series, row2: number). Note: the two digit groups collapse to `^\d{2}[A-Z]\d{5,6}$` when matching joined text; the split shown mirrors the physical row layout.
 - Render normalized as `NNX-NNN.NN` (5-digit) or `NNX-NNNN` (4-digit) for display/storage.
 
 ## HSV color classes (starting thresholds — calibrate on own data, log final values for thesis)
