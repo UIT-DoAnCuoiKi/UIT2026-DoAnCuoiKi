@@ -45,7 +45,7 @@ Report rule: every phase ends with its chapter drafted (viết song hành).
 - `research-assistant` — papers, tech comparisons, dataset research (heavy sweeps → dispatch `research-agent`)
 - `thesis-writer` — all report/LaTeX work
 - `ml-training` — YOLO/ResNet/MobileNet training + eval code
-- `colab-training` — Colab notebook environment, checkpoints, weight export
+- `colab-training` — Colab notebook environment (browser, VS Code extension, colab-mcp), checkpoints, weight export
 - `alpr-pipeline` — detection→OCR→color integration code
 - `backend-dashboard` — FastAPI/PostgreSQL/React code
 - `edge-deploy` — ONNX Runtime on Pi, quantization, benchmarks

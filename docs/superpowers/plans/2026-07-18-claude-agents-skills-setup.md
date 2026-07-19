@@ -831,3 +831,44 @@ git commit -m "fix: adjust skill descriptions after smoke testing
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ```
 (Skip commit if no fixes were needed.)
+
+---
+
+### Task 13: Extend colab-training with VS Code extension + colab-mcp sections
+
+**Files:**
+- Modify: `.claude/skills/colab-training/SKILL.md`
+- Modify: `CLAUDE.md` (skill index line)
+
+**Interfaces:**
+- Consumes: `colab-mcp` MCP server registered in `.mcp.json` (commit d0735dd), entry tool `mcp__colab-mcp__open_colab_browser_connection`.
+- Produces: skill coverage for all three Colab access paths (browser, VS Code Colab extension, colab-mcp), so the agent picks the right workflow and knows which notebook cells to skip/keep per path.
+
+- [ ] **Step 1: Extend SKILL.md**
+
+Add to `colab-training`:
+- Intro list of the three access paths (browser / VS Code extension / colab-mcp) with when to use each.
+- **VS Code Colab extension** section: local repo notebook + remote Colab kernel; skip repo-clone cell; `/content/` paths are remote; Drive mount + dataset staging + Drive checkpointing unchanged; clear-outputs rule unchanged.
+- **colab-mcp** section: server config in `.mcp.json`, entry tool `mcp__colab-mcp__open_colab_browser_connection`, use for starting/monitoring training from Claude Code, standard checkpoint/metrics rules unchanged, no MCP-polling babysitting.
+- Frontmatter `description` extended with "VS Code Colab extension" and "colab-mcp MCP server" trigger phrases.
+
+- [ ] **Step 2: Update CLAUDE.md skill index**
+
+`colab-training` line mentions all three access paths.
+
+- [ ] **Step 3: Verify**
+
+Run: `grep -l "colab-mcp" .claude/skills/*/SKILL.md CLAUDE.md`
+Expected: `colab-training` SKILL.md and CLAUDE.md listed.
+
+Run: `sed -n '1,4p' .claude/skills/colab-training/SKILL.md`
+Expected: frontmatter intact, description mentions VS Code extension + colab-mcp.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add .claude/skills/colab-training CLAUDE.md docs/superpowers/plans/2026-07-18-claude-agents-skills-setup.md
+git commit -m "feat: extend colab-training skill with VS Code extension and colab-mcp workflows
+
+Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
+```
