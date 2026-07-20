@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YOLO Critical Questions — Verified (cập nhật 2026-07-21)</title>
+
+<!-- Fonts: Fraunces (editorial serif display) + Hanken Grotesk (body sans) + Spline Sans Mono (code) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,900;1,9..144,500&family=Hanken+Grotesk:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  /* ===========================================================
+     CLAUDE THEME — warm paper, clay accent, editorial serif.
+     Palette drawn from Anthropic's book-cloth / kraft / manila
+     family; ink on cream, terracotta as the single sharp accent.
+     Change everything from these variables.
+     =========================================================== */
+  :root {
+    /* Surfaces */
+    --paper:      #f4efe4;   /* page background — warm ivory   */
+    --paper-2:    #efe7d7;   /* deeper cream for wells         */
+    --card:       #fbf8f1;   /* raised card surface            */
+    --card-soft:  #f6f0e4;   /* tinted inner blocks            */
+
+    /* Ink */
+    --ink:        #2a2521;   /* primary text — warm near-black */
+    --ink-soft:   #5c5346;   /* secondary text                 */
+    --ink-faint:  #8a7f6d;   /* captions / meta                */
+
+    /* Accent — Claude clay / terracotta */
+    --clay:       #c05f3c;
+    --clay-deep:  #a04a2b;
+    --clay-tint:  #f0dccf;   /* clay wash background           */
+
+    /* Lines */
+    --line:       #e2d8c4;
+    --line-soft:  #ece3d2;
+
+    /* Semantic status (muted, warm) */
+    --ok-bg:  #e7ecd9; --ok-fg:  #55692e; --ok-bd:  #ccd6a8;
+    --fix-bg: #f6e6cd; --fix-fg: #97621f; --fix-bd: #e6c893;
+    --open-bg:#f4dcd2; --open-fg:#a8432a; --open-bd:#e6b3a0;
+
+    --shadow: 0 1px 2px rgba(74,54,38,.05), 0 14px 34px -18px rgba(74,54,38,.28);
+    --radius: 14px;
+    --ease: cubic-bezier(.2,.7,.2,1);
+    --measure: 78ch;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    color: var(--ink);
+    background-color: var(--paper);
+    /* Layered warmth: two soft radial glows + faint grain overlay */
+    background-image:
+      radial-gradient(1200px 700px at 82% -8%, rgba(192,95,60,.10), transparent 60%),
+      radial-gradient(1000px 800px at -10% 12%, rgba(212,162,127,.14), transparent 55%);
+    background-attachment: fixed;
+    font-family: "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
+    font-size: 17px;
+    line-height: 1.68;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Fine paper grain, sits above bg, below content, non-interactive */
+  body::before {
+    content: "";
+    position: fixed; inset: 0;
+    pointer-events: none; z-index: 0;
+    opacity: .5;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.35'/%3E%3C/svg%3E");
+  }
+
+  /* --- Top scroll-progress bar --- */
+  .progress {
+    position: fixed; top: 0; left: 0; height: 3px; width: 0%;
+    background: linear-gradient(90deg, var(--clay), var(--clay-deep));
+    z-index: 200; transition: width .1s linear;
+  }
+
+  /* ===========================================================
+     LAYOUT — centered column with a fixed left index rail
+     =========================================================== */
+  .wrap {
+    position: relative; z-index: 1;
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 68px 26px 120px;
+  }
+
+  /* Fixed table-of-contents rail (wide screens only) */
+  nav.toc {
+    position: fixed; top: 50%; left: max(20px, calc((100vw - 920px)/2 - 220px));
+    transform: translateY(-50%);
+    width: 190px; z-index: 50;
+    font-size: .82rem; line-height: 1.35;
+  }
+  nav.toc .toc-kicker {
+    font-family: "Spline Sans Mono", monospace;
+    font-size: .66rem; letter-spacing: .22em; text-transform: uppercase;
+    color: var(--ink-faint); margin: 0 0 12px 14px;
+  }
+  nav.toc a {
+    display: block; padding: 5px 0 5px 14px; margin: 1px 0;
+    color: var(--ink-faint); text-decoration: none;
+    border-left: 2px solid var(--line);
+    transition: color .25s var(--ease), border-color .25s var(--ease), padding .25s var(--ease);
+  }
+  nav.toc a:hover { color: var(--ink-soft); border-color: var(--ink-faint); }
+  nav.toc a.active {
+    color: var(--clay-deep); border-color: var(--clay);
+    padding-left: 18px; font-weight: 600;
+  }
+  @media (max-width: 1240px) { nav.toc { display: none; } }
+
+  /* ===========================================================
+     HERO
+     =========================================================== */
+  header.page { margin-bottom: 46px; }
+  .kicker {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-family: "Spline Sans Mono", monospace;
+    font-size: .72rem; letter-spacing: .24em; text-transform: uppercase;
+    color: var(--clay-deep); margin-bottom: 22px;
+  }
+  .kicker::before {
+    content: ""; width: 26px; height: 2px; background: var(--clay); display: inline-block;
+  }
+  h1 {
+    font-family: "Fraunces", serif;
+    font-weight: 900; font-size: clamp(2.4rem, 5.4vw, 3.9rem);
+    line-height: 1.02; letter-spacing: -.02em;
+    margin: 0 0 20px; color: var(--ink);
+  }
+  h1 .em { color: var(--clay); font-style: italic; font-weight: 500; }
+  .subtitle {
+    font-size: 1.12rem; color: var(--ink-soft); margin: 0 0 18px;
+    max-width: 62ch;
+  }
+  .meta {
+    font-size: .92rem; color: var(--ink-faint); margin: 0;
+    padding-top: 18px; border-top: 1px solid var(--line);
+    max-width: 74ch;
+  }
+  .meta strong { color: var(--clay-deep); font-weight: 600; }
+
+  /* ===========================================================
+     SECTION CARDS
+     =========================================================== */
+  section.q {
+    position: relative;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 34px 40px 38px;
+    margin-bottom: 30px;
+    box-shadow: var(--shadow);
+    scroll-margin-top: 28px;
+    overflow: hidden;
+  }
+  /* clay spine on the left edge */
+  section.q::before {
+    content: ""; position: absolute; left: 0; top: 26px; bottom: 26px; width: 3px;
+    background: linear-gradient(var(--clay), var(--clay-deep));
+    border-radius: 0 3px 3px 0; opacity: .0;
+    transition: opacity .4s var(--ease);
+  }
+  section.q:hover::before { opacity: .9; }
+
+  h2 {
+    font-family: "Fraunces", serif;
+    font-weight: 600; font-size: 1.62rem; line-height: 1.2;
+    letter-spacing: -.01em; margin: 0 0 6px; color: var(--ink);
+  }
+  h3 {
+    font-family: "Hanken Grotesk", sans-serif;
+    font-weight: 700; font-size: .82rem; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--clay-deep);
+    margin: 26px 0 10px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  h3::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+
+  .qtext {
+    font-family: "Fraunces", serif; font-style: italic; font-weight: 500;
+    font-size: 1.06rem; color: var(--ink-soft);
+    margin: 8px 0 20px; max-width: 68ch;
+  }
+
+  p { max-width: var(--measure); }
+
+  /* ===========================================================
+     STATUS BADGES
+     =========================================================== */
+  .badge {
+    display: inline-block; font-family: "Spline Sans Mono", monospace;
+    font-size: .64rem; font-weight: 600; letter-spacing: .1em;
+    padding: 4px 10px; border-radius: 6px; vertical-align: middle; margin-left: 8px;
+    border: 1px solid; text-transform: uppercase; white-space: nowrap;
+  }
+  .verified  { background: var(--ok-bg);  color: var(--ok-fg);  border-color: var(--ok-bd); }
+  .corrected { background: var(--fix-bg); color: var(--fix-fg); border-color: var(--fix-bd); }
+  .unresolved{ background: var(--open-bg);color: var(--open-fg);border-color: var(--open-bd); }
+
+  /* ===========================================================
+     TEXT ELEMENTS
+     =========================================================== */
+  a {
+    color: var(--clay-deep); text-decoration: underline;
+    text-decoration-color: var(--clay-tint); text-underline-offset: 3px;
+    text-decoration-thickness: 1.5px;
+    transition: text-decoration-color .2s var(--ease), color .2s var(--ease);
+  }
+  a:hover { color: var(--clay); text-decoration-color: var(--clay); }
+
+  strong { font-weight: 700; color: var(--ink); }
+
+  blockquote {
+    margin: 12px 0; padding: 12px 20px;
+    border-left: 3px solid var(--clay);
+    background: var(--card-soft); border-radius: 0 8px 8px 0;
+    font-family: "Fraunces", serif; font-size: .98rem; font-style: italic;
+    color: var(--ink-soft);
+  }
+
+  code {
+    font-family: "Spline Sans Mono", monospace; font-size: .84em;
+    background: var(--paper-2); color: var(--clay-deep);
+    padding: 2px 6px; border-radius: 5px;
+    border: 1px solid var(--line-soft);
+  }
+
+  ul, ol { margin: 10px 0; padding-left: 24px; max-width: var(--measure); }
+  li { margin: 7px 0; }
+  ul li::marker { color: var(--clay); }
+  ol li::marker { color: var(--clay-deep); font-family: "Spline Sans Mono", monospace; font-weight: 600; }
+
+  /* ===========================================================
+     TABLES
+     =========================================================== */
+  table {
+    border-collapse: collapse; width: 100%; margin: 16px 0 8px;
+    font-size: .9rem; background: var(--card);
+    border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
+  }
+  th, td { padding: 10px 14px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line-soft); }
+  th {
+    background: var(--paper-2); font-weight: 700; color: var(--ink);
+    font-size: .78rem; letter-spacing: .04em; text-transform: uppercase;
+  }
+  tr:last-child td { border-bottom: none; }
+  tbody tr:hover td, table tr:hover td { background: rgba(192,95,60,.045); }
+  td.win { font-weight: 700; color: var(--clay-deep); }
+
+  /* ===========================================================
+     CALLOUT ("Ý nghĩa cho đồ án")
+     =========================================================== */
+  .impl {
+    background: var(--clay-tint);
+    border: 1px solid var(--clay-bd, #e4c3b2);
+    border-radius: 10px; padding: 16px 20px; margin-top: 20px;
+    font-size: .96rem; color: var(--ink);
+    position: relative;
+  }
+  .impl::before {
+    content: "→"; font-family: "Spline Sans Mono", monospace; font-weight: 600;
+    color: var(--clay); margin-right: 8px;
+  }
+  .impl strong { color: var(--clay-deep); }
+
+  /* ===========================================================
+     FIGURES
+     =========================================================== */
+  figure { margin: 24px 0; text-align: center; }
+  figure img {
+    max-width: 100%; height: auto;
+    border: 1px solid var(--line); border-radius: 12px;
+    background: #fff; padding: 8px;
+    box-shadow: 0 10px 30px -18px rgba(74,54,38,.4);
+  }
+  figcaption {
+    font-size: .82rem; color: var(--ink-faint); margin-top: 12px;
+    line-height: 1.55; max-width: 72ch; margin-left: auto; margin-right: auto;
+  }
+
+  /* ===========================================================
+     GLOSSARY
+     =========================================================== */
+  .terms {
+    display: grid; grid-template-columns: repeat(2, 1fr);
+    gap: 14px 22px; margin: 12px 0 4px;
+  }
+  .terms .term {
+    background: var(--card-soft); border: 1px solid var(--line-soft);
+    border-radius: 10px; padding: 13px 16px;
+    transition: border-color .25s var(--ease), transform .25s var(--ease);
+  }
+  .terms .term:hover { border-color: var(--clay-bd, #e4c3b2); transform: translateY(-2px); }
+  .terms dt {
+    font-family: "Spline Sans Mono", monospace; font-weight: 600; font-size: .84rem;
+    color: var(--clay-deep); margin-bottom: 4px; letter-spacing: -.01em;
+  }
+  .terms dt .vi { color: var(--ink-faint); font-weight: 400; font-size: .92em; }
+  .terms dd { margin: 0; font-size: .9rem; color: var(--ink-soft); line-height: 1.55; }
+  @media (max-width: 620px) { .terms { grid-template-columns: 1fr; } }
+
+  .refs { font-size: .9rem; color: var(--ink-soft); }
+  .refs li { margin: 8px 0; }
+
+  .yes { color: var(--ok-fg); font-weight: 700; }
+  .no  { color: var(--open-fg); font-weight: 600; }
+
+  /* Back-to-top */
+  .totop {
+    position: fixed; right: 26px; bottom: 26px; z-index: 60;
+    width: 46px; height: 46px; border-radius: 50%;
+    background: var(--clay); color: #fff; border: none; cursor: pointer;
+    font-size: 1.1rem; display: grid; place-items: center;
+    box-shadow: 0 8px 22px -8px rgba(160,74,43,.7);
+    opacity: 0; pointer-events: none; transform: translateY(10px);
+    transition: opacity .3s var(--ease), transform .3s var(--ease), background .2s;
+  }
+  .totop.show { opacity: 1; pointer-events: auto; transform: translateY(0); }
+  .totop:hover { background: var(--clay-deep); }
+
+  /* Footer */
+  .colophon {
+    margin-top: 40px; padding-top: 22px; border-top: 1px solid var(--line);
+    font-size: .82rem; color: var(--ink-faint); text-align: center;
+    font-family: "Spline Sans Mono", monospace; letter-spacing: .04em;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+  }
+
+  @media (max-width: 640px) {
+    section.q { padding: 26px 22px 30px; }
+    .wrap { padding: 44px 18px 100px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress"></div>
+
+<!-- Index rail -->
+<nav class="toc" aria-label="Mục lục">
+  <p class="toc-kicker">Mục lục</p>
+  <a href="#coche">Cơ chế forward pass</a>
+  <a href="#q1">Q1 · Kiến trúc YOLO26</a>
+  <a href="#q2">Q2 · Latency Pi 5</a>
+  <a href="#q3">Q3 · v8 vs v26</a>
+  <a href="#q4">Q4 · Dòng dõi v9–v11</a>
+  <a href="#q5">Q5 · Sanity check</a>
+  <a href="#q6">Q6 · INT8 quantization</a>
+  <a href="#dongdoi">Dòng dõi v1→v26</a>
+  <a href="#thuatngu">Giải thích thuật ngữ</a>
+  <a href="#refs">Tài liệu tham khảo</a>
+</nav>
+
+<div class="wrap">
+
+<header class="page">
+  <div class="kicker">UIT · Đồ án tốt nghiệp · Smart Parking</div>
+  <h1>YOLO Critical Questions —<br><span class="em">verify</span> với nguồn gốc</h1>
+  <p class="subtitle">Smart Parking Management System — pipeline ALPR, target edge Raspberry Pi 5, &lt; 2 s/xe. Companion cho research note <code>research/2026-07-18-yolo-architecture.md</code> (§3.1 cơ chế, §7–§12).</p>
+  <p class="meta">Verify gốc: 19/7/2026 · <strong>Cập nhật pass 2: 21/7/2026</strong> — thêm cơ chế forward pass, Q6 INT8, primary-source abstract, resolve tác giả MAKE. Mọi claim kiểm tra với docs chính thức Ultralytics, source Ultralytics (<code>loss.py</code>/<code>tal.py</code>), paper arXiv, và Crossref — không phải tóm tắt blog.</p>
+</header>
+
+<!-- Mechanics: how YOLO works -->
+<section class="q" id="coche">
+  <h2>Cơ chế — một lần forward pass biến pixel thành bounding box <span class="badge verified">Giải thích</span></h2>
+  <p class="qtext">"YOLO được xây và chạy thế nào?" — mắt xích cơ chế của cả dòng, dùng số liệu cụ thể của YOLOv8n (phiên bản code training của mình nhắm tới), input 640. Đối chiếu <a href="https://docs.ultralytics.com/guides/yolo-architecture/">Ultralytics YOLO architecture guide</a>.</p>
+  <ol>
+    <li><strong>Input → backbone (feature đa tỷ lệ).</strong> Ảnh 640×640×3 qua backbone kiểu CSPDarknet, xuất 3 feature map ở <strong>stride 8/16/32</strong> = lưới <strong>80×80, 40×40, 20×20</strong> (P3/P4/P5). Stride nhỏ giữ chi tiết → vật thể nhỏ (biển số); stride lớn → receptive field rộng → vật thể lớn (thân xe). Block <strong>C2f</strong> (split → <em>n</em> Bottleneck → concat <em>n</em>+2 tensor → conv fuse) + <strong>SPPF</strong> cuối (MaxPool 5×5 lặp 3 lần, concat, conv 1×1).</li>
+    <li><strong>Neck PAN-FPN.</strong> Trộn P3/P4/P5 theo top-down (ngữ nghĩa) + bottom-up (định vị) — mỗi level vừa "biết là gì" vừa "biết ở đâu".</li>
+    <li><strong>Anchor-free grid → anchor point.</strong> Mỗi ô đóng góp 1 anchor point ở tâm ô. Cộng 3 level: 80²+40²+20² = <strong>6400+1600+400 = 8400 dự đoán ứng viên</strong>/ảnh. Là grid S×S của YOLOv1 tổng quát hóa đa tỷ lệ, bỏ ràng buộc "1 ô 1 class".</li>
+    <li><strong>Head decoupled.</strong> Mỗi anchor point → <code>nc + 4·reg_max</code> giá trị: nhánh box <code>4·reg_max</code> channel + nhánh class <code>nc</code> logit. <strong>Không có nhánh objectness riêng</strong> — điểm class (sau sigmoid) chính là confidence (khác v1–v5).</li>
+    <li><strong>DFL decode box.</strong> reshape <code>4·reg_max → (4, 16)</code>, softmax 16 bin mỗi cạnh, lấy <strong>kỳ vọng</strong> → 4 khoảng cách (left, top, right, bottom) từ anchor point; ×stride → pixel; ltrb → (x1,y1,x2,y2). Regress phân phối thay scalar → biên mượt/ổn định cho vật thể nhỏ.</li>
+    <li><strong>Lọc + NMS (chỉ YOLOv8).</strong> ~8400 box thô → drop dưới ngưỡng confidence → <strong>NMS</strong>: sort điểm giảm dần, giữ box cao nhất, loại box IoU &gt; 0.7, lặp. NMS là op tuần tự, dữ liệu-phụ thuộc, nằm ngoài graph tensor → thêm latency + làm rối export/quantize ONNX.</li>
+  </ol>
+  <div class="impl"><strong>YOLO26 rút gọn bước 4–6:</strong> head <strong>one-to-one</strong> mặc định xuất trực tiếp <code>(N, 300, 6)</code> — tối đa 300 detection, mỗi dòng (x1,y1,x2,y2,score,class) — <em>không</em> qua NMS; bỏ DFL → nhánh box regress thẳng 4 khoảng cách không ràng buộc, bỏ softmax-16-bin → graph gọn hơn cho INT8. Cascade ALPR của mình chạy pipeline này 2 lần: pass 1 detect xe → crop ROI → pass 2 detect biển số trên crop (phân giải cao hơn → dễ cho head P3/vật thể nhỏ).</div>
+</section>
+
+<!-- Q1 -->
+<section class="q" id="q1">
+  <h2>Q1 — Các claim kiến trúc của YOLO26 có chính xác không? <span class="badge verified">Đã verify</span></h2>
+  <p class="qtext">Note khẳng định YOLO26 (arXiv:2606.03748) là NMS-free end-to-end, bỏ DFL, dùng optimizer MuSGD, và thêm ProgLoss + STAL. Nguồn gốc có xác nhận điều này không — và arXiv ID đó có tồn tại thật không?</p>
+
+  <h3>Bằng chứng</h3>
+  <ul>
+    <li><strong>arXiv ID tồn tại và khớp:</strong> <a href="https://arxiv.org/abs/2606.03748">arXiv:2606.03748</a> — <em>"Ultralytics YOLO26: Unified Real-Time End-to-End Vision Models"</em>, Jocher, Qiu, Liu, Lyu, Akyon, Kalfaoglu — nộp ngày 2/6/2026. Paper YOLO đầu tiên do chính Ultralytics viết.</li>
+    <li><strong>NMS-free:</strong> docs chính thức: <blockquote>"The default one-to-one detection head produces predictions without non-maximum suppression (NMS), simplifying deployment and reducing post-processing." … "YOLO26 is natively end-to-end by default." — <a href="https://docs.ultralytics.com/models/yolo26/">docs.ultralytics.com/models/yolo26</a></blockquote></li>
+    <li><strong>Bỏ DFL:</strong> <blockquote>"YOLO26 removes Distribution Focal Loss (DFL), reducing detection-head complexity while preserving an unconstrained regression range."</blockquote></li>
+    <li><strong>MuSGD:</strong> <blockquote>"A hybrid optimizer that combines SGD with Muon, adapting optimization ideas from large language model training to computer vision."</blockquote></li>
+    <li><strong>ProgLoss + STAL:</strong> <blockquote>"Progressive Loss shifts training emphasis toward the inference-time head, while STAL improves positive label coverage for small objects."</blockquote></li>
+    <li><strong>Củng cố bằng primary-source — abstract arXiv (re-verify 21/7/2026):</strong> ngoài docs, chính abstract paper (nguồn cấp cao hơn) xác nhận cả bốn claim: <blockquote>"a dual-head design for native NMS-free end-to-end inference" · "removes DFL entirely, yielding a lighter head with unconstrained regression range" · "MuSGD, a hybrid Muon-SGD optimizer adapted from large language model training" · "Progressive Loss, which shifts supervision toward the inference-time head" · "STAL … guarantees positive coverage for small objects." — <a href="https://arxiv.org/abs/2606.03748">abstract arXiv:2606.03748</a></blockquote></li>
+    <li>Corroborate độc lập: Sapkota, Cheppally, Sharda, Karkee, <a href="https://arxiv.org/html/2509.25164v1">arXiv:2509.25164</a> (Cornell / Kansas State) mô tả cùng bốn thay đổi.</li>
+    <li><strong>Lưu ý timeline:</strong> preview tại YOLO Vision, tháng 9/2025 → <a href="https://www.businesswire.com/news/home/20260114168538/en/Ultralytics-Launches-YOLO26-Setting-a-New-Global-Standard-for-Edge-First-Vision-AI">ra mắt chính thức 14/1/2026</a> → paper arXiv 2/6/2026 → <a href="https://github.com/ultralytics/ultralytics/issues/24844">thông báo release-stable (issue #24844)</a>, tháng 6/2026. "Ra mắt tháng 1/2026" của note nhất quán với ngày launch chính thức.</li>
+  </ul>
+  <figure>
+    <img src="https://arxiv.org/html/2606.03748v1/x1.png" alt="Pipeline training YOLO26: backbone và neck dùng chung nuôi hai head detection với STAL và ProgLoss" loading="lazy">
+    <figcaption>Hình: pipeline training YOLO26 — backbone/neck dùng chung nuôi hai head detection song song (one-to-many + one-to-one); STAL cải thiện gán vật thể nhỏ, ProgLoss dịch trọng tâm supervision về phía head lúc inference. Nguồn: <a href="https://arxiv.org/abs/2606.03748">Jocher và cộng sự, 2026, "Ultralytics YOLO26: Unified Real-Time End-to-End Vision Models" (arXiv:2606.03748), Fig. 1</a>.</figcaption>
+  </figure>
+  <div class="impl"><strong>Ý nghĩa cho đồ án:</strong> §4 của research note có thể trích dẫn nguyên văn trong chương Tổng quan. Trích dẫn ngày launch tháng 1/2026 cho tính khả dụng và arXiv:2606.03748 làm tài liệu tham khảo học thuật. Không claim nào bị mâu thuẫn.</div>
+</section>
+
+<!-- Q2 -->
+<section class="q" id="q2">
+  <h2>Q2 — Có số liệu latency Raspberry Pi 5 trích dẫn được không? <span class="badge verified">Đã verify</span> <span class="badge corrected">Sửa 1 citation</span></h2>
+  <p class="qtext">Có thể trích dẫn latency Pi 5 cụ thể cho YOLOv8n / YOLO11n / YOLO26n (ONNX / NCNN) không, và điều đó có ý nghĩa gì cho ngân sách &lt; 2 s/xe?</p>
+
+  <h3>Benchmark Pi 5 chính thức của Ultralytics (YOLO26n, FP32, 640 px, ultralytics 8.4.1, Pi OS Bookworm)</h3>
+  <table>
+    <tr><th>Format</th><th>Latency Pi 5 (ms/ảnh)</th><th>mAP50-95</th></tr>
+    <tr><td><strong>NCNN</strong> (nhanh nhất)</td><td class="win">67.69</td><td>0.4805</td></tr>
+    <tr><td>OpenVINO</td><td>70.74</td><td>0.4818</td></tr>
+    <tr><td>MNN</td><td>90.89</td><td>0.4784</td></tr>
+    <tr><td><strong>ONNX</strong></td><td>130.33</td><td>0.4764</td></tr>
+    <tr><td>TF Lite</td><td>251.41</td><td>0.4764</td></tr>
+    <tr><td>PyTorch</td><td>302.15</td><td>0.4798</td></tr>
+    <tr><td>TorchScript</td><td>357.58</td><td>0.4764</td></tr>
+  </table>
+  <p>Nguồn: <a href="https://docs.ultralytics.com/guides/raspberry-pi/">Ultralytics Raspberry Pi guide</a>. Guide chỉ benchmark YOLO26n/26s ("other model sizes are too big to run on the Raspberry Pis") và nói <em>"NCNN delivers the best inference performance on Raspberry Pi devices because it is highly optimized for … ARM architecture."</em> Cũng báo cáo <strong>YOLO26n vs YOLO11n trên Pi 5 (ONNX): 6.79 → 7.9 FPS (nhanh hơn ≈ 15%)</strong>, tức YOLO11n ONNX ≈ 147 ms/ảnh. YOLOv8 không xuất hiện trong guide hiện tại.</p>
+
+  <h3>Corroborate peer-reviewed + sửa citation</h3>
+  <p>Paper benchmark SBC trích trong note là <em>"MDPI J. Imaging 2026"</em> thực ra được công bố trong <strong><em>Machine Learning and Knowledge Extraction</em> (MAKE)</strong>, vol. 8, no. 7, art. 204, 13/7/2026, DOI <a href="https://www.mdpi.com/2504-4990/8/7/204">10.3390/make8070204</a> (ISSN 2504-4990 và tiền tố DOI <code>make</code> xác nhận journal này). Kết quả trích xuất được: model nano/small cho performance tốt nhất trên SBC; YOLOv9 tới 2.39 FPS trên Pi 5 ở high-power mode (có thể native PyTorch); <strong>YOLOv10n hiệu quả nhất tổng thể</strong>; YOLOv8n / YOLO11n cạnh tranh; RAM usage 4–12% trên Pi 4/5. <strong>Cập nhật 21/7/2026 — tác giả ĐÃ RESOLVE qua Crossref</strong> (10.3390/make8070204): O. Shalash, E. Khatab, A. El-Agamy, L. Elmokadem, Y. Abouelsaad, J. Zaki, M. El-Sayed, H. Said (8 tác giả). Anti-bot MDPI vẫn chặn full-text nên bảng FPS Pi 5 per-model chi tiết cần confirm từ PDF trước khi khóa bảng số chương evaluation.</p>
+
+  <figure>
+    <img src="https://cdn.jsdelivr.net/gh/ultralytics/assets@main/docs/raspberry-pi-yolo26-benchmarks.avif" alt="Tốc độ inference YOLO26n trên Raspberry Pi 5 theo từng format export — NCNN nhanh nhất 67.69 ms, ONNX 130.33 ms" loading="lazy">
+    <figcaption>Hình: benchmark inference YOLO26n theo từng format export trên Raspberry Pi 5 (FP32, 640 px, ultralytics 8.4.1). NCNN nhanh nhất ở 67.69 ms; ONNX Runtime ở 130.33 ms. Nguồn: <a href="https://docs.ultralytics.com/guides/raspberry-pi/">Ultralytics Raspberry Pi Quick Start Guide, 2026</a>.</figcaption>
+  </figure>
+  <figure>
+    <img src="https://cdn.jsdelivr.net/gh/ultralytics/assets@main/docs/yolo26-vs-yolo11-rpi5-onnx-benchmarks.avif" alt="So sánh throughput YOLO26n vs YOLO11n trên Raspberry Pi 5 qua ONNX — YOLO26n nhanh hơn 15%" loading="lazy">
+    <figcaption>Hình: YOLO26n vs YOLO11n throughput trên Raspberry Pi 5 qua ONNX Runtime (6.79 → 7.9 FPS, nhanh hơn ≈15% — không phải con số 43% Xeon). Nguồn: <a href="https://docs.ultralytics.com/guides/raspberry-pi/">Ultralytics Raspberry Pi Quick Start Guide, 2026</a>.</figcaption>
+  </figure>
+  <div class="impl"><strong>Ý nghĩa cho đồ án:</strong> cascade hai detector (xe + biển số) ≈ <strong>136 ms qua NCNN</strong> hoặc ≈ 260 ms qua ONNX Runtime trên Pi 5 ở FP32 — nằm gọn trong ngân sách 2 s. Detection không phải điểm nghẽn; latency OCR là rủi ro tiếp theo cần benchmark. INT8 (tuần 7) chỉ có thể cải thiện thêm các số liệu FP32 này.</div>
+</section>
+
+<!-- Q3 -->
+<section class="q" id="q3">
+  <h2>Q3 — YOLOv8 vs YOLO26: train cái nào? <span class="badge verified">Đã giải quyết — có khuyến nghị</span></h2>
+  <p class="qtext">Quyết định thực tiễn Mode 2, cần có trước khi training detector tuần 3 bắt đầu ngày 29/07/2026.</p>
+
+  <table>
+    <tr><th>Tiêu chí</th><th>YOLOv8 (2023)</th><th>YOLO26 (2026)</th></tr>
+    <tr><td>COCO mAP50-95 (n / s @640)</td><td>37.3 / 44.9</td><td class="win">40.9 / 48.6</td></tr>
+    <tr><td>CPU ONNX, Intel Xeon (n / s)</td><td>80.4 / 128.4 ms</td><td class="win">38.9 / 87.2 ms</td></tr>
+    <tr><td>Bằng chứng ARM Pi 5</td><td>Không có ở guide chính thức hiện tại; paper SBC: cạnh tranh nhưng dưới YOLOv10n</td><td class="win">Bảng chính thức: 67.7 ms NCNN / 130.3 ms ONNX (26n)</td></tr>
+    <tr><td>Hậu xử lý NMS</td><td>Bắt buộc</td><td class="win">Không bắt buộc (end-to-end bản chất)</td></tr>
+    <tr><td>Head regression</td><td>DFL (softmax 16-bin) — thêm op export/quantization</td><td class="win">Không DFL — graph ONNX đơn giản hơn cho INT8</td></tr>
+    <tr><td>Format export</td><td>ONNX, NCNN, OpenVINO, TFLite, TensorRT, CoreML…</td><td>Cùng họ (TensorRT, ONNX, CoreML, LiteRT, OpenVINO, NCNN)</td></tr>
+    <tr><td>Độ chín path INT8</td><td class="win">Chín muồi; nhiều hướng dẫn bên thứ ba</td><td>Graph đơn giản hơn về cấu trúc nhưng ít hướng dẫn công bố — tự validate ở tuần 7</td></tr>
+    <tr><td>Hỗ trợ vật thể nhỏ (biển số)</td><td>Chỉ có TAL</td><td class="win">Dòng TAL + STAL (độ phủ vật thể nhỏ rõ ràng)</td></tr>
+    <tr><td>Khả năng trích dẫn học thuật</td><td>Không có paper — trích dẫn software</td><td class="win">arXiv:2606.03748 (chưa peer-review, nhưng trích dẫn được)</td></tr>
+    <tr><td>Ecosystem / tiền lệ ALPR</td><td class="win">Sâu (3 năm, vd Zhu và cộng sự 2025 detect biển số)</td><td>Mỏng (ra mắt tháng 1/2026)</td></tr>
+    <tr><td>License</td><td colspan="2">Cả hai đều AGPL-3.0 + Enterprise (đã verify trên cả hai trang docs) — không phải điểm khác biệt</td></tr>
+    <tr><td>Chi phí chuyển đổi API</td><td colspan="2">Cùng package <code>ultralytics</code> — chỉ khác một chuỗi tên checkpoint</td></tr>
+  </table>
+
+  <figure>
+    <img src="https://cdn.jsdelivr.net/gh/ultralytics/assets@main/docs/Ultralytics-YOLO26-Benchmark.jpg" alt="So sánh YOLO26 vs các phiên bản YOLO trước: mAP vs latency CPU/GPU" loading="lazy">
+    <figcaption>Hình: YOLO26 vs YOLO11, YOLOv10, YOLOv9, YOLOv8 — accuracy (mAP50-95 trên COCO) so với latency CPU ONNX. YOLO26n/s cho trade-off accuracy-tốc độ tốt nhất ở mọi scale. Nguồn: <a href="https://docs.ultralytics.com/models/yolo26/">Ultralytics YOLO26 official docs, 2026</a>.</figcaption>
+  </figure>
+  <figure>
+    <img src="https://cdn.jsdelivr.net/gh/ultralytics/assets@main/docs/Ultralytics-YOLO26-Benchmark-E2E.jpg" alt="YOLO26 inference end-to-end NMS-free so với các model dùng NMS: so sánh latency" loading="lazy">
+    <figcaption>Hình: latency inference end-to-end (NMS-free) của YOLO26 so với các model dùng NMS — cho thấy lợi thế deploy của head one-to-one mặc định trên CPU/edge. Nguồn: <a href="https://docs.ultralytics.com/models/yolo26/">Ultralytics YOLO26 official docs, 2026</a>.</figcaption>
+  </figure>
+  <h3>Khuyến nghị</h3>
+  <p>Train <strong>YOLO26n làm chính</strong> (giai đoạn xe + biển số) với <strong>YOLOv8n làm baseline fallback đã train</strong> — chi phí biên chỉ là một lần chạy Colab thêm vì cả hai dùng chung API và format dataset. YOLO26n vượt trội về accuracy (+3.6 mAP), tốc độ CPU, đơn giản hóa export edge (không NMS, không DFL), và gán vật thể nhỏ (STAL — biển số là trường hợp vật thể nhỏ khó nhất của mình). Train cả hai cũng cho ra miễn phí bảng so sánh model cho chương evaluation.</p>
+  <h3>Rủi ro</h3>
+  <ul>
+    <li>Tiền lệ ALPR bên thứ ba cho YOLO26 còn mỏng — nếu fine-tuning MuSGD bất thường trên dataset nhỏ của mình, fallback về YOLOv8n (run baseline là bắt buộc, không phải tùy chọn).</li>
+    <li>Bằng chứng INT8 bên thứ ba cho head DFL-free đã thu hẹp (xem <strong>Q6</strong>: mechanism arXiv:2601.12882 + datapoint gray-lit Hailo-8L) nhưng chưa có số Pi 5 CPU/ONNX — tự đo mAP drop static-INT8 ở tuần 7 vẫn bắt buộc.</li>
+    <li>Mọi số liệu tốc độ headline đều là của Ultralytics tự công bố (thiên lệch vendor) — đo đạc của mình trên Pi 5 tuần 8–9 mới là chính thức.</li>
+    <li>AGPL-3.0 áp dụng cho cả hai — code đồ án khi release vẫn phải tương thích open-source dù chọn bên nào.</li>
+  </ul>
+</section>
+
+<!-- Q4 -->
+<section class="q" id="q4">
+  <h2>Q4 — Khoảng trống dòng dõi v9 / v10 / v11 <span class="badge verified">Đã lấp</span></h2>
+  <p class="qtext">Cơ chế ngắn gọn kèm trích dẫn gốc, đủ để có bảng dòng dõi v1→v26 hoàn chỉnh.</p>
+  <ul>
+    <li><strong>YOLOv9</strong> (Wang, Yeh, Liao, 2024 — <a href="https://arxiv.org/abs/2402.13616">arXiv:2402.13616</a>): tấn công vấn đề mất thông tin trong deep net. <strong>PGI</strong> cung cấp "complete input information for the target task … so that reliable gradient information can be obtained"; <strong>GELAN</strong> là kiến trúc dùng convolution thông thường, tận dụng tham số tốt hơn thiết kế depthwise-conv. Kết quả train-from-scratch vượt SOTA pre-trained trên COCO.</li>
+    <li><strong>YOLOv10</strong> (Wang và cộng sự, NeurIPS 2024 — <a href="https://arxiv.org/abs/2405.14458">arXiv:2405.14458</a>): tổ tiên của thiết kế NMS-free YOLO26. Abstract: <em>"we first present the consistent dual assignments for NMS-free training of YOLOs, which brings competitive performance and low inference latency simultaneously"</em> — head one-to-many train, head one-to-one infer. Trích dẫn paper này khi giải thích nguồn gốc tính chất end-to-end của YOLO26.</li>
+    <li><strong>YOLO11</strong> (Ultralytics, tháng 9/2024 — <a href="https://docs.ultralytics.com/models/yolo11/">docs chính thức</a>): bản refresh hiệu quả của YOLOv8; không có paper chính thức ("Ultralytics has not published a formal research paper for YOLO11"). Thay C2f bằng block <strong>C3k2</strong> và thêm <strong>C2PSA</strong> partial spatial attention sau SPPF (tên component theo Khanam &amp; Hussain, <a href="https://arxiv.org/abs/2410.17725">arXiv:2410.17725</a>). YOLO11n: 39.5 mAP / 56.1 ms CPU ONNX; YOLO11m ngang mAP YOLOv8m với ít hơn 22% tham số.</li>
+  </ul>
+  <figure>
+    <img src="https://arxiv.org/html/2405.14458v1/x1.png" alt="YOLOv10: so sánh latency-accuracy và model size-accuracy với các detector real-time trước đó" loading="lazy">
+    <figcaption>Hình: YOLOv10 — trade-off latency-accuracy (trái) và kích thước model-accuracy (phải) so với các detector real-time trước đó. Thiết kế NMS-free end-to-end đạt accuracy cạnh tranh ở latency inference thấp hơn, đây là pattern thiết kế YOLO26 kế thừa. Nguồn: <a href="https://arxiv.org/abs/2405.14458">A. Wang và cộng sự, 2024, "YOLOv10: Real-Time End-to-End Object Detection" (NeurIPS 2024, arXiv:2405.14458), Fig. 1</a>.</figcaption>
+  </figure>
+</section>
+
+<!-- Q5 -->
+<section class="q" id="q5">
+  <h2>Q5 — Sanity check các claim đã đánh dấu <span class="badge verified">Đã verify</span> <span class="badge corrected">Sửa 1 phạm vi</span></h2>
+  <p class="qtext">(a) Claim "nhanh hơn 43% CPU ONNX vs YOLO11n"; (b) "không có paper peer-review cho YOLOv8" tính đến 2026.</p>
+  <ul>
+    <li><strong>(a) Claim 43% — nguyên văn đã verify, phạm vi đã sửa.</strong> Docs: <blockquote>"up to 43% faster CPU ONNX inference for YOLO26n compared with YOLO11n on an Intel Xeon CPU @ 2.00 GHz" — <a href="https://docs.ultralytics.com/models/yolo26/">docs YOLO26</a></blockquote> Trên ARM Pi 5, guide chính thức của Ultralytics chỉ đo được <strong>≈ 15%</strong> (6.79 → 7.9 FPS, ONNX) — <a href="https://docs.ultralytics.com/guides/raspberry-pi/">Raspberry Pi guide</a>. <strong>Con số 43% không transfer sang ARM</strong>; trích 43% chặt chẽ như số Intel Xeon và ~15% như số Pi 5.</li>
+    <li><strong>(b) Trạng thái paper YOLOv8 — vẫn đúng, tháng 7/2026.</strong> Docs FAQ: <blockquote>"Ultralytics has not published a formal research paper for YOLOv8 due to the rapidly evolving nature of the models." — <a href="https://docs.ultralytics.com/models/yolov8/">docs YOLOv8</a></blockquote> Tương tự cho YOLO11. YOLO26 là thế hệ đầu tiên của Ultralytics có paper arXiv (2606.03748) — trích dẫn được, dù arXiv không phải peer review.</li>
+  </ul>
+</section>
+
+<!-- Q6 -->
+<section class="q" id="q6">
+  <h2>Q6 — Có bằng chứng INT8 cho head DFL-free của YOLO26 không? <span class="badge verified">Thu hẹp</span> <span class="badge unresolved">Chưa có số Pi 5</span></h2>
+  <p class="qtext">Câu hỏi tuần 7: bỏ DFL có thật sự giúp quantize INT8 không, và mAP giữ được bao nhiêu? (Mở rộng note §12, thêm 21/7/2026.)</p>
+  <ul>
+    <li><strong>Cơ chế (arXiv trích dẫn được):</strong> S. Chakrabarty, <a href="https://arxiv.org/abs/2601.12882">arXiv:2601.12882</a>: <blockquote>"On specialized edge hardware (NPUs and DSPs), these Softmax layers are notoriously difficult to quantize and often become the primary latency bottleneck."</blockquote> DFL = softmax 16-bin mỗi cạnh; bỏ nó cắt đúng op khó quantize → biện minh kiến trúc cho việc chọn YOLO26 ở path INT8.</li>
+    <li><strong>Claim tổng quan (định tính):</strong> R. Sapkota &amp; M. Karkee, <a href="https://arxiv.org/abs/2510.09653">arXiv:2510.09653</a>: <em>"INT8 exports of YOLO26 retain nearly the same mAP as FP32 versions"</em> — không kèm số per-variant.</li>
+    <li><strong>Datapoint thực nghiệm (GRAY LITERATURE — blog, KHÔNG peer-review):</strong> D. Dubinsky, <a href="https://danieldubinsky.github.io/personal-site/case-studies/yolo26n-hailo-L8/">port YOLO26n sang Hailo-8L</a> — retention INT8 so với FP32:</li>
+  </ul>
+  <table>
+    <tr><th>Model</th><th>Retention INT8</th><th>Ghi chú</th></tr>
+    <tr><td>YOLO26n</td><td class="win">92.3%</td><td>mAP 0.402 → 0.371 (drop ~7.7%)</td></tr>
+    <tr><td>YOLO26s</td><td>88.9%</td><td>—</td></tr>
+    <tr><td>YOLO26m</td><td class="no">84.0%</td><td>tệ hơn cả s <em>và</em> l — non-monotonic</td></tr>
+    <tr><td>YOLO26l</td><td>87.4%</td><td>—</td></tr>
+  </table>
+  <p>Tác giả gán drop cho <em>"the sensitivity of the non-NMS heads to quantization noise."</em> Latency trên Hailo-8L: 11.56 ms / 86.5 FPS (C++), ~13× so với baseline CPU ONNX.</p>
+  <h3>Cảnh báo chuyển giao (bắt buộc đọc)</h3>
+  <ul>
+    <li><strong>Khác phần cứng:</strong> Hailo-8L là NPU chuyên dụng + hybrid postproc CPU, KHÔNG phải path Pi 5 CPU-only + ONNX Runtime của mình. Retention phụ thuộc toolchain quantize (Hailo Dataflow Compiler vs ORT static INT8) → các % trên <strong>không transfer trực tiếp</strong> sang Pi 5.</li>
+    <li><strong>Non-monotonic theo size:</strong> m (84.0%) tệ hơn s (88.9%) và l (87.4%) → không được suy "model nhỏ hơn = drop ít hơn"; phải đo riêng YOLO26n (biến thể mình deploy).</li>
+    <li><strong>Gray literature:</strong> blog cá nhân — dùng directional, số chính thức chương evaluation phải là đo của mình.</li>
+  </ul>
+  <div class="impl"><strong>Ý nghĩa cho đồ án:</strong> tín hiệu tích cực — YOLO26n giữ retention cao nhất trong họ (~92% trên Hailo) + graph DFL-/NMS-free đơn giản cho ORT INT8. Nhưng head one-to-one NMS-free <em>cũng</em> nhạy quant noise → tuần 7 benchmark <strong>cả mAP drop lẫn latency</strong> sau static-INT8 trên Pi 5, không chỉ latency.</div>
+</section>
+
+<!-- Lineage table -->
+<section class="q" id="dongdoi">
+  <h2>Tóm tắt dòng dõi YOLO (v1 → v26)</h2>
+  <figure>
+    <img src="https://arxiv.org/html/2304.00501v5/x3.png" alt="Timeline các phiên bản YOLO từ 2015 đến 2023" loading="lazy">
+    <figcaption>Hình: timeline các phiên bản YOLO (tới mốc cutoff 2023 của survey; YOLOv9–v11 và YOLO26 tiếp nối 2024–2026, xem bảng bên dưới). Nguồn: <a href="https://arxiv.org/abs/2304.00501">J. Terven &amp; D. Cordova-Esparza, 2023, arXiv:2304.00501, Fig. 1</a>.</figcaption>
+  </figure>
+  <figure>
+    <img src="https://arxiv.org/html/2304.00501v5/extracted/5158657/figures/yolo_output_format.png" alt="Định dạng output dựa trên lưới ô của YOLOv1" loading="lazy">
+    <figcaption>Hình: định dạng output của YOLO gốc — lưới S×S trong đó mỗi ô dự đoán bounding box, objectness confidence, và xác suất class trong một lần forward pass; gốc rễ khái niệm của mọi phiên bản sau này. Nguồn: <a href="https://arxiv.org/abs/2304.00501">J. Terven &amp; D. Cordova-Esparza, 2023, arXiv:2304.00501, Fig. 4</a> (minh họa <a href="https://arxiv.org/abs/1506.02640">Redmon và cộng sự, 2016</a>).</figcaption>
+  </figure>
+  <table>
+    <tr><th>Phiên bản</th><th>Năm</th><th>Thay đổi chính</th><th>Anchor-based?</th><th>NMS-free?</th></tr>
+    <tr><td>YOLOv1</td><td>2016</td><td>Regression lưới single-pass; hợp nhất detection thành một CNN (<a href="https://arxiv.org/abs/1506.02640">arXiv:1506.02640</a>)</td><td class="no">Không (regression trực tiếp)</td><td class="no">Không</td></tr>
+    <tr><td>YOLOv2/v3</td><td>2017–18</td><td>Anchor prior (k-means); Darknet-53 + head kiểu FPN 3-scale (<a href="https://arxiv.org/abs/2304.00501">survey</a>)</td><td class="yes">Có</td><td class="no">Không</td></tr>
+    <tr><td>YOLOv4</td><td>2020</td><td>CSPDarknet53, neck SPP + PANet, Bag-of-Freebies/Specials (<a href="https://arxiv.org/abs/2304.00501">survey</a>)</td><td class="yes">Có</td><td class="no">Không</td></tr>
+    <tr><td>YOLOv5</td><td>2020</td><td>Viết lại PyTorch, SPPF, CSP-PAN, AutoAnchor, scale n/s/m/l/x (<a href="https://docs.ultralytics.com/models/yolov5/">docs</a>)</td><td class="yes">Có</td><td class="no">Không</td></tr>
+    <tr><td>YOLOv8</td><td>2023</td><td>Block C2f, head decoupled, gán TAL, loss CIoU + DFL (<a href="https://docs.ultralytics.com/models/yolov8/">docs</a>)</td><td class="no">Không (anchor-free)</td><td class="no">Không</td></tr>
+    <tr><td>YOLOv9</td><td>2024</td><td>PGI + GELAN — fix gradient/luồng thông tin (<a href="https://arxiv.org/abs/2402.13616">arXiv:2402.13616</a>)</td><td class="no">Không</td><td class="no">Không</td></tr>
+    <tr><td>YOLOv10</td><td>2024</td><td>Consistent dual assignments → NMS-free end-to-end (<a href="https://arxiv.org/abs/2405.14458">arXiv:2405.14458</a>, NeurIPS 2024)</td><td class="no">Không</td><td class="yes">Có (đầu tiên)</td></tr>
+    <tr><td>YOLO11</td><td>2024</td><td>Refresh hiệu quả C3k2 + C2PSA; giảm 22% tham số vs v8m cùng mAP (<a href="https://docs.ultralytics.com/models/yolo11/">docs</a>)</td><td class="no">Không</td><td class="no">Không</td></tr>
+    <tr><td><strong>YOLO26</strong></td><td>2026</td><td>End-to-end mặc định (dòng v10), bỏ DFL, MuSGD, ProgLoss + STAL; ưu tiên edge/CPU (<a href="https://docs.ultralytics.com/models/yolo26/">docs</a>, <a href="https://arxiv.org/abs/2606.03748">arXiv:2606.03748</a>)</td><td class="no">Không</td><td class="yes">Có (mặc định)</td></tr>
+  </table>
+</section>
+
+<!-- Glossary / Giải thích thuật ngữ -->
+<section class="q" id="thuatngu">
+  <h2>Giải thích thuật ngữ <span class="badge verified">Glossary</span></h2>
+  <p class="qtext">Từ điển nhanh các thuật ngữ kỹ thuật xuất hiện trong tài liệu — giữ nguyên tiếng Anh, giải thích tiếng Việt (theo quy ước đồ án: thuật ngữ tiếng Anh giữ nguyên).</p>
+
+  <h3>Kiến trúc &amp; luồng dữ liệu</h3>
+  <dl class="terms">
+    <div class="term"><dt>YOLO <span class="vi">You Only Look Once</span></dt><dd>Họ detector <em>single-stage</em>: phát hiện toàn bộ vật thể trong một lần forward pass duy nhất, thay vì tách bước đề xuất vùng rồi phân loại.</dd></div>
+    <div class="term"><dt>ALPR</dt><dd>Automatic License Plate Recognition — pipeline nhận dạng biển số tự động: detect xe → detect biển số → OCR đọc ký tự.</dd></div>
+    <div class="term"><dt>single-stage vs two-stage</dt><dd>Single-stage (YOLO) dự đoán box trong 1 pass; two-stage (Faster R-CNN) đề xuất vùng ứng viên rồi mới phân loại từng vùng — chính xác hơn chút nhưng chậm hơn nhiều.</dd></div>
+    <div class="term"><dt>backbone</dt><dd>Mạng CNN đầu tiên, trích đặc trưng (feature) từ ảnh thô. YOLOv8 dùng biến thể CSPDarknet.</dd></div>
+    <div class="term"><dt>neck (FPN / PAN)</dt><dd>Tầng giữa, hợp nhất feature ở nhiều tỷ lệ (top-down + bottom-up) trước khi vào head.</dd></div>
+    <div class="term"><dt>head</dt><dd>Tầng cuối, biến feature thành dự đoán cụ thể: tọa độ box + điểm class.</dd></div>
+    <div class="term"><dt>feature map / P3·P4·P5</dt><dd>Bản đồ đặc trưng ở các độ sâu khác nhau; P3/P4/P5 tương ứng stride 8/16/32.</dd></div>
+    <div class="term"><dt>stride</dt><dd>Hệ số thu nhỏ so với ảnh gốc. Stride 8 → lưới mịn (bắt vật thể nhỏ); stride 32 → lưới thô (vật thể lớn).</dd></div>
+    <div class="term"><dt>receptive field</dt><dd>Vùng ảnh gốc mà một điểm trên feature map "nhìn thấy". Càng sâu càng rộng.</dd></div>
+    <div class="term"><dt>C2f / SPPF / CSPDarknet</dt><dd>Các khối cấu thành backbone/neck YOLOv8: C2f = CSP bottleneck fusion; SPPF = spatial pyramid pooling nhanh, mở rộng receptive field.</dd></div>
+    <div class="term"><dt>C3k2 / C2PSA</dt><dd>Khối mới của YOLO11 thay/bổ sung cho C2f (C3k2) và thêm partial spatial attention (C2PSA).</dd></div>
+    <div class="term"><dt>bounding box</dt><dd>Hộp chữ nhật bao vật thể, biểu diễn bằng 4 số (x1,y1,x2,y2) hoặc tâm+kích thước.</dd></div>
+    <div class="term"><dt>grid cell / anchor point</dt><dd>Ô lưới trên feature map. YOLOv8 anchor-free: mỗi ô đóng góp 1 anchor point ở tâm, dự đoán box tương đối điểm đó.</dd></div>
+    <div class="term"><dt>anchor-based vs anchor-free</dt><dd>Anchor-based dùng các hộp mẫu (prior) định sẵn; anchor-free bỏ chúng, regress trực tiếp — tránh phải tinh chỉnh anchor theo dataset.</dd></div>
+  </dl>
+
+  <h3>Head &amp; hàm mất mát</h3>
+  <dl class="terms">
+    <div class="term"><dt>decoupled head</dt><dd>Head tách hai nhánh song song: một dự đoán box, một dự đoán class — giảm nhiễu gradient giữa hai mục tiêu.</dd></div>
+    <div class="term"><dt>objectness / confidence</dt><dd>Điểm "ô này có chứa vật thể không" và độ tin của dự đoán. YOLOv8 bỏ nhánh objectness riêng — dùng thẳng điểm class.</dd></div>
+    <div class="term"><dt>logit / softmax / sigmoid</dt><dd>Logit = điểm thô trước chuẩn hóa; softmax → phân phối xác suất trên nhiều lớp; sigmoid → xác suất độc lập [0,1].</dd></div>
+    <div class="term"><dt>reg_max</dt><dd>Số bin rời rạc DFL dùng để biểu diễn mỗi cạnh box (mặc định 16).</dd></div>
+    <div class="term"><dt>DFL <span class="vi">Distribution Focal Loss</span></dt><dd>Regress mỗi cạnh box dưới dạng phân phối xác suất trên reg_max bin rồi lấy kỳ vọng, thay vì một số vô hướng — biên mượt hơn. YOLO26 bỏ DFL.</dd></div>
+    <div class="term"><dt>IoU</dt><dd>Intersection over Union — tỷ lệ chồng lấp giữa box dự đoán và ground truth; thước đo khớp box.</dd></div>
+    <div class="term"><dt>CIoU / WIoU</dt><dd>Các loss box dựa trên IoU: CIoU phạt thêm khoảng cách tâm + lệch tỷ lệ; WIoU (Wise-IoU) bền hơn với biển số nhỏ/che khuất.</dd></div>
+    <div class="term"><dt>NMS <span class="vi">Non-Maximum Suppression</span></dt><dd>Hậu xử lý lọc box trùng: giữ box điểm cao nhất, loại box khác có IoU vượt ngưỡng. YOLO26 bỏ nhờ head one-to-one.</dd></div>
+    <div class="term"><dt>one-to-one / one-to-many head</dt><dd>One-to-many: nhiều anchor gán cho 1 vật thể (cần NMS, dùng lúc train); one-to-one: mỗi vật thể 1 dự đoán (bỏ NMS, dùng lúc inference).</dd></div>
+  </dl>
+
+  <h3>Gán nhãn &amp; huấn luyện</h3>
+  <dl class="terms">
+    <div class="term"><dt>TAL <span class="vi">Task-Aligned Assigner</span></dt><dd>Cách gán positive/negative lúc train theo điểm căn chỉnh <code>t = s^α · u^β</code> (kết hợp điểm class s và IoU u), thay ngưỡng IoU thủ công.</dd></div>
+    <div class="term"><dt>STAL</dt><dd>Small-Target-Aware Label Assignment (YOLO26) — đảm bảo độ phủ anchor positive cho vật thể nhỏ như biển số.</dd></div>
+    <div class="term"><dt>ProgLoss</dt><dd>Progressive Loss — dịch dần trọng tâm supervision về phía head one-to-one dùng lúc inference.</dd></div>
+    <div class="term"><dt>MuSGD</dt><dd>Optimizer hybrid của YOLO26, kết hợp SGD với "Muon" (mượn từ training large-language-model) cho hội tụ ổn định hơn.</dd></div>
+    <div class="term"><dt>PGI / GELAN</dt><dd>YOLOv9: PGI (Programmable Gradient Information) chống mất thông tin gradient; GELAN là kiến trúc layer-aggregation hiệu quả.</dd></div>
+    <div class="term"><dt>baseline / fallback / fine-tune</dt><dd>Baseline = mốc so sánh; fallback = phương án dự phòng; fine-tune = huấn luyện tiếp model đã pre-train trên dataset của mình.</dd></div>
+  </dl>
+
+  <h3>Triển khai edge &amp; quantization</h3>
+  <dl class="terms">
+    <div class="term"><dt>edge AI / Raspberry Pi 5</dt><dd>Chạy inference ngay trên thiết bị biên tài nguyên hạn chế (Pi 5 CPU-only) thay vì server/cloud.</dd></div>
+    <div class="term"><dt>ONNX / ONNX Runtime (ORT)</dt><dd>ONNX = định dạng model trung gian đa nền tảng; ORT = engine chạy model ONNX, dùng cho path CPU của mình.</dd></div>
+    <div class="term"><dt>NCNN / OpenVINO / TensorRT / TFLite</dt><dd>Các runtime/format inference tối ưu theo phần cứng: NCNN cho ARM (nhanh nhất trên Pi 5), OpenVINO cho Intel, TensorRT cho NVIDIA, TFLite cho mobile.</dd></div>
+    <div class="term"><dt>quantization INT8 / FP32 / FP16</dt><dd>Hạ độ chính xác số của model (FP32 → FP16 → INT8) để giảm kích thước + tăng tốc, đổi lấy chút mAP. Static INT8 hiệu chỉnh bằng dữ liệu mẫu.</dd></div>
+    <div class="term"><dt>latency / throughput (FPS)</dt><dd>Latency = thời gian xử lý 1 ảnh (ms); throughput = số ảnh/giây (FPS). Nghịch đảo gần đúng của nhau.</dd></div>
+    <div class="term"><dt>NPU / DSP</dt><dd>Bộ tăng tốc AI chuyên dụng (vd Hailo-8L) / bộ xử lý tín hiệu số — khác CPU thường; kết quả quantize không transfer trực tiếp giữa chúng.</dd></div>
+    <div class="term"><dt>SBC <span class="vi">Single-Board Computer</span></dt><dd>Máy tính bảng đơn (Raspberry Pi, Jetson Nano, LattePanda…) — nền tảng edge của đồ án.</dd></div>
+  </dl>
+
+  <h3>Chỉ số đánh giá</h3>
+  <dl class="terms">
+    <div class="term"><dt>mAP / mAP50-95</dt><dd>mean Average Precision — độ chính xác tổng hợp của detector. mAP50-95 lấy trung bình qua nhiều ngưỡng IoU 0.5→0.95 (chuẩn COCO), khắt khe hơn mAP@0.5.</dd></div>
+    <div class="term"><dt>COCO</dt><dd>Dataset benchmark object-detection chuẩn (80 lớp) — mọi số mAP headline trong tài liệu đo trên COCO val.</dd></div>
+    <div class="term"><dt>precision / recall</dt><dd>Precision = tỷ lệ dự đoán đúng trong các box báo ra; recall = tỷ lệ vật thể thật được bắt. Đánh đổi qua ngưỡng confidence.</dd></div>
+    <div class="term"><dt>retention (INT8)</dt><dd>Tỷ lệ mAP còn giữ được sau quantize so với FP32; vd 92.3% nghĩa mất ~7.7% chất lượng.</dd></div>
+  </dl>
+</section>
+
+<!-- References -->
+<section class="q" id="refs">
+  <h2>Tài liệu tham khảo</h2>
+  <ol class="refs">
+    <li>G. Jocher et al., "Ultralytics YOLO26: Unified Real-Time End-to-End Vision Models," arXiv:2606.03748, 2026. <a href="https://arxiv.org/abs/2606.03748">arxiv.org/abs/2606.03748</a></li>
+    <li>Ultralytics, "Ultralytics YOLO26" (model docs). <a href="https://docs.ultralytics.com/models/yolo26/">docs.ultralytics.com/models/yolo26</a></li>
+    <li>Ultralytics, "Quick Start Guide: Raspberry Pi" (benchmark Pi 5, truy cập 19/7/2026). <a href="https://docs.ultralytics.com/guides/raspberry-pi/">docs.ultralytics.com/guides/raspberry-pi</a></li>
+    <li>Ultralytics, "Ultralytics YOLOv8" (model docs + citation FAQ). <a href="https://docs.ultralytics.com/models/yolov8/">docs.ultralytics.com/models/yolov8</a></li>
+    <li>Ultralytics, "Ultralytics YOLO11" (model docs). <a href="https://docs.ultralytics.com/models/yolo11/">docs.ultralytics.com/models/yolo11</a></li>
+    <li>O. Shalash, E. Khatab, A. El-Agamy, L. Elmokadem, Y. Abouelsaad, J. Zaki, M. El-Sayed, and H. Said, "Benchmarking YOLOv8–YOLOv12 for Real-Time Object Detection on Single-Board Computers," <em>Mach. Learn. Knowl. Extr.</em>, vol. 8, no. 7, art. 204, 2026. DOI 10.3390/make8070204. <a href="https://www.mdpi.com/2504-4990/8/7/204">mdpi.com/2504-4990/8/7/204</a> (tác giả verify qua Crossref, 21/7/2026)</li>
+    <li>C.-Y. Wang, I-H. Yeh, H.-Y. M. Liao, "YOLOv9: Learning What You Want to Learn Using Programmable Gradient Information," arXiv:2402.13616, 2024. <a href="https://arxiv.org/abs/2402.13616">arxiv.org/abs/2402.13616</a></li>
+    <li>A. Wang et al., "YOLOv10: Real-Time End-to-End Object Detection," NeurIPS 2024, arXiv:2405.14458. <a href="https://arxiv.org/abs/2405.14458">arxiv.org/abs/2405.14458</a></li>
+    <li>R. Khanam and M. Hussain, "YOLOv11: An Overview of the Key Architectural Enhancements," arXiv:2410.17725, 2024. <a href="https://arxiv.org/abs/2410.17725">arxiv.org/abs/2410.17725</a></li>
+    <li>R. Sapkota et al., "YOLO26: Key Architectural Enhancements and Performance Benchmarking for Real-Time Object Detection," arXiv:2509.25164, 2025. <a href="https://arxiv.org/html/2509.25164v1">arxiv.org/abs/2509.25164</a></li>
+    <li>Businesswire, "Ultralytics Launches YOLO26 …," 14/1/2026. <a href="https://www.businesswire.com/news/home/20260114168538/en/Ultralytics-Launches-YOLO26-Setting-a-New-Global-Standard-for-Edge-First-Vision-AI">businesswire.com</a></li>
+    <li>Ultralytics GitHub issue #24844 (thông báo release-stable YOLO26). <a href="https://github.com/ultralytics/ultralytics/issues/24844">github.com/ultralytics/ultralytics/issues/24844</a></li>
+    <li>Ultralytics, "YOLO Architecture Guide" (cơ chế forward pass, C2f/SPPF/decoupled head/DFL). <a href="https://docs.ultralytics.com/guides/yolo-architecture/">docs.ultralytics.com/guides/yolo-architecture</a></li>
+    <li>S. Chakrabarty, "YOLO26: An Analysis of NMS-Free End to End Framework for Real-Time Object Detection," arXiv:2601.12882, 2026. <a href="https://arxiv.org/abs/2601.12882">arxiv.org/abs/2601.12882</a></li>
+    <li>R. Sapkota and M. Karkee, "Ultralytics YOLO Evolution: An Overview of YOLO26, YOLO11, YOLOv8 and YOLOv5 Object Detectors …," arXiv:2510.09653, 2025. <a href="https://arxiv.org/abs/2510.09653">arxiv.org/abs/2510.09653</a></li>
+    <li>D. Dubinsky, "Porting YOLO26n to the Hailo-8L" (practitioner case study — gray literature, INT8 retention datapoint). <a href="https://danieldubinsky.github.io/personal-site/case-studies/yolo26n-hailo-L8/">danieldubinsky.github.io/personal-site/case-studies/yolo26n-hailo-L8</a></li>
+  </ol>
+  <p class="colophon">UIT 2026 · Smart Parking · YOLO literature review · cập nhật 2026-07-21</p>
+</section>
+
+</div>
+
+<button class="totop" id="totop" aria-label="Lên đầu trang">↑</button>
+
+<script>
+  /* ===========================================================
+     Scroll progress bar + active-TOC highlight + back-to-top.
+     Vanilla JS, no dependencies.
+     =========================================================== */
+  const progress = document.getElementById('progress');
+  const totop = document.getElementById('totop');
+  const tocLinks = Array.from(document.querySelectorAll('nav.toc a'));
+  const sections = tocLinks.map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+
+  function onScroll() {
+    const h = document.documentElement;
+    const scrolled = h.scrollTop / (h.scrollHeight - h.clientHeight);
+    progress.style.width = (scrolled * 100) + '%';
+    totop.classList.toggle('show', h.scrollTop > 600);
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  /* Highlight the TOC entry for the section nearest the top */
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        const id = e.target.getAttribute('id');
+        tocLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + id));
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px', threshold: 0 });
+  sections.forEach(s => io.observe(s));
+
+  totop.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+</script>
+
+</body>
+</html>

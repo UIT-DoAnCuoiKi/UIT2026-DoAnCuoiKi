@@ -1,6 +1,6 @@
-# Research notes
+# Ghi chú nghiên cứu (Research notes)
 
-Output directory for the `research-assistant` skill and `research-agent` subagent.
+Thư mục output cho skill `research-assistant` và subagent `research-agent`.
 
-- One markdown file per research topic: `YYYY-MM-DD-<topic>.md`
-- BibTeX entries collected in `refs.bib` (merged into report/ bibliography later).
+- Mỗi topic nghiên cứu một file markdown: `YYYY-MM-DD-<topic>.md`
+- BibTeX entries gom vào `refs.bib` (sẽ merge vào bibliography của `report/` sau).
