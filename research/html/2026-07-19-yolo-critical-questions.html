@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>YOLO Critical Questions — Verified (cập nhật 2026-07-21)</title>
+<title>YOLO — Kiểm chứng câu hỏi then chốt (cập nhật 2026-07-21)</title>
 
 <!-- Fonts: Fraunces (editorial serif display) + Hanken Grotesk (body sans) + Spline Sans Mono (code) -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -362,6 +362,7 @@
   <a href="#q4">Q4 · Dòng dõi v9–v11</a>
   <a href="#q5">Q5 · Sanity check</a>
   <a href="#q6">Q6 · INT8 quantization</a>
+  <a href="#tienhoa">Vì sao YOLO tiến hóa</a>
   <a href="#dongdoi">Dòng dõi v1→v26</a>
   <a href="#thuatngu">Giải thích thuật ngữ</a>
   <a href="#refs">Tài liệu tham khảo</a>
@@ -370,31 +371,39 @@
 <div class="wrap">
 
 <header class="page">
-  <div class="kicker">UIT · Đồ án tốt nghiệp · Smart Parking</div>
-  <h1>YOLO Critical Questions —<br><span class="em">verify</span> với nguồn gốc</h1>
-  <p class="subtitle">Smart Parking Management System — pipeline ALPR, target edge Raspberry Pi 5, &lt; 2 s/xe. Companion cho research note <code>research/2026-07-18-yolo-architecture.md</code> (§3.1 cơ chế, §7–§12).</p>
-  <p class="meta">Verify gốc: 19/7/2026 · <strong>Cập nhật pass 2: 21/7/2026</strong> — thêm cơ chế forward pass, Q6 INT8, primary-source abstract, resolve tác giả MAKE. Mọi claim kiểm tra với docs chính thức Ultralytics, source Ultralytics (<code>loss.py</code>/<code>tal.py</code>), paper arXiv, và Crossref — không phải tóm tắt blog.</p>
+  <div class="kicker">UIT · Đồ án tốt nghiệp · Bãi xe thông minh</div>
+  <h1>YOLO — kiểm chứng các câu hỏi<br><span class="em">then chốt</span> theo nguồn gốc</h1>
+  <p class="subtitle">Hệ thống quản lý bãi xe thông minh — pipeline ALPR, triển khai trên edge Raspberry Pi 5, &lt; 2 s/xe. Tài liệu đi kèm ghi chú nghiên cứu <a href="2026-07-18-yolo-architecture.md"><code>research/2026-07-18-yolo-architecture.md</code></a> (<a href="2026-07-18-yolo-architecture.md">§3.1 cơ chế</a>, <a href="2026-07-18-yolo-architecture.md">§7–§12</a>).</p>
+  <p class="meta">Kiểm chứng gốc: 19/7/2026 · <strong>Cập nhật lượt 2: 21/7/2026</strong> — thêm cơ chế forward pass, <a href="#q6">Q6</a> INT8, trích dẫn abstract gốc, bổ sung tác giả MAKE. Mọi luận điểm đối chiếu với tài liệu chính thức Ultralytics, mã nguồn Ultralytics (<code>loss.py</code>/<code>tal.py</code>), paper arXiv, và Crossref — không phải tóm tắt blog.</p>
 </header>
 
 <!-- Mechanics: how YOLO works -->
 <section class="q" id="coche">
   <h2>Cơ chế — một lần forward pass biến pixel thành bounding box <span class="badge verified">Giải thích</span></h2>
-  <p class="qtext">"YOLO được xây và chạy thế nào?" — mắt xích cơ chế của cả dòng, dùng số liệu cụ thể của YOLOv8n (phiên bản code training của mình nhắm tới), input 640. Đối chiếu <a href="https://docs.ultralytics.com/guides/yolo-architecture/">Ultralytics YOLO architecture guide</a>.</p>
+  <p class="qtext">"YOLO được xây dựng và vận hành như thế nào?" — mắt xích cơ chế của cả dòng model, minh họa bằng số liệu cụ thể của YOLOv8n (phiên bản mà mã huấn luyện của đồ án nhắm tới) với đầu vào 640. Đối chiếu <a href="https://docs.ultralytics.com/guides/yolo-architecture/">Ultralytics YOLO architecture guide</a>.</p>
+  <figure>
+    <img src="https://arxiv.org/html/2304.00501v5/extracted/5158657/figures/back_neck_head.png" alt="Sơ đồ ba tầng của detector hiện đại: backbone trích đặc trưng đa tỷ lệ, neck hợp nhất hai chiều, head sinh dự đoán" loading="lazy">
+    <figcaption>Hình: ba tầng của một object detector hiện đại — khung chung của mọi phiên bản YOLO. <strong>Backbone</strong> trích đặc trưng ở nhiều độ phân giải; <strong>neck</strong> hợp nhất các đặc trưng đó theo hai chiều (mũi tên nét đứt biểu diễn luồng top-down và bottom-up); <strong>head</strong> sinh dự đoán cuối. Sáu bước bên dưới cụ thể hóa khung này cho YOLOv8. Nguồn: <a href="https://arxiv.org/abs/2304.00501">J. Terven &amp; D. Cordova-Esparza, 2023, arXiv:2304.00501</a>.</figcaption>
+  </figure>
   <ol>
-    <li><strong>Input → backbone (feature đa tỷ lệ).</strong> Ảnh 640×640×3 qua backbone kiểu CSPDarknet, xuất 3 feature map ở <strong>stride 8/16/32</strong> = lưới <strong>80×80, 40×40, 20×20</strong> (P3/P4/P5). Stride nhỏ giữ chi tiết → vật thể nhỏ (biển số); stride lớn → receptive field rộng → vật thể lớn (thân xe). Block <strong>C2f</strong> (split → <em>n</em> Bottleneck → concat <em>n</em>+2 tensor → conv fuse) + <strong>SPPF</strong> cuối (MaxPool 5×5 lặp 3 lần, concat, conv 1×1).</li>
-    <li><strong>Neck PAN-FPN.</strong> Trộn P3/P4/P5 theo top-down (ngữ nghĩa) + bottom-up (định vị) — mỗi level vừa "biết là gì" vừa "biết ở đâu".</li>
-    <li><strong>Anchor-free grid → anchor point.</strong> Mỗi ô đóng góp 1 anchor point ở tâm ô. Cộng 3 level: 80²+40²+20² = <strong>6400+1600+400 = 8400 dự đoán ứng viên</strong>/ảnh. Là grid S×S của YOLOv1 tổng quát hóa đa tỷ lệ, bỏ ràng buộc "1 ô 1 class".</li>
-    <li><strong>Head decoupled.</strong> Mỗi anchor point → <code>nc + 4·reg_max</code> giá trị: nhánh box <code>4·reg_max</code> channel + nhánh class <code>nc</code> logit. <strong>Không có nhánh objectness riêng</strong> — điểm class (sau sigmoid) chính là confidence (khác v1–v5).</li>
-    <li><strong>DFL decode box.</strong> reshape <code>4·reg_max → (4, 16)</code>, softmax 16 bin mỗi cạnh, lấy <strong>kỳ vọng</strong> → 4 khoảng cách (left, top, right, bottom) từ anchor point; ×stride → pixel; ltrb → (x1,y1,x2,y2). Regress phân phối thay scalar → biên mượt/ổn định cho vật thể nhỏ.</li>
-    <li><strong>Lọc + NMS (chỉ YOLOv8).</strong> ~8400 box thô → drop dưới ngưỡng confidence → <strong>NMS</strong>: sort điểm giảm dần, giữ box cao nhất, loại box IoU &gt; 0.7, lặp. NMS là op tuần tự, dữ liệu-phụ thuộc, nằm ngoài graph tensor → thêm latency + làm rối export/quantize ONNX.</li>
+    <li><strong>Đầu vào → backbone (đặc trưng đa tỷ lệ).</strong> Ảnh 640×640×3 đi qua backbone kiểu CSPDarknet và xuất ra ba feature map ở <strong>stride 8/16/32</strong>, tương ứng các lưới <strong>80×80, 40×40 và 20×20</strong> (P3/P4/P5). Stride nhỏ giữ được chi tiết nên phù hợp với vật thể nhỏ như biển số; stride lớn cho trường tiếp nhận (receptive field) rộng nên phù hợp với vật thể lớn như thân xe. Backbone dùng block <strong>C2f</strong> (tách nhánh, đưa qua <em>n</em> khối Bottleneck, ghép <em>n</em>+2 tensor rồi hợp nhất bằng conv) và kết thúc bằng <strong>SPPF</strong> (MaxPool 5×5 lặp ba lần, ghép lại, conv 1×1).</li>
+    <li><strong>Neck PAN-FPN.</strong> Neck trộn P3/P4/P5 theo hai chiều: top-down truyền thông tin ngữ nghĩa và bottom-up truyền thông tin định vị, nhờ đó mỗi cấp đặc trưng vừa "biết là gì" vừa "biết ở đâu".</li>
+    <li><strong>Lưới anchor-free và anchor point.</strong> Mỗi ô lưới đóng góp một anchor point ở tâm ô. Cộng cả ba cấp, số dự đoán ứng viên trên mỗi ảnh là 80²+40²+20² = <strong>6400+1600+400 = 8400</strong>. Đây chính là lưới S×S của YOLOv1 được tổng quát hóa lên nhiều tỷ lệ, đồng thời bỏ ràng buộc "một ô một lớp".</li>
+    <li><strong>Head decoupled.</strong> Mỗi anchor point sinh ra <code>nc + 4·reg_max</code> giá trị, gồm nhánh box với <code>4·reg_max</code> kênh và nhánh class với <code>nc</code> logit. Head này <strong>không có nhánh objectness riêng</strong>; điểm class (sau sigmoid) đóng vai trò confidence — khác với v1–v5.</li>
+    <li><strong>DFL giải mã box.</strong> Reshape <code>4·reg_max</code> thành <code>(4, 16)</code>, lấy softmax trên 16 bin cho mỗi cạnh rồi tính <strong>kỳ vọng</strong>, thu được bốn khoảng cách (left, top, right, bottom) tính từ anchor point; nhân với stride để đổi ra pixel, cuối cùng chuyển ltrb sang (x1,y1,x2,y2). Việc hồi quy theo phân phối thay cho giá trị vô hướng cho biên mượt và ổn định hơn với vật thể nhỏ.</li>
+    <li><strong>Lọc và NMS (chỉ YOLOv8).</strong> Khoảng 8400 box thô được loại bớt theo ngưỡng confidence, sau đó đưa qua <strong>NMS</strong>: sắp xếp điểm giảm dần, giữ box cao nhất, loại các box có IoU &gt; 0,7, rồi lặp lại. NMS là phép toán tuần tự, phụ thuộc dữ liệu và nằm ngoài graph tensor, nên vừa thêm độ trễ vừa gây khó khi export và quantize sang ONNX.</li>
   </ol>
-  <div class="impl"><strong>YOLO26 rút gọn bước 4–6:</strong> head <strong>one-to-one</strong> mặc định xuất trực tiếp <code>(N, 300, 6)</code> — tối đa 300 detection, mỗi dòng (x1,y1,x2,y2,score,class) — <em>không</em> qua NMS; bỏ DFL → nhánh box regress thẳng 4 khoảng cách không ràng buộc, bỏ softmax-16-bin → graph gọn hơn cho INT8. Cascade ALPR của mình chạy pipeline này 2 lần: pass 1 detect xe → crop ROI → pass 2 detect biển số trên crop (phân giải cao hơn → dễ cho head P3/vật thể nhỏ).</div>
+  <figure>
+    <img src="https://arxiv.org/html/2304.00501v5/extracted/5158657/figures/yolov8_architecture.png" alt="Kiến trúc chi tiết YOLOv8: backbone Conv/C2f/SPPF theo stride 8/16/32, neck Upsample/Concat/C2f, head Detect tách nhánh box và class với DFL" loading="lazy">
+    <figcaption>Hình: kiến trúc chi tiết YOLOv8 — cụ thể hóa sáu bước ở trên. Cột trái là <strong>backbone</strong> (Conv, C2f, SPPF) xuất feature ở stride 8/16/32, tương ứng lưới 80×80, 40×40 và 20×20; phần giữa là <strong>neck</strong> (Upsample + Concat + C2f) trộn hai chiều; cột phải là <strong>head Detect</strong> tách hai nhánh box và class, trong đó nhánh box hồi quy theo DFL (reg_max). Ghi chú kích thước trên sơ đồ là height×width×channel. Nguồn: <a href="https://arxiv.org/abs/2304.00501">J. Terven &amp; D. Cordova-Esparza, 2023, arXiv:2304.00501</a>.</figcaption>
+  </figure>
+  <div class="impl"><strong>YOLO26 rút gọn các bước 4–6:</strong> head <strong>one-to-one</strong> mặc định xuất trực tiếp tensor <code>(N, 300, 6)</code> — tối đa 300 detection, mỗi dòng gồm (x1,y1,x2,y2,score,class) — mà <em>không</em> cần NMS. Việc bỏ DFL giúp nhánh box hồi quy thẳng bốn khoảng cách không ràng buộc, còn việc bỏ softmax 16 bin cho graph gọn hơn khi chuyển sang INT8. Pipeline ALPR của đồ án chạy quy trình này hai lần: lượt một phát hiện xe rồi cắt vùng quan tâm (ROI), lượt hai phát hiện biển số trên ảnh đã cắt (độ phân giải cao hơn nên thuận lợi cho head P3 và vật thể nhỏ).</div>
 </section>
 
 <!-- Q1 -->
 <section class="q" id="q1">
-  <h2>Q1 — Các claim kiến trúc của YOLO26 có chính xác không? <span class="badge verified">Đã verify</span></h2>
-  <p class="qtext">Note khẳng định YOLO26 (arXiv:2606.03748) là NMS-free end-to-end, bỏ DFL, dùng optimizer MuSGD, và thêm ProgLoss + STAL. Nguồn gốc có xác nhận điều này không — và arXiv ID đó có tồn tại thật không?</p>
+  <h2>Q1 — Các claim kiến trúc của YOLO26 có chính xác không? <span class="badge verified">Đã kiểm chứng</span></h2>
+  <p class="qtext">Ghi chú khẳng định YOLO26 (arXiv:2606.03748) là NMS-free end-to-end, bỏ DFL, dùng optimizer MuSGD và bổ sung ProgLoss cùng STAL. Các nguồn gốc có xác nhận điều này không, và mã số arXiv đó có thật sự tồn tại không?</p>
 
   <h3>Bằng chứng</h3>
   <ul>
@@ -403,20 +412,20 @@
     <li><strong>Bỏ DFL:</strong> <blockquote>"YOLO26 removes Distribution Focal Loss (DFL), reducing detection-head complexity while preserving an unconstrained regression range."</blockquote></li>
     <li><strong>MuSGD:</strong> <blockquote>"A hybrid optimizer that combines SGD with Muon, adapting optimization ideas from large language model training to computer vision."</blockquote></li>
     <li><strong>ProgLoss + STAL:</strong> <blockquote>"Progressive Loss shifts training emphasis toward the inference-time head, while STAL improves positive label coverage for small objects."</blockquote></li>
-    <li><strong>Củng cố bằng primary-source — abstract arXiv (re-verify 21/7/2026):</strong> ngoài docs, chính abstract paper (nguồn cấp cao hơn) xác nhận cả bốn claim: <blockquote>"a dual-head design for native NMS-free end-to-end inference" · "removes DFL entirely, yielding a lighter head with unconstrained regression range" · "MuSGD, a hybrid Muon-SGD optimizer adapted from large language model training" · "Progressive Loss, which shifts supervision toward the inference-time head" · "STAL … guarantees positive coverage for small objects." — <a href="https://arxiv.org/abs/2606.03748">abstract arXiv:2606.03748</a></blockquote></li>
-    <li>Corroborate độc lập: Sapkota, Cheppally, Sharda, Karkee, <a href="https://arxiv.org/html/2509.25164v1">arXiv:2509.25164</a> (Cornell / Kansas State) mô tả cùng bốn thay đổi.</li>
-    <li><strong>Lưu ý timeline:</strong> preview tại YOLO Vision, tháng 9/2025 → <a href="https://www.businesswire.com/news/home/20260114168538/en/Ultralytics-Launches-YOLO26-Setting-a-New-Global-Standard-for-Edge-First-Vision-AI">ra mắt chính thức 14/1/2026</a> → paper arXiv 2/6/2026 → <a href="https://github.com/ultralytics/ultralytics/issues/24844">thông báo release-stable (issue #24844)</a>, tháng 6/2026. "Ra mắt tháng 1/2026" của note nhất quán với ngày launch chính thức.</li>
+    <li><strong>Củng cố bằng nguồn sơ cấp — abstract arXiv (kiểm chứng lại 21/7/2026):</strong> ngoài docs, chính abstract paper (nguồn cấp cao hơn) xác nhận cả bốn luận điểm: <blockquote>"a dual-head design for native NMS-free end-to-end inference" · "removes DFL entirely, yielding a lighter head with unconstrained regression range" · "MuSGD, a hybrid Muon-SGD optimizer adapted from large language model training" · "Progressive Loss, which shifts supervision toward the inference-time head" · "STAL … guarantees positive coverage for small objects." — <a href="https://arxiv.org/abs/2606.03748">abstract arXiv:2606.03748</a></blockquote></li>
+    <li>Đối chiếu độc lập: Sapkota, Cheppally, Sharda, Karkee, <a href="https://arxiv.org/html/2509.25164v1">arXiv:2509.25164</a> (Cornell / Kansas State) mô tả cùng bốn thay đổi.</li>
+    <li><strong>Lưu ý về mốc thời gian:</strong> bản preview tại YOLO Vision tháng 9/2025, <a href="https://www.businesswire.com/news/home/20260114168538/en/Ultralytics-Launches-YOLO26-Setting-a-New-Global-Standard-for-Edge-First-Vision-AI">ra mắt chính thức ngày 14/1/2026</a>, paper arXiv ngày 2/6/2026, rồi <a href="https://github.com/ultralytics/ultralytics/issues/24844">thông báo release-stable (issue #24844)</a> vào tháng 6/2026. Mốc "ra mắt tháng 1/2026" trong ghi chú nhất quán với ngày ra mắt chính thức.</li>
   </ul>
   <figure>
     <img src="https://arxiv.org/html/2606.03748v1/x1.png" alt="Pipeline training YOLO26: backbone và neck dùng chung nuôi hai head detection với STAL và ProgLoss" loading="lazy">
     <figcaption>Hình: pipeline training YOLO26 — backbone/neck dùng chung nuôi hai head detection song song (one-to-many + one-to-one); STAL cải thiện gán vật thể nhỏ, ProgLoss dịch trọng tâm supervision về phía head lúc inference. Nguồn: <a href="https://arxiv.org/abs/2606.03748">Jocher và cộng sự, 2026, "Ultralytics YOLO26: Unified Real-Time End-to-End Vision Models" (arXiv:2606.03748), Fig. 1</a>.</figcaption>
   </figure>
-  <div class="impl"><strong>Ý nghĩa cho đồ án:</strong> §4 của research note có thể trích dẫn nguyên văn trong chương Tổng quan. Trích dẫn ngày launch tháng 1/2026 cho tính khả dụng và arXiv:2606.03748 làm tài liệu tham khảo học thuật. Không claim nào bị mâu thuẫn.</div>
+  <div class="impl"><strong>Ý nghĩa cho đồ án:</strong> <a href="2026-07-18-yolo-architecture.md">§4</a> của ghi chú nghiên cứu có thể trích dẫn nguyên văn trong chương Tổng quan. Nên trích ngày ra mắt tháng 1/2026 cho phần tính khả dụng và arXiv:2606.03748 làm tài liệu tham khảo học thuật. Không luận điểm nào bị mâu thuẫn.</div>
 </section>
 
 <!-- Q2 -->
 <section class="q" id="q2">
-  <h2>Q2 — Có số liệu latency Raspberry Pi 5 trích dẫn được không? <span class="badge verified">Đã verify</span> <span class="badge corrected">Sửa 1 citation</span></h2>
+  <h2>Q2 — Có số liệu latency Raspberry Pi 5 trích dẫn được không? <span class="badge verified">Đã kiểm chứng</span> <span class="badge corrected">Sửa 1 trích dẫn</span></h2>
   <p class="qtext">Có thể trích dẫn latency Pi 5 cụ thể cho YOLOv8n / YOLO11n / YOLO26n (ONNX / NCNN) không, và điều đó có ý nghĩa gì cho ngân sách &lt; 2 s/xe?</p>
 
   <h3>Benchmark Pi 5 chính thức của Ultralytics (YOLO26n, FP32, 640 px, ultralytics 8.4.1, Pi OS Bookworm)</h3>
@@ -430,10 +439,10 @@
     <tr><td>PyTorch</td><td>302.15</td><td>0.4798</td></tr>
     <tr><td>TorchScript</td><td>357.58</td><td>0.4764</td></tr>
   </table>
-  <p>Nguồn: <a href="https://docs.ultralytics.com/guides/raspberry-pi/">Ultralytics Raspberry Pi guide</a>. Guide chỉ benchmark YOLO26n/26s ("other model sizes are too big to run on the Raspberry Pis") và nói <em>"NCNN delivers the best inference performance on Raspberry Pi devices because it is highly optimized for … ARM architecture."</em> Cũng báo cáo <strong>YOLO26n vs YOLO11n trên Pi 5 (ONNX): 6.79 → 7.9 FPS (nhanh hơn ≈ 15%)</strong>, tức YOLO11n ONNX ≈ 147 ms/ảnh. YOLOv8 không xuất hiện trong guide hiện tại.</p>
+  <p>Nguồn: <a href="https://docs.ultralytics.com/guides/raspberry-pi/">Ultralytics Raspberry Pi guide</a>. Guide này chỉ đo YOLO26n/26s ("other model sizes are too big to run on the Raspberry Pis") và nhận định <em>"NCNN delivers the best inference performance on Raspberry Pi devices because it is highly optimized for … ARM architecture."</em> Guide cũng báo cáo kết quả <strong>YOLO26n so với YOLO11n trên Pi 5 (ONNX): 6,79 → 7,9 FPS, nhanh hơn khoảng 15%</strong>, tức YOLO11n ONNX vào khoảng 147 ms/ảnh. YOLOv8 không xuất hiện trong guide hiện tại.</p>
 
-  <h3>Corroborate peer-reviewed + sửa citation</h3>
-  <p>Paper benchmark SBC trích trong note là <em>"MDPI J. Imaging 2026"</em> thực ra được công bố trong <strong><em>Machine Learning and Knowledge Extraction</em> (MAKE)</strong>, vol. 8, no. 7, art. 204, 13/7/2026, DOI <a href="https://www.mdpi.com/2504-4990/8/7/204">10.3390/make8070204</a> (ISSN 2504-4990 và tiền tố DOI <code>make</code> xác nhận journal này). Kết quả trích xuất được: model nano/small cho performance tốt nhất trên SBC; YOLOv9 tới 2.39 FPS trên Pi 5 ở high-power mode (có thể native PyTorch); <strong>YOLOv10n hiệu quả nhất tổng thể</strong>; YOLOv8n / YOLO11n cạnh tranh; RAM usage 4–12% trên Pi 4/5. <strong>Cập nhật 21/7/2026 — tác giả ĐÃ RESOLVE qua Crossref</strong> (10.3390/make8070204): O. Shalash, E. Khatab, A. El-Agamy, L. Elmokadem, Y. Abouelsaad, J. Zaki, M. El-Sayed, H. Said (8 tác giả). Anti-bot MDPI vẫn chặn full-text nên bảng FPS Pi 5 per-model chi tiết cần confirm từ PDF trước khi khóa bảng số chương evaluation.</p>
+  <h3>Đối chiếu nguồn peer-reviewed + sửa trích dẫn</h3>
+  <p>Paper benchmark SBC được trích trong ghi chú với nguồn <em>"MDPI J. Imaging 2026"</em> thực ra công bố trên tạp chí <strong><em>Machine Learning and Knowledge Extraction</em> (MAKE)</strong>, vol. 8, no. 7, art. 204, ngày 13/7/2026, DOI <a href="https://www.mdpi.com/2504-4990/8/7/204">10.3390/make8070204</a> (ISSN 2504-4990 và tiền tố DOI <code>make</code> xác nhận đúng tạp chí này). Các kết quả rút ra được: những biến thể nano/small cho hiệu năng tốt nhất trên SBC; YOLOv9 đạt tới 2,39 FPS trên Pi 5 ở chế độ high-power (có thể chạy native PyTorch); <strong>YOLOv10n hiệu quả nhất xét tổng thể</strong>; YOLOv8n và YOLO11n ở mức cạnh tranh; mức dùng RAM khoảng 4–12% trên Pi 4/5. <strong>Cập nhật ngày 21/7/2026:</strong> đã tra được nhóm tác giả qua Crossref (10.3390/make8070204), gồm O. Shalash, E. Khatab, A. El-Agamy, L. Elmokadem, Y. Abouelsaad, J. Zaki, M. El-Sayed và H. Said (tám tác giả). Cơ chế chống bot của MDPI vẫn chặn full-text, nên bảng FPS chi tiết theo từng model trên Pi 5 cần được xác nhận lại từ bản PDF trước khi chốt số cho chương đánh giá.</p>
 
   <figure>
     <img src="https://cdn.jsdelivr.net/gh/ultralytics/assets@main/docs/raspberry-pi-yolo26-benchmarks.avif" alt="Tốc độ inference YOLO26n trên Raspberry Pi 5 theo từng format export — NCNN nhanh nhất 67.69 ms, ONNX 130.33 ms" loading="lazy">
@@ -443,13 +452,13 @@
     <img src="https://cdn.jsdelivr.net/gh/ultralytics/assets@main/docs/yolo26-vs-yolo11-rpi5-onnx-benchmarks.avif" alt="So sánh throughput YOLO26n vs YOLO11n trên Raspberry Pi 5 qua ONNX — YOLO26n nhanh hơn 15%" loading="lazy">
     <figcaption>Hình: YOLO26n vs YOLO11n throughput trên Raspberry Pi 5 qua ONNX Runtime (6.79 → 7.9 FPS, nhanh hơn ≈15% — không phải con số 43% Xeon). Nguồn: <a href="https://docs.ultralytics.com/guides/raspberry-pi/">Ultralytics Raspberry Pi Quick Start Guide, 2026</a>.</figcaption>
   </figure>
-  <div class="impl"><strong>Ý nghĩa cho đồ án:</strong> cascade hai detector (xe + biển số) ≈ <strong>136 ms qua NCNN</strong> hoặc ≈ 260 ms qua ONNX Runtime trên Pi 5 ở FP32 — nằm gọn trong ngân sách 2 s. Detection không phải điểm nghẽn; latency OCR là rủi ro tiếp theo cần benchmark. INT8 (tuần 7) chỉ có thể cải thiện thêm các số liệu FP32 này.</div>
+  <div class="impl"><strong>Ý nghĩa cho đồ án:</strong> chuỗi hai bộ phát hiện (xe và biển số) tốn khoảng <strong>136 ms với NCNN</strong> hoặc khoảng 260 ms với ONNX Runtime trên Pi 5 ở FP32 — nằm gọn trong ngân sách 2 giây. Phát hiện không phải là điểm nghẽn; độ trễ (latency) của OCR mới là rủi ro tiếp theo cần đo. Quantization INT8 (tuần 7) chỉ có thể cải thiện thêm các số liệu FP32 này.</div>
 </section>
 
 <!-- Q3 -->
 <section class="q" id="q3">
   <h2>Q3 — YOLOv8 vs YOLO26: train cái nào? <span class="badge verified">Đã giải quyết — có khuyến nghị</span></h2>
-  <p class="qtext">Quyết định thực tiễn Mode 2, cần có trước khi training detector tuần 3 bắt đầu ngày 29/07/2026.</p>
+  <p class="qtext">Quyết định thực tiễn (Mode 2), cần chốt trước khi bắt đầu huấn luyện detector ở tuần 3, ngày 29/07/2026.</p>
 
   <table>
     <tr><th>Tiêu chí</th><th>YOLOv8 (2023)</th><th>YOLO26 (2026)</th></tr>
@@ -459,10 +468,10 @@
     <tr><td>Hậu xử lý NMS</td><td>Bắt buộc</td><td class="win">Không bắt buộc (end-to-end bản chất)</td></tr>
     <tr><td>Head regression</td><td>DFL (softmax 16-bin) — thêm op export/quantization</td><td class="win">Không DFL — graph ONNX đơn giản hơn cho INT8</td></tr>
     <tr><td>Format export</td><td>ONNX, NCNN, OpenVINO, TFLite, TensorRT, CoreML…</td><td>Cùng họ (TensorRT, ONNX, CoreML, LiteRT, OpenVINO, NCNN)</td></tr>
-    <tr><td>Độ chín path INT8</td><td class="win">Chín muồi; nhiều hướng dẫn bên thứ ba</td><td>Graph đơn giản hơn về cấu trúc nhưng ít hướng dẫn công bố — tự validate ở tuần 7</td></tr>
+    <tr><td>Độ chín của path INT8</td><td class="win">Chín muồi; nhiều hướng dẫn bên thứ ba</td><td>Graph đơn giản hơn về cấu trúc nhưng ít hướng dẫn công bố — cần tự kiểm chứng ở tuần 7</td></tr>
     <tr><td>Hỗ trợ vật thể nhỏ (biển số)</td><td>Chỉ có TAL</td><td class="win">Dòng TAL + STAL (độ phủ vật thể nhỏ rõ ràng)</td></tr>
     <tr><td>Khả năng trích dẫn học thuật</td><td>Không có paper — trích dẫn software</td><td class="win">arXiv:2606.03748 (chưa peer-review, nhưng trích dẫn được)</td></tr>
-    <tr><td>Ecosystem / tiền lệ ALPR</td><td class="win">Sâu (3 năm, vd Zhu và cộng sự 2025 detect biển số)</td><td>Mỏng (ra mắt tháng 1/2026)</td></tr>
+    <tr><td>Hệ sinh thái / tiền lệ ALPR</td><td class="win">Sâu (3 năm, ví dụ Zhu và cộng sự 2025 phát hiện biển số)</td><td>Mỏng (ra mắt tháng 1/2026)</td></tr>
     <tr><td>License</td><td colspan="2">Cả hai đều AGPL-3.0 + Enterprise (đã verify trên cả hai trang docs) — không phải điểm khác biệt</td></tr>
     <tr><td>Chi phí chuyển đổi API</td><td colspan="2">Cùng package <code>ultralytics</code> — chỉ khác một chuỗi tên checkpoint</td></tr>
   </table>
@@ -473,16 +482,16 @@
   </figure>
   <figure>
     <img src="https://cdn.jsdelivr.net/gh/ultralytics/assets@main/docs/Ultralytics-YOLO26-Benchmark-E2E.jpg" alt="YOLO26 inference end-to-end NMS-free so với các model dùng NMS: so sánh latency" loading="lazy">
-    <figcaption>Hình: latency inference end-to-end (NMS-free) của YOLO26 so với các model dùng NMS — cho thấy lợi thế deploy của head one-to-one mặc định trên CPU/edge. Nguồn: <a href="https://docs.ultralytics.com/models/yolo26/">Ultralytics YOLO26 official docs, 2026</a>.</figcaption>
+    <figcaption>Hình: latency inference end-to-end (NMS-free) của YOLO26 so với các model dùng NMS — cho thấy lợi thế triển khai của head one-to-one mặc định trên CPU/edge. Nguồn: <a href="https://docs.ultralytics.com/models/yolo26/">Ultralytics YOLO26 official docs, 2026</a>.</figcaption>
   </figure>
   <h3>Khuyến nghị</h3>
-  <p>Train <strong>YOLO26n làm chính</strong> (giai đoạn xe + biển số) với <strong>YOLOv8n làm baseline fallback đã train</strong> — chi phí biên chỉ là một lần chạy Colab thêm vì cả hai dùng chung API và format dataset. YOLO26n vượt trội về accuracy (+3.6 mAP), tốc độ CPU, đơn giản hóa export edge (không NMS, không DFL), và gán vật thể nhỏ (STAL — biển số là trường hợp vật thể nhỏ khó nhất của mình). Train cả hai cũng cho ra miễn phí bảng so sánh model cho chương evaluation.</p>
+  <p>Huấn luyện <strong>YOLO26n làm mô hình chính</strong> (cho cả giai đoạn phát hiện xe và biển số), đồng thời huấn luyện <strong>YOLOv8n làm baseline dự phòng</strong>. Chi phí tăng thêm chỉ là một lần chạy Colab, vì hai mô hình dùng chung API và cùng định dạng dataset. YOLO26n vượt trội về độ chính xác (+3,6 mAP), tốc độ CPU, mức đơn giản khi export cho edge (không NMS, không DFL) và khả năng gán vật thể nhỏ (STAL — biển số là trường hợp vật thể nhỏ khó nhất của đồ án). Huấn luyện cả hai mô hình còn cho sẵn một bảng so sánh phục vụ chương đánh giá.</p>
   <h3>Rủi ro</h3>
   <ul>
-    <li>Tiền lệ ALPR bên thứ ba cho YOLO26 còn mỏng — nếu fine-tuning MuSGD bất thường trên dataset nhỏ của mình, fallback về YOLOv8n (run baseline là bắt buộc, không phải tùy chọn).</li>
-    <li>Bằng chứng INT8 bên thứ ba cho head DFL-free đã thu hẹp (xem <strong>Q6</strong>: mechanism arXiv:2601.12882 + datapoint gray-lit Hailo-8L) nhưng chưa có số Pi 5 CPU/ONNX — tự đo mAP drop static-INT8 ở tuần 7 vẫn bắt buộc.</li>
-    <li>Mọi số liệu tốc độ headline đều là của Ultralytics tự công bố (thiên lệch vendor) — đo đạc của mình trên Pi 5 tuần 8–9 mới là chính thức.</li>
-    <li>AGPL-3.0 áp dụng cho cả hai — code đồ án khi release vẫn phải tương thích open-source dù chọn bên nào.</li>
+    <li>Tiền lệ ALPR từ bên thứ ba cho YOLO26 còn mỏng; nếu quá trình fine-tuning MuSGD hoạt động bất thường trên dataset nhỏ của đồ án thì quay về dùng YOLOv8n (việc chạy baseline là bắt buộc, không phải tùy chọn).</li>
+    <li>Bằng chứng INT8 từ bên thứ ba cho head không dùng DFL đã bớt khan hiếm (xem <a href="#q6"><strong>Q6</strong></a>: cơ chế trong <a href="https://arxiv.org/abs/2601.12882">arXiv:2601.12882</a> cùng số liệu tài liệu xám trên Hailo-8L), nhưng vẫn chưa có số liệu cho Pi 5 CPU/ONNX; do đó việc tự đo mức sụt mAP khi quantize static-INT8 ở tuần 7 vẫn là bắt buộc.</li>
+    <li>Mọi số liệu tốc độ nổi bật đều do Ultralytics tự công bố (có thiên lệch từ nhà cung cấp); phép đo của đồ án trên Pi 5 ở tuần 8–9 mới là số liệu chính thức.</li>
+    <li>Giấy phép AGPL-3.0 áp dụng cho cả hai; mã nguồn đồ án khi phát hành vẫn phải tương thích open-source dù chọn mô hình nào.</li>
   </ul>
 </section>
 
@@ -491,8 +500,8 @@
   <h2>Q4 — Khoảng trống dòng dõi v9 / v10 / v11 <span class="badge verified">Đã lấp</span></h2>
   <p class="qtext">Cơ chế ngắn gọn kèm trích dẫn gốc, đủ để có bảng dòng dõi v1→v26 hoàn chỉnh.</p>
   <ul>
-    <li><strong>YOLOv9</strong> (Wang, Yeh, Liao, 2024 — <a href="https://arxiv.org/abs/2402.13616">arXiv:2402.13616</a>): tấn công vấn đề mất thông tin trong deep net. <strong>PGI</strong> cung cấp "complete input information for the target task … so that reliable gradient information can be obtained"; <strong>GELAN</strong> là kiến trúc dùng convolution thông thường, tận dụng tham số tốt hơn thiết kế depthwise-conv. Kết quả train-from-scratch vượt SOTA pre-trained trên COCO.</li>
-    <li><strong>YOLOv10</strong> (Wang và cộng sự, NeurIPS 2024 — <a href="https://arxiv.org/abs/2405.14458">arXiv:2405.14458</a>): tổ tiên của thiết kế NMS-free YOLO26. Abstract: <em>"we first present the consistent dual assignments for NMS-free training of YOLOs, which brings competitive performance and low inference latency simultaneously"</em> — head one-to-many train, head one-to-one infer. Trích dẫn paper này khi giải thích nguồn gốc tính chất end-to-end của YOLO26.</li>
+    <li><strong>YOLOv9</strong> (Wang, Yeh, Liao, 2024 — <a href="https://arxiv.org/abs/2402.13616">arXiv:2402.13616</a>): giải quyết vấn đề mất thông tin trong mạng sâu (deep net). <strong>PGI</strong> cung cấp "complete input information for the target task … so that reliable gradient information can be obtained"; <strong>GELAN</strong> là kiến trúc dùng convolution thông thường, tận dụng tham số tốt hơn thiết kế depthwise-conv. Mô hình huấn luyện from-scratch cho kết quả vượt các mô hình SOTA pre-trained trên COCO.</li>
+    <li><strong>YOLOv10</strong> (Wang và cộng sự, NeurIPS 2024 — <a href="https://arxiv.org/abs/2405.14458">arXiv:2405.14458</a>): tổ tiên của thiết kế NMS-free YOLO26. Abstract: <em>"we first present the consistent dual assignments for NMS-free training of YOLOs, which brings competitive performance and low inference latency simultaneously"</em> — dùng head one-to-many khi huấn luyện và head one-to-one khi inference. Nên trích dẫn paper này khi giải thích nguồn gốc tính chất end-to-end của YOLO26.</li>
     <li><strong>YOLO11</strong> (Ultralytics, tháng 9/2024 — <a href="https://docs.ultralytics.com/models/yolo11/">docs chính thức</a>): bản refresh hiệu quả của YOLOv8; không có paper chính thức ("Ultralytics has not published a formal research paper for YOLO11"). Thay C2f bằng block <strong>C3k2</strong> và thêm <strong>C2PSA</strong> partial spatial attention sau SPPF (tên component theo Khanam &amp; Hussain, <a href="https://arxiv.org/abs/2410.17725">arXiv:2410.17725</a>). YOLO11n: 39.5 mAP / 56.1 ms CPU ONNX; YOLO11m ngang mAP YOLOv8m với ít hơn 22% tham số.</li>
   </ul>
   <figure>
@@ -503,10 +512,10 @@
 
 <!-- Q5 -->
 <section class="q" id="q5">
-  <h2>Q5 — Sanity check các claim đã đánh dấu <span class="badge verified">Đã verify</span> <span class="badge corrected">Sửa 1 phạm vi</span></h2>
+  <h2>Q5 — Sanity check các claim đã đánh dấu <span class="badge verified">Đã kiểm chứng</span> <span class="badge corrected">Sửa 1 phạm vi</span></h2>
   <p class="qtext">(a) Claim "nhanh hơn 43% CPU ONNX vs YOLO11n"; (b) "không có paper peer-review cho YOLOv8" tính đến 2026.</p>
   <ul>
-    <li><strong>(a) Claim 43% — nguyên văn đã verify, phạm vi đã sửa.</strong> Docs: <blockquote>"up to 43% faster CPU ONNX inference for YOLO26n compared with YOLO11n on an Intel Xeon CPU @ 2.00 GHz" — <a href="https://docs.ultralytics.com/models/yolo26/">docs YOLO26</a></blockquote> Trên ARM Pi 5, guide chính thức của Ultralytics chỉ đo được <strong>≈ 15%</strong> (6.79 → 7.9 FPS, ONNX) — <a href="https://docs.ultralytics.com/guides/raspberry-pi/">Raspberry Pi guide</a>. <strong>Con số 43% không transfer sang ARM</strong>; trích 43% chặt chẽ như số Intel Xeon và ~15% như số Pi 5.</li>
+    <li><strong>(a) Claim 43% — nguyên văn đã verify, phạm vi đã sửa.</strong> Docs: <blockquote>"up to 43% faster CPU ONNX inference for YOLO26n compared with YOLO11n on an Intel Xeon CPU @ 2.00 GHz" — <a href="https://docs.ultralytics.com/models/yolo26/">docs YOLO26</a></blockquote> Trên ARM Pi 5, guide chính thức của Ultralytics chỉ đo được <strong>khoảng 15%</strong> (6,79 → 7,9 FPS, ONNX) — <a href="https://docs.ultralytics.com/guides/raspberry-pi/">Raspberry Pi guide</a>. <strong>Con số 43% không áp dụng được sang ARM</strong>; cần trích 43% gắn chặt với CPU Intel Xeon và khoảng 15% gắn với Pi 5.</li>
     <li><strong>(b) Trạng thái paper YOLOv8 — vẫn đúng, tháng 7/2026.</strong> Docs FAQ: <blockquote>"Ultralytics has not published a formal research paper for YOLOv8 due to the rapidly evolving nature of the models." — <a href="https://docs.ultralytics.com/models/yolov8/">docs YOLOv8</a></blockquote> Tương tự cho YOLO11. YOLO26 là thế hệ đầu tiên của Ultralytics có paper arXiv (2606.03748) — trích dẫn được, dù arXiv không phải peer review.</li>
   </ul>
 </section>
@@ -514,27 +523,44 @@
 <!-- Q6 -->
 <section class="q" id="q6">
   <h2>Q6 — Có bằng chứng INT8 cho head DFL-free của YOLO26 không? <span class="badge verified">Thu hẹp</span> <span class="badge unresolved">Chưa có số Pi 5</span></h2>
-  <p class="qtext">Câu hỏi tuần 7: bỏ DFL có thật sự giúp quantize INT8 không, và mAP giữ được bao nhiêu? (Mở rộng note §12, thêm 21/7/2026.)</p>
+  <p class="qtext">Câu hỏi tuần 7: bỏ DFL có thật sự giúp quantize INT8 không, và mAP giữ được bao nhiêu? (Mở rộng <a href="2026-07-18-yolo-architecture.md">ghi chú §12</a>, thêm 21/7/2026.)</p>
   <ul>
-    <li><strong>Cơ chế (arXiv trích dẫn được):</strong> S. Chakrabarty, <a href="https://arxiv.org/abs/2601.12882">arXiv:2601.12882</a>: <blockquote>"On specialized edge hardware (NPUs and DSPs), these Softmax layers are notoriously difficult to quantize and often become the primary latency bottleneck."</blockquote> DFL = softmax 16-bin mỗi cạnh; bỏ nó cắt đúng op khó quantize → biện minh kiến trúc cho việc chọn YOLO26 ở path INT8.</li>
+    <li><strong>Cơ chế (arXiv trích dẫn được):</strong> S. Chakrabarty, <a href="https://arxiv.org/abs/2601.12882">arXiv:2601.12882</a>: <blockquote>"On specialized edge hardware (NPUs and DSPs), these Softmax layers are notoriously difficult to quantize and often become the primary latency bottleneck."</blockquote> DFL chính là softmax 16 bin cho mỗi cạnh; việc bỏ nó loại đúng phép toán khó quantize, qua đó biện minh về mặt kiến trúc cho việc chọn YOLO26 ở path INT8.</li>
     <li><strong>Claim tổng quan (định tính):</strong> R. Sapkota &amp; M. Karkee, <a href="https://arxiv.org/abs/2510.09653">arXiv:2510.09653</a>: <em>"INT8 exports of YOLO26 retain nearly the same mAP as FP32 versions"</em> — không kèm số per-variant.</li>
-    <li><strong>Datapoint thực nghiệm (GRAY LITERATURE — blog, KHÔNG peer-review):</strong> D. Dubinsky, <a href="https://danieldubinsky.github.io/personal-site/case-studies/yolo26n-hailo-L8/">port YOLO26n sang Hailo-8L</a> — retention INT8 so với FP32:</li>
+    <li><strong>Số liệu thực nghiệm (tài liệu xám — blog cá nhân, chưa peer-review):</strong> D. Dubinsky, <a href="https://danieldubinsky.github.io/personal-site/case-studies/yolo26n-hailo-L8/">chuyển YOLO26n sang Hailo-8L</a> — mức retention INT8 so với FP32:</li>
   </ul>
   <table>
     <tr><th>Model</th><th>Retention INT8</th><th>Ghi chú</th></tr>
-    <tr><td>YOLO26n</td><td class="win">92.3%</td><td>mAP 0.402 → 0.371 (drop ~7.7%)</td></tr>
-    <tr><td>YOLO26s</td><td>88.9%</td><td>—</td></tr>
-    <tr><td>YOLO26m</td><td class="no">84.0%</td><td>tệ hơn cả s <em>và</em> l — non-monotonic</td></tr>
-    <tr><td>YOLO26l</td><td>87.4%</td><td>—</td></tr>
+    <tr><td>YOLO26n</td><td class="win">92,3%</td><td>mAP 0,402 → 0,371 (giảm ~7,7%)</td></tr>
+    <tr><td>YOLO26s</td><td>88,9%</td><td>—</td></tr>
+    <tr><td>YOLO26m</td><td class="no">84,0%</td><td>tệ hơn cả s <em>và</em> l — không đơn điệu</td></tr>
+    <tr><td>YOLO26l</td><td>87,4%</td><td>—</td></tr>
   </table>
-  <p>Tác giả gán drop cho <em>"the sensitivity of the non-NMS heads to quantization noise."</em> Latency trên Hailo-8L: 11.56 ms / 86.5 FPS (C++), ~13× so với baseline CPU ONNX.</p>
+  <p>Tác giả gán mức sụt giảm này cho <em>"the sensitivity of the non-NMS heads to quantization noise."</em> Độ trễ trên Hailo-8L là 11,56 ms / 86,5 FPS (C++), nhanh khoảng 13× so với baseline CPU ONNX.</p>
   <h3>Cảnh báo chuyển giao (bắt buộc đọc)</h3>
   <ul>
-    <li><strong>Khác phần cứng:</strong> Hailo-8L là NPU chuyên dụng + hybrid postproc CPU, KHÔNG phải path Pi 5 CPU-only + ONNX Runtime của mình. Retention phụ thuộc toolchain quantize (Hailo Dataflow Compiler vs ORT static INT8) → các % trên <strong>không transfer trực tiếp</strong> sang Pi 5.</li>
-    <li><strong>Non-monotonic theo size:</strong> m (84.0%) tệ hơn s (88.9%) và l (87.4%) → không được suy "model nhỏ hơn = drop ít hơn"; phải đo riêng YOLO26n (biến thể mình deploy).</li>
-    <li><strong>Gray literature:</strong> blog cá nhân — dùng directional, số chính thức chương evaluation phải là đo của mình.</li>
+    <li><strong>Khác phần cứng:</strong> Hailo-8L là NPU chuyên dụng kết hợp hậu xử lý lai trên CPU, không phải path Pi 5 CPU-only với ONNX Runtime của đồ án. Mức retention phụ thuộc vào toolchain quantize (Hailo Dataflow Compiler so với ORT static INT8), nên các tỷ lệ phần trăm trên <strong>không áp dụng trực tiếp được</strong> sang Pi 5.</li>
+    <li><strong>Không đơn điệu theo kích thước:</strong> biến thể m (84,0%) tệ hơn cả s (88,9%) lẫn l (87,4%), nên không được suy ra "model nhỏ hơn thì giảm ít hơn"; phải đo riêng YOLO26n (biến thể mà đồ án triển khai).</li>
+    <li><strong>Tài liệu xám:</strong> đây là blog cá nhân, chỉ nên dùng để định hướng; số liệu chính thức cho chương đánh giá phải là phép đo của đồ án.</li>
   </ul>
-  <div class="impl"><strong>Ý nghĩa cho đồ án:</strong> tín hiệu tích cực — YOLO26n giữ retention cao nhất trong họ (~92% trên Hailo) + graph DFL-/NMS-free đơn giản cho ORT INT8. Nhưng head one-to-one NMS-free <em>cũng</em> nhạy quant noise → tuần 7 benchmark <strong>cả mAP drop lẫn latency</strong> sau static-INT8 trên Pi 5, không chỉ latency.</div>
+  <div class="impl"><strong>Ý nghĩa cho đồ án:</strong> tín hiệu tích cực — YOLO26n giữ mức retention cao nhất trong họ (~92% trên Hailo) và graph không DFL, không NMS đơn giản cho ORT INT8. Tuy nhiên head one-to-one NMS-free <em>cũng</em> nhạy với nhiễu lượng tử hóa, nên ở tuần 7 cần đo <strong>cả mức sụt mAP lẫn độ trễ</strong> sau khi quantize static-INT8 trên Pi 5, chứ không chỉ độ trễ.</div>
+</section>
+
+<!-- Evolution narrative: problem -> solution across generations -->
+<section class="q" id="tienhoa">
+  <h2>Vì sao có tới 26 phiên bản? — mỗi thế hệ YOLO giải một điểm nghẽn <span class="badge verified">Tổng hợp</span></h2>
+  <p class="qtext">Đọc lịch sử YOLO theo trục "bài toán đặt ra → cách khắc phục" thay vì theo mốc thời gian: mỗi thế hệ chủ yếu tháo gỡ một nút thắt mà thế hệ trước để lại. Hiểu chuỗi này là hiểu vì sao YOLO26 có hình dạng như hiện nay. Mọi trích dẫn đối chiếu bảng dòng dõi ngay bên dưới.</p>
+  <ol>
+    <li><strong>Bài toán tốc độ — detection hai giai đoạn quá chậm.</strong> Trước YOLO, các detector kiểu R-CNN tách bước đề xuất vùng rồi mới phân loại, khó chạy real-time. <strong>YOLOv1</strong> (2016) hợp nhất toàn bộ thành một lần forward pass duy nhất trên lưới S×S (<a href="https://arxiv.org/abs/1506.02640">arXiv:1506.02640</a>). Đánh đổi để lại: định vị thô và hay bỏ sót vật thể nhỏ.</li>
+    <li><strong>Bài toán định vị và recall — v1 dự đoán box quá tự do.</strong> <strong>YOLOv2/v3</strong> (2017–18) đưa vào anchor prior tính bằng k-means cùng head kiểu FPN ba tỷ lệ, cải thiện rõ recall cho vật thể nhỏ (<a href="https://arxiv.org/abs/2304.00501">survey</a>).</li>
+    <li><strong>Bài toán tận dụng "mẹo" huấn luyện và kỹ nghệ hóa.</strong> <strong>YOLOv4</strong> (2020) hệ thống hóa Bag-of-Freebies và Bag-of-Specials trên nền CSPDarknet53 với neck SPP/PANet; <strong>YOLOv5</strong> viết lại bằng PyTorch, thêm SPPF và AutoAnchor, biến YOLO thành công cụ kỹ nghệ dễ dùng (<a href="https://docs.ultralytics.com/models/yolov5/">docs</a>).</li>
+    <li><strong>Bài toán anchor và head ghép gây nhiễu.</strong> Anchor phải tinh chỉnh theo từng dataset, còn head chung làm nhiễu gradient giữa hai mục tiêu box và class. <strong>YOLOv8</strong> (2023) chuyển sang anchor-free, head decoupled và loss DFL (<a href="https://docs.ultralytics.com/models/yolov8/">docs</a>) — chính là kiến trúc mà mã huấn luyện của đồ án nhắm tới.</li>
+    <li><strong>Bài toán mất thông tin trong mạng sâu.</strong> <strong>YOLOv9</strong> (2024) đề xuất PGI để giữ thông tin gradient và GELAN để dùng tham số hiệu quả hơn (<a href="https://arxiv.org/abs/2402.13616">arXiv:2402.13616</a>).</li>
+    <li><strong>Bài toán NMS chặn end-to-end.</strong> NMS là hậu xử lý tuần tự, phụ thuộc dữ liệu, cản trở triển khai và quantization. <strong>YOLOv10</strong> (2024) đưa ra consistent dual assignments cho phép suy luận NMS-free end-to-end (<a href="https://arxiv.org/abs/2405.14458">arXiv:2405.14458</a>, NeurIPS 2024) — nền tảng mà YOLO26 kế thừa.</li>
+    <li><strong>Bài toán hiệu quả tham số và chú ý không gian.</strong> <strong>YOLO11</strong> (2024) thay C2f bằng C3k2 và thêm C2PSA, đạt cùng mAP với YOLOv8m nhưng ít hơn 22% tham số (<a href="https://docs.ultralytics.com/models/yolo11/">docs</a>).</li>
+    <li><strong>Bài toán triển khai biên: CPU, quantization và vật thể nhỏ.</strong> <strong>YOLO26</strong> (2026) đặt NMS-free làm mặc định, bỏ DFL để graph dễ quantize INT8, thêm STAL cho vật thể nhỏ và optimizer MuSGD (<a href="https://docs.ultralytics.com/models/yolo26/">docs</a>, <a href="https://arxiv.org/abs/2606.03748">arXiv:2606.03748</a>) — trùng đúng ba yêu cầu cốt lõi của bài toán bãi xe trên Raspberry Pi 5.</li>
+  </ol>
+  <div class="impl"><strong>Ý nghĩa cho đồ án:</strong> chuỗi bài toán này cho chương Tổng quan một mạch kể "vấn đề → cải tiến" thay vì liệt kê phiên bản khô khan. Hai điểm nghẽn cuối — NMS chặn end-to-end và độ khó quantization — chính là lý do kỹ thuật để chọn YOLO26 cho ràng buộc &lt; 2 s/xe trên edge.</div>
 </section>
 
 <!-- Lineage table -->
@@ -564,25 +590,25 @@
 
 <!-- Glossary / Giải thích thuật ngữ -->
 <section class="q" id="thuatngu">
-  <h2>Giải thích thuật ngữ <span class="badge verified">Glossary</span></h2>
+  <h2>Giải thích thuật ngữ <span class="badge verified">Thuật ngữ</span></h2>
   <p class="qtext">Từ điển nhanh các thuật ngữ kỹ thuật xuất hiện trong tài liệu — giữ nguyên tiếng Anh, giải thích tiếng Việt (theo quy ước đồ án: thuật ngữ tiếng Anh giữ nguyên).</p>
 
   <h3>Kiến trúc &amp; luồng dữ liệu</h3>
   <dl class="terms">
     <div class="term"><dt>YOLO <span class="vi">You Only Look Once</span></dt><dd>Họ detector <em>single-stage</em>: phát hiện toàn bộ vật thể trong một lần forward pass duy nhất, thay vì tách bước đề xuất vùng rồi phân loại.</dd></div>
-    <div class="term"><dt>ALPR</dt><dd>Automatic License Plate Recognition — pipeline nhận dạng biển số tự động: detect xe → detect biển số → OCR đọc ký tự.</dd></div>
+    <div class="term"><dt>ALPR</dt><dd>Automatic License Plate Recognition — pipeline nhận dạng biển số tự động: phát hiện xe, phát hiện biển số, rồi OCR đọc ký tự.</dd></div>
     <div class="term"><dt>single-stage vs two-stage</dt><dd>Single-stage (YOLO) dự đoán box trong 1 pass; two-stage (Faster R-CNN) đề xuất vùng ứng viên rồi mới phân loại từng vùng — chính xác hơn chút nhưng chậm hơn nhiều.</dd></div>
     <div class="term"><dt>backbone</dt><dd>Mạng CNN đầu tiên, trích đặc trưng (feature) từ ảnh thô. YOLOv8 dùng biến thể CSPDarknet.</dd></div>
     <div class="term"><dt>neck (FPN / PAN)</dt><dd>Tầng giữa, hợp nhất feature ở nhiều tỷ lệ (top-down + bottom-up) trước khi vào head.</dd></div>
     <div class="term"><dt>head</dt><dd>Tầng cuối, biến feature thành dự đoán cụ thể: tọa độ box + điểm class.</dd></div>
     <div class="term"><dt>feature map / P3·P4·P5</dt><dd>Bản đồ đặc trưng ở các độ sâu khác nhau; P3/P4/P5 tương ứng stride 8/16/32.</dd></div>
-    <div class="term"><dt>stride</dt><dd>Hệ số thu nhỏ so với ảnh gốc. Stride 8 → lưới mịn (bắt vật thể nhỏ); stride 32 → lưới thô (vật thể lớn).</dd></div>
+    <div class="term"><dt>stride</dt><dd>Hệ số thu nhỏ so với ảnh gốc. Stride 8 cho lưới mịn (bắt vật thể nhỏ); stride 32 cho lưới thô (vật thể lớn).</dd></div>
     <div class="term"><dt>receptive field</dt><dd>Vùng ảnh gốc mà một điểm trên feature map "nhìn thấy". Càng sâu càng rộng.</dd></div>
     <div class="term"><dt>C2f / SPPF / CSPDarknet</dt><dd>Các khối cấu thành backbone/neck YOLOv8: C2f = CSP bottleneck fusion; SPPF = spatial pyramid pooling nhanh, mở rộng receptive field.</dd></div>
     <div class="term"><dt>C3k2 / C2PSA</dt><dd>Khối mới của YOLO11 thay/bổ sung cho C2f (C3k2) và thêm partial spatial attention (C2PSA).</dd></div>
     <div class="term"><dt>bounding box</dt><dd>Hộp chữ nhật bao vật thể, biểu diễn bằng 4 số (x1,y1,x2,y2) hoặc tâm+kích thước.</dd></div>
     <div class="term"><dt>grid cell / anchor point</dt><dd>Ô lưới trên feature map. YOLOv8 anchor-free: mỗi ô đóng góp 1 anchor point ở tâm, dự đoán box tương đối điểm đó.</dd></div>
-    <div class="term"><dt>anchor-based vs anchor-free</dt><dd>Anchor-based dùng các hộp mẫu (prior) định sẵn; anchor-free bỏ chúng, regress trực tiếp — tránh phải tinh chỉnh anchor theo dataset.</dd></div>
+    <div class="term"><dt>anchor-based vs anchor-free</dt><dd>Anchor-based dùng các hộp mẫu (prior) định sẵn; anchor-free bỏ chúng, hồi quy trực tiếp — tránh phải tinh chỉnh anchor theo dataset.</dd></div>
   </dl>
 
   <h3>Head &amp; hàm mất mát</h3>
@@ -605,17 +631,17 @@
     <div class="term"><dt>ProgLoss</dt><dd>Progressive Loss — dịch dần trọng tâm supervision về phía head one-to-one dùng lúc inference.</dd></div>
     <div class="term"><dt>MuSGD</dt><dd>Optimizer hybrid của YOLO26, kết hợp SGD với "Muon" (mượn từ training large-language-model) cho hội tụ ổn định hơn.</dd></div>
     <div class="term"><dt>PGI / GELAN</dt><dd>YOLOv9: PGI (Programmable Gradient Information) chống mất thông tin gradient; GELAN là kiến trúc layer-aggregation hiệu quả.</dd></div>
-    <div class="term"><dt>baseline / fallback / fine-tune</dt><dd>Baseline = mốc so sánh; fallback = phương án dự phòng; fine-tune = huấn luyện tiếp model đã pre-train trên dataset của mình.</dd></div>
+    <div class="term"><dt>baseline / fallback / fine-tune</dt><dd>Baseline = mốc so sánh; fallback = phương án dự phòng; fine-tune = huấn luyện tiếp model đã pre-train trên dataset của đồ án.</dd></div>
   </dl>
 
   <h3>Triển khai edge &amp; quantization</h3>
   <dl class="terms">
     <div class="term"><dt>edge AI / Raspberry Pi 5</dt><dd>Chạy inference ngay trên thiết bị biên tài nguyên hạn chế (Pi 5 CPU-only) thay vì server/cloud.</dd></div>
-    <div class="term"><dt>ONNX / ONNX Runtime (ORT)</dt><dd>ONNX = định dạng model trung gian đa nền tảng; ORT = engine chạy model ONNX, dùng cho path CPU của mình.</dd></div>
+    <div class="term"><dt>ONNX / ONNX Runtime (ORT)</dt><dd>ONNX = định dạng model trung gian đa nền tảng; ORT = engine chạy model ONNX, dùng cho path CPU của đồ án.</dd></div>
     <div class="term"><dt>NCNN / OpenVINO / TensorRT / TFLite</dt><dd>Các runtime/format inference tối ưu theo phần cứng: NCNN cho ARM (nhanh nhất trên Pi 5), OpenVINO cho Intel, TensorRT cho NVIDIA, TFLite cho mobile.</dd></div>
     <div class="term"><dt>quantization INT8 / FP32 / FP16</dt><dd>Hạ độ chính xác số của model (FP32 → FP16 → INT8) để giảm kích thước + tăng tốc, đổi lấy chút mAP. Static INT8 hiệu chỉnh bằng dữ liệu mẫu.</dd></div>
     <div class="term"><dt>latency / throughput (FPS)</dt><dd>Latency = thời gian xử lý 1 ảnh (ms); throughput = số ảnh/giây (FPS). Nghịch đảo gần đúng của nhau.</dd></div>
-    <div class="term"><dt>NPU / DSP</dt><dd>Bộ tăng tốc AI chuyên dụng (vd Hailo-8L) / bộ xử lý tín hiệu số — khác CPU thường; kết quả quantize không transfer trực tiếp giữa chúng.</dd></div>
+    <div class="term"><dt>NPU / DSP</dt><dd>Bộ tăng tốc AI chuyên dụng (ví dụ Hailo-8L) / bộ xử lý tín hiệu số — khác CPU thường; kết quả quantize không chuyển trực tiếp được giữa chúng.</dd></div>
     <div class="term"><dt>SBC <span class="vi">Single-Board Computer</span></dt><dd>Máy tính bảng đơn (Raspberry Pi, Jetson Nano, LattePanda…) — nền tảng edge của đồ án.</dd></div>
   </dl>
 
@@ -624,7 +650,7 @@
     <div class="term"><dt>mAP / mAP50-95</dt><dd>mean Average Precision — độ chính xác tổng hợp của detector. mAP50-95 lấy trung bình qua nhiều ngưỡng IoU 0.5→0.95 (chuẩn COCO), khắt khe hơn mAP@0.5.</dd></div>
     <div class="term"><dt>COCO</dt><dd>Dataset benchmark object-detection chuẩn (80 lớp) — mọi số mAP headline trong tài liệu đo trên COCO val.</dd></div>
     <div class="term"><dt>precision / recall</dt><dd>Precision = tỷ lệ dự đoán đúng trong các box báo ra; recall = tỷ lệ vật thể thật được bắt. Đánh đổi qua ngưỡng confidence.</dd></div>
-    <div class="term"><dt>retention (INT8)</dt><dd>Tỷ lệ mAP còn giữ được sau quantize so với FP32; vd 92.3% nghĩa mất ~7.7% chất lượng.</dd></div>
+    <div class="term"><dt>retention (INT8)</dt><dd>Tỷ lệ mAP còn giữ được sau quantize so với FP32; ví dụ 92,3% nghĩa là mất khoảng 7,7% chất lượng.</dd></div>
   </dl>
 </section>
 
@@ -635,19 +661,21 @@
     <li>G. Jocher et al., "Ultralytics YOLO26: Unified Real-Time End-to-End Vision Models," arXiv:2606.03748, 2026. <a href="https://arxiv.org/abs/2606.03748">arxiv.org/abs/2606.03748</a></li>
     <li>Ultralytics, "Ultralytics YOLO26" (model docs). <a href="https://docs.ultralytics.com/models/yolo26/">docs.ultralytics.com/models/yolo26</a></li>
     <li>Ultralytics, "Quick Start Guide: Raspberry Pi" (benchmark Pi 5, truy cập 19/7/2026). <a href="https://docs.ultralytics.com/guides/raspberry-pi/">docs.ultralytics.com/guides/raspberry-pi</a></li>
-    <li>Ultralytics, "Ultralytics YOLOv8" (model docs + citation FAQ). <a href="https://docs.ultralytics.com/models/yolov8/">docs.ultralytics.com/models/yolov8</a></li>
+    <li>Ultralytics, "Ultralytics YOLOv8" (model docs + FAQ trích dẫn). <a href="https://docs.ultralytics.com/models/yolov8/">docs.ultralytics.com/models/yolov8</a></li>
     <li>Ultralytics, "Ultralytics YOLO11" (model docs). <a href="https://docs.ultralytics.com/models/yolo11/">docs.ultralytics.com/models/yolo11</a></li>
     <li>O. Shalash, E. Khatab, A. El-Agamy, L. Elmokadem, Y. Abouelsaad, J. Zaki, M. El-Sayed, and H. Said, "Benchmarking YOLOv8–YOLOv12 for Real-Time Object Detection on Single-Board Computers," <em>Mach. Learn. Knowl. Extr.</em>, vol. 8, no. 7, art. 204, 2026. DOI 10.3390/make8070204. <a href="https://www.mdpi.com/2504-4990/8/7/204">mdpi.com/2504-4990/8/7/204</a> (tác giả verify qua Crossref, 21/7/2026)</li>
     <li>C.-Y. Wang, I-H. Yeh, H.-Y. M. Liao, "YOLOv9: Learning What You Want to Learn Using Programmable Gradient Information," arXiv:2402.13616, 2024. <a href="https://arxiv.org/abs/2402.13616">arxiv.org/abs/2402.13616</a></li>
     <li>A. Wang et al., "YOLOv10: Real-Time End-to-End Object Detection," NeurIPS 2024, arXiv:2405.14458. <a href="https://arxiv.org/abs/2405.14458">arxiv.org/abs/2405.14458</a></li>
     <li>R. Khanam and M. Hussain, "YOLOv11: An Overview of the Key Architectural Enhancements," arXiv:2410.17725, 2024. <a href="https://arxiv.org/abs/2410.17725">arxiv.org/abs/2410.17725</a></li>
+    <li>J. Terven and D. Cordova-Esparza, "A Comprehensive Review of YOLO Architectures in Computer Vision: From YOLOv1 to YOLOv8 and YOLO-NAS," arXiv:2304.00501, 2023. <a href="https://arxiv.org/abs/2304.00501">arxiv.org/abs/2304.00501</a></li>
+    <li>J. Redmon, S. Divvala, R. Girshick, and A. Farhadi, "You Only Look Once: Unified, Real-Time Object Detection," arXiv:1506.02640, 2016. <a href="https://arxiv.org/abs/1506.02640">arxiv.org/abs/1506.02640</a></li>
     <li>R. Sapkota et al., "YOLO26: Key Architectural Enhancements and Performance Benchmarking for Real-Time Object Detection," arXiv:2509.25164, 2025. <a href="https://arxiv.org/html/2509.25164v1">arxiv.org/abs/2509.25164</a></li>
     <li>Businesswire, "Ultralytics Launches YOLO26 …," 14/1/2026. <a href="https://www.businesswire.com/news/home/20260114168538/en/Ultralytics-Launches-YOLO26-Setting-a-New-Global-Standard-for-Edge-First-Vision-AI">businesswire.com</a></li>
     <li>Ultralytics GitHub issue #24844 (thông báo release-stable YOLO26). <a href="https://github.com/ultralytics/ultralytics/issues/24844">github.com/ultralytics/ultralytics/issues/24844</a></li>
     <li>Ultralytics, "YOLO Architecture Guide" (cơ chế forward pass, C2f/SPPF/decoupled head/DFL). <a href="https://docs.ultralytics.com/guides/yolo-architecture/">docs.ultralytics.com/guides/yolo-architecture</a></li>
     <li>S. Chakrabarty, "YOLO26: An Analysis of NMS-Free End to End Framework for Real-Time Object Detection," arXiv:2601.12882, 2026. <a href="https://arxiv.org/abs/2601.12882">arxiv.org/abs/2601.12882</a></li>
     <li>R. Sapkota and M. Karkee, "Ultralytics YOLO Evolution: An Overview of YOLO26, YOLO11, YOLOv8 and YOLOv5 Object Detectors …," arXiv:2510.09653, 2025. <a href="https://arxiv.org/abs/2510.09653">arxiv.org/abs/2510.09653</a></li>
-    <li>D. Dubinsky, "Porting YOLO26n to the Hailo-8L" (practitioner case study — gray literature, INT8 retention datapoint). <a href="https://danieldubinsky.github.io/personal-site/case-studies/yolo26n-hailo-L8/">danieldubinsky.github.io/personal-site/case-studies/yolo26n-hailo-L8</a></li>
+    <li>D. Dubinsky, "Porting YOLO26n to the Hailo-8L" (case study thực nghiệm — tài liệu xám / gray literature, số liệu retention INT8). <a href="https://danieldubinsky.github.io/personal-site/case-studies/yolo26n-hailo-L8/">danieldubinsky.github.io/personal-site/case-studies/yolo26n-hailo-L8</a></li>
   </ol>
   <p class="colophon">UIT 2026 · Smart Parking · YOLO literature review · cập nhật 2026-07-21</p>
 </section>
