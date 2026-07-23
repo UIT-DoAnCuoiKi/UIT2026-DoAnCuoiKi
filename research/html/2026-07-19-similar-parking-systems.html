@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Khảo sát các hệ thống quản lý bãi xe thông minh tương tự (cập nhật 2026-07-21)</title>
+
+<!-- Fonts: Fraunces (editorial serif display) + Hanken Grotesk (body sans) + Spline Sans Mono (code) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,900;1,9..144,500&family=Hanken+Grotesk:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  /* ===========================================================
+     CLAUDE THEME — warm paper, clay accent, editorial serif.
+     Palette drawn from Anthropic's book-cloth / kraft / manila
+     family; ink on cream, terracotta as the single sharp accent.
+     Change everything from these variables.
+     =========================================================== */
+  :root {
+    /* Surfaces */
+    --paper:      #f4efe4;   /* page background — warm ivory   */
+    --paper-2:    #efe7d7;   /* deeper cream for wells         */
+    --card:       #fbf8f1;   /* raised card surface            */
+    --card-soft:  #f6f0e4;   /* tinted inner blocks            */
+
+    /* Ink */
+    --ink:        #2a2521;   /* primary text — warm near-black */
+    --ink-soft:   #5c5346;   /* secondary text                 */
+    --ink-faint:  #8a7f6d;   /* captions / meta                */
+
+    /* Accent — Claude clay / terracotta */
+    --clay:       #c05f3c;
+    --clay-deep:  #a04a2b;
+    --clay-tint:  #f0dccf;   /* clay wash background           */
+
+    /* Lines */
+    --line:       #e2d8c4;
+    --line-soft:  #ece3d2;
+
+    /* Semantic status (muted, warm) */
+    --ok-bg:  #e7ecd9; --ok-fg:  #55692e; --ok-bd:  #ccd6a8;
+    --fix-bg: #f6e6cd; --fix-fg: #97621f; --fix-bd: #e6c893;
+    --open-bg:#f4dcd2; --open-fg:#a8432a; --open-bd:#e6b3a0;
+
+    --shadow: 0 1px 2px rgba(74,54,38,.05), 0 14px 34px -18px rgba(74,54,38,.28);
+    --radius: 14px;
+    --ease: cubic-bezier(.2,.7,.2,1);
+    --measure: 78ch;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    color: var(--ink);
+    background-color: var(--paper);
+    /* Layered warmth: two soft radial glows + faint grain overlay */
+    background-image:
+      radial-gradient(1200px 700px at 82% -8%, rgba(192,95,60,.10), transparent 60%),
+      radial-gradient(1000px 800px at -10% 12%, rgba(212,162,127,.14), transparent 55%);
+    background-attachment: fixed;
+    font-family: "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
+    font-size: 17px;
+    line-height: 1.68;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Fine paper grain, sits above bg, below content, non-interactive */
+  body::before {
+    content: "";
+    position: fixed; inset: 0;
+    pointer-events: none; z-index: 0;
+    opacity: .5;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.35'/%3E%3C/svg%3E");
+  }
+
+  /* --- Top scroll-progress bar --- */
+  .progress {
+    position: fixed; top: 0; left: 0; height: 3px; width: 0%;
+    background: linear-gradient(90deg, var(--clay), var(--clay-deep));
+    z-index: 200; transition: width .1s linear;
+  }
+
+  /* ===========================================================
+     LAYOUT — centered column with a fixed left index rail
+     =========================================================== */
+  .wrap {
+    position: relative; z-index: 1;
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 68px 26px 120px;
+  }
+
+  /* Fixed table-of-contents rail (wide screens only) */
+  nav.toc {
+    position: fixed; top: 50%; left: max(20px, calc((100vw - 920px)/2 - 220px));
+    transform: translateY(-50%);
+    width: 190px; z-index: 50;
+    font-size: .82rem; line-height: 1.35;
+  }
+  nav.toc .toc-kicker {
+    font-family: "Spline Sans Mono", monospace;
+    font-size: .66rem; letter-spacing: .22em; text-transform: uppercase;
+    color: var(--ink-faint); margin: 0 0 12px 14px;
+  }
+  nav.toc a {
+    display: block; padding: 5px 0 5px 14px; margin: 1px 0;
+    color: var(--ink-faint); text-decoration: none;
+    border-left: 2px solid var(--line);
+    transition: color .25s var(--ease), border-color .25s var(--ease), padding .25s var(--ease);
+  }
+  nav.toc a:hover { color: var(--ink-soft); border-color: var(--ink-faint); }
+  nav.toc a.active {
+    color: var(--clay-deep); border-color: var(--clay);
+    padding-left: 18px; font-weight: 600;
+  }
+  @media (max-width: 1240px) { nav.toc { display: none; } }
+
+  /* ===========================================================
+     HERO
+     =========================================================== */
+  header.page { margin-bottom: 46px; }
+  .kicker {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-family: "Spline Sans Mono", monospace;
+    font-size: .72rem; letter-spacing: .24em; text-transform: uppercase;
+    color: var(--clay-deep); margin-bottom: 22px;
+  }
+  .kicker::before {
+    content: ""; width: 26px; height: 2px; background: var(--clay); display: inline-block;
+  }
+  h1 {
+    font-family: "Fraunces", serif;
+    font-weight: 900; font-size: clamp(2.4rem, 5.4vw, 3.9rem);
+    line-height: 1.02; letter-spacing: -.02em;
+    margin: 0 0 20px; color: var(--ink);
+  }
+  h1 .em { color: var(--clay); font-style: italic; font-weight: 500; }
+  .subtitle {
+    font-size: 1.12rem; color: var(--ink-soft); margin: 0 0 18px;
+    max-width: 62ch;
+  }
+  .meta {
+    font-size: .92rem; color: var(--ink-faint); margin: 0;
+    padding-top: 18px; border-top: 1px solid var(--line);
+    max-width: 74ch;
+  }
+  .meta strong { color: var(--clay-deep); font-weight: 600; }
+
+  /* ===========================================================
+     SECTION CARDS
+     =========================================================== */
+  section.q {
+    position: relative;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 34px 40px 38px;
+    margin-bottom: 30px;
+    box-shadow: var(--shadow);
+    scroll-margin-top: 28px;
+    overflow: hidden;
+  }
+  /* clay spine on the left edge */
+  section.q::before {
+    content: ""; position: absolute; left: 0; top: 26px; bottom: 26px; width: 3px;
+    background: linear-gradient(var(--clay), var(--clay-deep));
+    border-radius: 0 3px 3px 0; opacity: .0;
+    transition: opacity .4s var(--ease);
+  }
+  section.q:hover::before { opacity: .9; }
+
+  h2 {
+    font-family: "Fraunces", serif;
+    font-weight: 600; font-size: 1.62rem; line-height: 1.2;
+    letter-spacing: -.01em; margin: 0 0 6px; color: var(--ink);
+  }
+  h3 {
+    font-family: "Hanken Grotesk", sans-serif;
+    font-weight: 700; font-size: .82rem; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--clay-deep);
+    margin: 26px 0 10px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  h3::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  /* entry heading — larger, mixed-case, holds a paper title + badge */
+  h4 {
+    font-family: "Fraunces", serif; font-weight: 600; font-size: 1.16rem;
+    line-height: 1.28; letter-spacing: -.01em; color: var(--ink);
+    margin: 30px 0 4px;
+  }
+  h4:first-of-type { margin-top: 6px; }
+
+  .qtext {
+    font-family: "Fraunces", serif; font-style: italic; font-weight: 500;
+    font-size: 1.06rem; color: var(--ink-soft);
+    margin: 8px 0 20px; max-width: 68ch;
+  }
+
+  p { max-width: var(--measure); }
+
+  /* pull-quote lead-in used under entry headings */
+  .lead {
+    font-family: "Fraunces", serif; font-style: italic; font-size: 1rem;
+    color: var(--clay-deep); margin: 8px 0 12px; max-width: 70ch;
+  }
+
+  /* ===========================================================
+     STATUS BADGES
+     =========================================================== */
+  .badge {
+    display: inline-block; font-family: "Spline Sans Mono", monospace;
+    font-size: .64rem; font-weight: 600; letter-spacing: .1em;
+    padding: 4px 10px; border-radius: 6px; vertical-align: middle; margin-left: 8px;
+    border: 1px solid; text-transform: uppercase; white-space: nowrap;
+  }
+  .verified  { background: var(--ok-bg);  color: var(--ok-fg);  border-color: var(--ok-bd); }
+  .corrected { background: var(--fix-bg); color: var(--fix-fg); border-color: var(--fix-bd); }
+  .unresolved{ background: var(--open-bg);color: var(--open-fg);border-color: var(--open-bd); }
+
+  /* ===========================================================
+     TEXT ELEMENTS
+     =========================================================== */
+  a {
+    color: var(--clay-deep); text-decoration: underline;
+    text-decoration-color: var(--clay-tint); text-underline-offset: 3px;
+    text-decoration-thickness: 1.5px;
+    transition: text-decoration-color .2s var(--ease), color .2s var(--ease);
+  }
+  a:hover { color: var(--clay); text-decoration-color: var(--clay); }
+
+  strong { font-weight: 700; color: var(--ink); }
+
+  blockquote {
+    margin: 12px 0; padding: 12px 20px;
+    border-left: 3px solid var(--clay);
+    background: var(--card-soft); border-radius: 0 8px 8px 0;
+    font-family: "Fraunces", serif; font-size: .98rem; font-style: italic;
+    color: var(--ink-soft);
+  }
+
+  code {
+    font-family: "Spline Sans Mono", monospace; font-size: .84em;
+    background: var(--paper-2); color: var(--clay-deep);
+    padding: 2px 6px; border-radius: 5px;
+    border: 1px solid var(--line-soft);
+  }
+
+  ul, ol { margin: 10px 0; padding-left: 24px; max-width: var(--measure); }
+  li { margin: 7px 0; }
+  ul li::marker { color: var(--clay); }
+  ol li::marker { color: var(--clay-deep); font-family: "Spline Sans Mono", monospace; font-weight: 600; }
+
+  /* ===========================================================
+     TABLES
+     =========================================================== */
+  .tbl-scroll { overflow-x: auto; margin: 16px 0 8px; }
+  table {
+    border-collapse: collapse; width: 100%; margin: 16px 0 8px;
+    font-size: .9rem; background: var(--card);
+    border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
+  }
+  .tbl-scroll table { margin: 0; min-width: 640px; }
+  th, td { padding: 10px 14px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line-soft); }
+  th {
+    background: var(--paper-2); font-weight: 700; color: var(--ink);
+    font-size: .78rem; letter-spacing: .04em; text-transform: uppercase;
+  }
+  tr:last-child td { border-bottom: none; }
+  tbody tr:hover td, table tr:hover td { background: rgba(192,95,60,.045); }
+  td.win { font-weight: 700; color: var(--clay-deep); }
+
+  /* ===========================================================
+     ASSESSMENT CALLOUT ("Nhận xét: điểm mạnh & thiếu sót")
+     =========================================================== */
+  .assess {
+    background: var(--card-soft);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--clay);
+    border-radius: 0 10px 10px 0; padding: 14px 20px; margin-top: 18px;
+    font-size: .95rem; color: var(--ink);
+  }
+  .assess .lbl {
+    display: block; font-family: "Spline Sans Mono", monospace;
+    font-size: .66rem; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--clay-deep); margin-bottom: 8px;
+  }
+  .assess p { margin: 6px 0; }
+  .assess .pro strong { color: var(--ok-fg); }
+  .assess .con strong { color: var(--open-fg); }
+  .assess .bib { font-size: .84rem; color: var(--ink-faint); margin-top: 8px; }
+
+  /* methodological note — neutral, amber */
+  .note {
+    background: var(--fix-bg); border: 1px solid var(--fix-bd);
+    border-radius: 10px; padding: 14px 18px; margin: 16px 0;
+    font-size: .93rem; color: var(--ink);
+  }
+  .note strong { color: var(--fix-fg); }
+
+  /* ===========================================================
+     GLOSSARY / evidence legend cards
+     =========================================================== */
+  .terms {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 14px 22px; margin: 12px 0 4px;
+  }
+  .terms .term {
+    background: var(--card-soft); border: 1px solid var(--line-soft);
+    border-radius: 10px; padding: 13px 16px;
+    transition: border-color .25s var(--ease), transform .25s var(--ease);
+  }
+  .terms .term:hover { border-color: var(--clay-bd, #e4c3b2); transform: translateY(-2px); }
+  .terms dt {
+    font-family: "Spline Sans Mono", monospace; font-weight: 600; font-size: .84rem;
+    color: var(--clay-deep); margin-bottom: 4px; letter-spacing: -.01em;
+  }
+  .terms dd { margin: 0; font-size: .9rem; color: var(--ink-soft); line-height: 1.55; }
+  @media (max-width: 760px) { .terms { grid-template-columns: 1fr; } }
+
+  .refs { font-size: .9rem; color: var(--ink-soft); }
+  .refs li { margin: 8px 0; }
+
+  .yes { color: var(--ok-fg); font-weight: 700; }
+  .no  { color: var(--open-fg); font-weight: 600; }
+
+  /* Back-to-top */
+  .totop {
+    position: fixed; right: 26px; bottom: 26px; z-index: 60;
+    width: 46px; height: 46px; border-radius: 50%;
+    background: var(--clay); color: #fff; border: none; cursor: pointer;
+    font-size: 1.1rem; display: grid; place-items: center;
+    box-shadow: 0 8px 22px -8px rgba(160,74,43,.7);
+    opacity: 0; pointer-events: none; transform: translateY(10px);
+    transition: opacity .3s var(--ease), transform .3s var(--ease), background .2s;
+  }
+  .totop.show { opacity: 1; pointer-events: auto; transform: translateY(0); }
+  .totop:hover { background: var(--clay-deep); }
+
+  /* Footer */
+  .colophon {
+    margin-top: 40px; padding-top: 22px; border-top: 1px solid var(--line);
+    font-size: .82rem; color: var(--ink-faint); text-align: center;
+    font-family: "Spline Sans Mono", monospace; letter-spacing: .04em;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+  }
+
+  @media (max-width: 640px) {
+    section.q { padding: 26px 22px 30px; }
+    .wrap { padding: 44px 18px 100px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress"></div>
+
+<!-- Index rail -->
+<nav class="toc" aria-label="Mục lục">
+  <p class="toc-kicker">Mục lục</p>
+  <a href="#propose">Hệ thống đề xuất</a>
+  <a href="#evidence">Quy ước evidence</a>
+  <a href="#a1">A1 · Biển số VN</a>
+  <a href="#a2">A2 · Bãi xe quốc tế</a>
+  <a href="#a3">A3 · Edge INT8</a>
+  <a href="#a4">A4 · Cảm biến IoT</a>
+  <a href="#b">B · Sản phẩm thương mại</a>
+  <a href="#c">C · Mã nguồn mở</a>
+  <a href="#d">D · Bảng tính năng</a>
+  <a href="#e">E · Tổng hợp số liệu</a>
+  <a href="#gap">Khoảng trống nghiên cứu</a>
+</nav>
+
+<div class="wrap">
+
+<header class="page">
+  <div class="kicker">UIT · Đồ án tốt nghiệp · Bãi xe thông minh</div>
+  <h1>Khảo sát các hệ thống quản lý<br>bãi xe thông minh <span class="em">tương tự</span></h1>
+  <p class="subtitle">Tổng quan related work về nhận dạng biển số Việt Nam, hệ thống bãi xe ALPR đầy đủ, triển khai trên edge và sản phẩm thương mại — mỗi công trình được đánh giá theo điểm mạnh và thiếu sót.</p>
+  <p class="meta">Ngày tạo: 19/7/2026 · <strong>Cập nhật lượt 2: 21/7/2026.</strong> Nguồn Việt Nam được trình bày trước trong mỗi mục do tương đồng về định dạng biển số, thị trường và quy định. Metadata (tác giả, số trang, DOI) của mọi entry được đối chiếu qua <strong>Crossref API</strong> và số liệu kho mã nguồn qua <strong>GitHub REST API</strong> ngày 21/7/2026, không lấy từ blog hay trí nhớ.</p>
+</header>
+
+<!-- Proposed system (standalone description, no comparison) -->
+<section class="q" id="propose">
+  <h2>Hệ thống đề xuất <span class="badge verified">Phạm vi</span></h2>
+  <p class="qtext">Mô tả độc lập kiến trúc hệ thống mà khảo sát này phục vụ — trình bày để xác lập phạm vi, không đặt trong tương quan so sánh với các công trình ở những mục sau.</p>
+  <div class="tbl-scroll"><table>
+    <tr><th>Thành phần</th><th>Công nghệ</th><th>Chức năng</th></tr>
+    <tr><td>Phát hiện</td><td>YOLOv8 / YOLO26 (ultralytics)</td><td>Phát hiện xe và biển số Việt Nam theo cascade hai giai đoạn</td></tr>
+    <tr><td>Nhận dạng (OCR)</td><td>PaddleOCR / EasyOCR</td><td>Đọc chuỗi ký tự trên biển số, hỗ trợ biển 1 hàng và 2 hàng</td></tr>
+    <tr><td>Phân loại màu biển</td><td>OpenCV — HSV + CLAHE</td><td>Phân loại nền biển: trắng (tư nhân), vàng (kinh doanh), xanh (cơ quan)</td></tr>
+    <tr><td>Backend</td><td>FastAPI + PostgreSQL</td><td>Khớp session vào/ra, tính phí theo thời lượng</td></tr>
+    <tr><td>Dashboard</td><td>React</td><td>Trực quan hóa occupancy, log session, thống kê</td></tr>
+    <tr><td>Triển khai edge</td><td>Raspberry Pi 5, ONNX Runtime, INT8</td><td>Suy luận tại biên, mục tiêu &lt; 2 s/xe end-to-end</td></tr>
+  </table></div>
+  <div class="assess">
+    <span class="lbl">Ràng buộc thiết kế</span>
+    <p>Toàn bộ pipeline (model + FastAPI + CSDL) chạy trên một thiết bị edge Raspberry Pi 5 duy nhất. Biển số và ảnh xe được xử lý như dữ liệu cá nhân theo Luật Bảo vệ dữ liệu cá nhân (hiệu lực 01/01/2026): kiểm soát truy cập bản ghi, mã hóa trường nhạy cảm, và tự động xóa bản ghi sau thời hạn lưu trữ quy định kể từ khi xe rời bãi.</p>
+  </div>
+</section>
+
+<!-- Evidence convention -->
+<section class="q" id="evidence">
+  <h2>Quy ước mức độ evidence <span class="badge verified">Giải thích</span></h2>
+  <p class="qtext">Mỗi entry ghi rõ mức độ truy cập được của nguồn, làm cơ sở cho độ tin cậy khi trích dẫn. Ba mức, ánh xạ trực tiếp sang màu badge dùng xuyên suốt tài liệu này.</p>
+  <dl class="terms">
+    <div class="term"><dt><span class="badge verified" style="margin:0">Full text</span></dt><dd>Đã tiếp cận full text (PDF/HTML), số liệu lấy từ bảng gốc. Trích dẫn được cả con số cụ thể và protocol đo.</dd></div>
+    <div class="term"><dt><span class="badge corrected" style="margin:0">Abstract</span></dt><dd>Chỉ có abstract và metadata Crossref. Trích được số liệu headline, không trích chi tiết protocol.</dd></div>
+    <div class="term"><dt><span class="badge unresolved" style="margin:0">Paywall</span></dt><dd>Chưa tiếp cận được full text; số liệu ở mức thứ cấp, cần bổ sung PDF trước khi trích chính thức.</dd></div>
+  </dl>
+</section>
+
+<!-- A1 -->
+<section class="q" id="a1">
+  <h2>A1 — Nhận dạng biển số Việt Nam <span class="badge verified">Related work trọng tâm</span></h2>
+  <p class="qtext">Nhóm nguồn tương đồng nhất về định dạng biển, thị trường và phần cứng — cung cấp baseline nhận dạng và phát hiện cho biển số Việt Nam.</p>
+
+  <h4>A1.1 · Tran &amp; Bui 2025 — LPR Việt Nam trên Raspberry Pi 4 <span class="badge unresolved">Paywall</span></h4>
+  <div class="tbl-scroll"><table>
+    <tr><th>Mục</th><th>Nội dung</th></tr>
+    <tr><td>Trích dẫn</td><td>V. Tran and T. Bui, "Implementation of a License Plate Recognition System in Vietnam Using Embedding Devices," in <em>Multi-disciplinary Trends in Artificial Intelligence (MIWAI 2024)</em>, LNCS, Springer, Singapore, 2025, pp. 231–243.</td></tr>
+    <tr><td>DOI / link</td><td><a href="https://link.springer.com/chapter/10.1007/978-981-96-0695-5_19">10.1007/978-981-96-0695-5_19</a> · <a href="https://dl.acm.org/doi/abs/10.1007/978-981-96-0695-5_19">mirror ACM DL</a></td></tr>
+    <tr><td>Tác giả (verified)</td><td>Vanha Tran; Thiloan Bui — Crossref 2026-07-21</td></tr>
+    <tr><td>Kiến trúc</td><td>2 giai đoạn: <strong>SSD-MobileNetV2</strong> detect biển số → <strong>YOLOv8-nano</strong> nhận dạng ký tự (OCR-as-detection, không dùng OCR engine)</td></tr>
+    <tr><td>Phần cứng</td><td>Raspberry Pi 4 Model B + Pi Camera V2 (8 MP)</td></tr>
+    <tr><td>Số liệu</td><td>Accuracy nhận dạng trung bình <strong>95.68%</strong>; thời gian xử lý trung bình <strong>0.478 s/ảnh</strong></td></tr>
+    <tr><td>Code / dataset</td><td>N/A</td></tr>
+    <tr><td>Trạng thái nguồn</td><td>N/A (full text chưa tiếp cận được; số liệu ở mức thứ cấp)</td></tr>
+  </table></div>
+  <div class="assess">
+    <span class="lbl">Nhận xét</span>
+    <p class="pro"><strong>Điểm mạnh:</strong> hiếm gặp — nhận dạng biển số Việt Nam đo trực tiếp trên phần cứng edge Raspberry Pi; báo cáo đồng thời độ chính xác (95.68%) và thời gian xử lý (0.478 s/ảnh) ở cùng điều kiện triển khai.</p>
+    <p class="con"><strong>Thiếu sót:</strong> không phân định độ chính xác ở cấp ký tự hay cấp biển; không nêu cỡ tập test; không rõ 0.478 s có bao gồm I/O camera; không phân biệt tỷ lệ biển 1 hàng và 2 hàng; dừng ở nhận dạng, không có quản lý session hay tính phí.</p>
+    <p class="bib">BibTeX: <code>tran2025vietnamlpr</code></p>
+  </div>
+
+  <h4>A1.2 · Dang và cộng sự 2024 — CRNN + attention, dataset bãi xe trong nhà ở VN <span class="badge corrected">Abstract</span></h4>
+  <div class="tbl-scroll"><table>
+    <tr><th>Mục</th><th>Nội dung</th></tr>
+    <tr><td>Trích dẫn</td><td>L. T. A. Dang, V. D. Ngoc, P. C. L. T. Vu, N. N. Truong, P. T. Bao, and T. D. Trinh, "Vietnam Vehicle Number Recognition Based on an Improved CRNN with Attention Mechanism," <em>Int. J. Intelligent Transportation Systems Research</em>, vol. 22, pp. 374–389, 2024.</td></tr>
+    <tr><td>DOI / link</td><td><a href="https://link.springer.com/article/10.1007/s13177-024-00402-7">10.1007/s13177-024-00402-7</a> · <a href="https://trid.trb.org/View/2414278">TRID</a></td></tr>
+    <tr><td>Nhóm</td><td>Nhóm VN (Pham The Bao — Saigon University); công bố 31/5/2024; 7 citation (Semantic Scholar, 2026-07-21)</td></tr>
+    <tr><td>Kiến trúc</td><td>3 bước: <strong>YOLO</strong> detect xe → <strong>WPOD-NET</strong> trích biển số (chuyên xử lý biển xiên góc) → <strong>CRNN cải tiến</strong> train đồng thời <strong>CTC + attention</strong> để đọc ký tự</td></tr>
+    <tr><td>Dataset</td><td>Tự thu tại <strong>bãi đỗ xe trong nhà</strong> ở VN; cỡ dataset N/A</td></tr>
+    <tr><td>Số liệu</td><td><strong>Word Error Rate (WER) = 0.014</strong> trong tác vụ OCR</td></tr>
+    <tr><td>Trạng thái nguồn</td><td>N/A (chỉ có abstract + metadata Crossref)</td></tr>
+  </table></div>
+  <div class="assess">
+    <span class="lbl">Nhận xét</span>
+    <p class="pro"><strong>Điểm mạnh:</strong> dataset thu tại bãi đỗ trong nhà — ngữ cảnh sát với bài toán quản lý bãi xe; WPOD-NET xử lý tốt biển xiên góc; huấn luyện CRNN đồng thời với CTC và attention cho WER rất thấp (0.014).</p>
+    <p class="con"><strong>Thiếu sót:</strong> cỡ dataset và protocol đo N/A; chỉ dừng ở khâu nhận dạng, không mở rộng sang session hay tính phí.</p>
+    <p class="bib">BibTeX: <code>dang2024vietnamcrnn</code></p>
+  </div>
+
+  <h4>A1.3 · Le và cộng sự 2023 — biển số xe máy VN, YOLOv8 3 tầng <span class="badge unresolved">Paywall</span></h4>
+  <div class="tbl-scroll"><table>
+    <tr><th>Mục</th><th>Nội dung</th></tr>
+    <tr><td>Trích dẫn</td><td>D. H. Le, D. Mazumder, L.-D. Quach, S. Banerjee, and V.-D. Nguyen, "Robust Vietnam's Motorcycle License Plate Detection and Recognition Using Deep Learning Model," in <em>Future Data and Security Engineering (FDSE 2023)</em>, CCIS, Springer, Singapore, 2023, pp. 64–75.</td></tr>
+    <tr><td>DOI / link</td><td><a href="https://link.springer.com/chapter/10.1007/978-981-99-8296-7_5">10.1007/978-981-99-8296-7_5</a></td></tr>
+    <tr><td>Tác giả (verified)</td><td>Duc Hoa Le; Debarshi Mazumder; Luyl-Da Quach; Shreya Banerjee; Vinh Dinh Nguyen — Crossref 2026-07-21</td></tr>
+    <tr><td>Kiến trúc</td><td>YOLOv8 <strong>3 tầng</strong>: detect xe máy → detect biển số <strong>bên trong bbox xe máy</strong> → nhận dạng biển</td></tr>
+    <tr><td>Dataset</td><td>Dataset biển số xe máy VN trên Roboflow</td></tr>
+    <tr><td>Số liệu</td><td><strong>mAP 93%</strong> (tốt nhất, sau 300 epoch); số liệu tốc độ N/A</td></tr>
+    <tr><td>Ứng dụng đích</td><td>Phạt nguội vi phạm tốc độ</td></tr>
+    <tr><td>Trạng thái nguồn</td><td>N/A (full text chưa tiếp cận được)</td></tr>
+  </table></div>
+  <div class="assess">
+    <span class="lbl">Nhận xét</span>
+    <p class="pro"><strong>Điểm mạnh:</strong> cung cấp baseline mAP 93% trực tiếp cho biển 2 hàng của xe máy Việt Nam — loại biển khó; kiến trúc cascade phát hiện xe trước, biển sau là thiết kế phổ biến và hợp lý.</p>
+    <p class="con"><strong>Thiếu sót:</strong> không có số liệu tốc độ nên chưa đánh giá được khả năng triển khai real-time; protocol đo và cỡ dataset N/A.</p>
+    <p class="bib">BibTeX: <code>le2023motorcycleplate</code></p>
+  </div>
+
+  <h4>A1.4 · Tran-Anh và cộng sự 2023 — LPR đa góc nhìn (PTIT) <span class="badge corrected">Abstract · arXiv mở</span></h4>
+  <div class="tbl-scroll"><table>
+    <tr><th>Mục</th><th>Nội dung</th></tr>
+    <tr><td>Trích dẫn</td><td>D. Tran-Anh, K. L. Tran, and H.-N. Vu, "License Plate Recognition Based On Multi-Angle View Model," arXiv:2309.12972, 2023.</td></tr>
+    <tr><td>Link</td><td><a href="https://arxiv.org/abs/2309.12972">arXiv:2309.12972</a> — truy cập tự do</td></tr>
+    <tr><td>Kiến trúc</td><td>Fuse đặc trưng corner-point/diện tích qua <strong>3 góc nhìn</strong> trước khi nhận dạng bằng <strong>CnOCR</strong></td></tr>
+    <tr><td>Dataset</td><td><strong>PTITPlates</strong> (tự thu, Học viện PTIT) + Stanford Cars</td></tr>
+    <tr><td>Số liệu</td><td>N/A (abstract khẳng định vượt trội nhưng không công bố con số headline)</td></tr>
+  </table></div>
+  <div class="assess">
+    <span class="lbl">Nhận xét</span>
+    <p class="pro"><strong>Điểm mạnh:</strong> hướng tiếp cận đa góc nhìn nhằm tăng độ bền theo góc chụp; xây dựng bộ dữ liệu PTITPlates riêng; toàn văn mở trên arXiv.</p>
+    <p class="con"><strong>Thiếu sót:</strong> không công bố số liệu định lượng nên không thể dùng làm baseline so sánh.</p>
+    <p class="bib">BibTeX: <code>trananh2023multiangle</code></p>
+  </div>
+
+  <h4>A1.5 · UIT MAPR 2018 — Cuộc thi nhận dạng biển số xe máy VN <span class="badge corrected">Dataset</span></h4>
+  <div class="tbl-scroll"><table>
+    <tr><th>Mục</th><th>Nội dung</th></tr>
+    <tr><td>Nguồn</td><td>MAPR 2018 organizers, "Vietnamese Bike License Plate Recognition Challenge," 1st Int. Conf. on Multimedia Analysis and Pattern Recognition, UIT, 2018. <a href="https://mapr.uit.edu.vn/2018/vietnamese-bike-license-plate-recognition">mapr.uit.edu.vn</a></td></tr>
+    <tr><td>Dataset</td><td><strong>3.000 ảnh xe máy chụp tại bãi giữ xe khách sạn ở VN</strong> — 2.000 train / 1.000 test</td></tr>
+    <tr><td>Task</td><td>Detect biển số (bbox) + nhận dạng text</td></tr>
+    <tr><td>Trạng thái</td><td>N/A (link tải dataset không truy cập được)</td></tr>
+  </table></div>
+  <div class="assess">
+    <span class="lbl">Nhận xét</span>
+    <p class="pro"><strong>Điểm mạnh:</strong> benchmark biển số xe máy Việt Nam đặt tại chính bối cảnh bãi giữ xe; xác lập gốc nghiên cứu tại UIT.</p>
+    <p class="con"><strong>Thiếu sót:</strong> dataset N/A (không tải được), nên chỉ có giá trị dẫn nguồn lịch sử.</p>
+    <p class="bib">BibTeX: <code>mapr2018challenge</code></p>
+  </div>
+</section>
+
+<!-- A2 -->
+<section class="q" id="a2">
+  <h2>A2 — Hệ thống bãi xe / ALPR quốc tế <span class="badge verified">Full pipeline</span></h2>
+  <p class="qtext">Các hệ thống hoàn chỉnh hơn — nhiều công trình tích hợp cả session, tính phí, dashboard và triển khai edge — cùng những mẫu protocol đo minh bạch.</p>
+
+  <h4>A2.1 · Pradhan và cộng sự 2025 — bãi xe IoT + ALPR + thanh toán trên Raspberry Pi <span class="badge verified">Full text</span></h4>
+  <p class="lead">Hệ thống hoàn chỉnh nhất trong khảo sát ở cấp độ tích hợp: edge Pi + ALPR + khớp session + tính phí + occupancy.</p>
+  <div class="tbl-scroll"><table>
+    <tr><th>Mục</th><th>Nội dung</th></tr>
+    <tr><td>Trích dẫn</td><td>G. Pradhan, M. R. Prusty, V. S. Negi, and S. Chinara, "Advanced IoT-integrated parking systems with automated license plate recognition and payment management," <em>Scientific Reports</em>, vol. 15, art. 2388, 2025.</td></tr>
+    <tr><td>DOI / link</td><td><a href="https://www.nature.com/articles/s41598-025-86441-w">10.1038/s41598-025-86441-w</a> · <strong>full text mở:</strong> <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC11742719/">PMC11742719</a></td></tr>
+    <tr><td>Đơn vị</td><td>Vellore Institute of Technology + NIT Rourkela (Ấn Độ)</td></tr>
+  </table></div>
+  <p><strong>Phần cứng (từ full text):</strong></p>
+  <ul>
+    <li><strong>Raspberry Pi 4 Model B</strong> — edge device quản lý <strong>4 camera</strong> (USB + cổng Pi camera)</li>
+    <li><strong>ESP32 (ESP-WROOM-32)</strong> — <strong>một con mỗi ô đỗ</strong>, kèm pin riêng</li>
+    <li>Cảm biến IR: ngoài trời gắn dưới đất "giữa hai bánh xe"; trong nhà gắn tường</li>
+    <li>Camera: yêu cầu tối thiểu <strong>1080p, auto-focus, HDR</strong></li>
+    <li><strong>Smart Metering Display (SMD)</strong> ở cổng ra hiển thị phí</li>
+  </ul>
+  <p><strong>Stack phần mềm:</strong> YOLO (không nêu version) + <strong>Tesseract OCR</strong> + tiền xử lý OpenCV (Gaussian blur → threshold → Canny → HSV/grayscale) + <strong>SQL Server (SSMS) / SQLite</strong>. <strong>Kiến trúc 3 module:</strong> VRS (camera vào/ra ghi biển + timestamp) · VPDS (IR + ESP32 + camera mỗi ô, tọa độ ô liên kết với cảm biến để dual verification) · SMD (đo thời lượng + hiển thị phí). <strong>Logic tính phí:</strong> <code>Phí = Thời lượng đỗ × Chi phí mỗi giây</code>, có dynamic pricing theo giờ cao/thấp điểm.</p>
+  <p><strong>Số liệu và protocol đo</strong> (có ghi rõ điều kiện):</p>
+  <div class="tbl-scroll"><table>
+    <tr><th>Metric</th><th>Giá trị</th><th>Điều kiện đo</th></tr>
+    <tr><td>Nhận dạng biển số</td><td class="win">95%</td><td>Ban ngày</td></tr>
+    <tr><td>Nhận dạng biển số</td><td>90%</td><td>Ánh sáng yếu</td></tr>
+    <tr><td>Nhận dạng biển số</td><td>93%</td><td>Góc 45°</td></tr>
+    <tr><td>Detect xe</td><td>88%</td><td>Khoảng cách 1.5–3 m</td></tr>
+    <tr><td><strong>Khớp biển số tổng thể</strong></td><td class="win">88.9%</td><td>trên 100 test case</td></tr>
+    <tr><td>Sai số theo dõi occupancy</td><td>&lt; 5%</td><td>so với đếm thủ công</td></tr>
+    <tr><td>Giảm lỗi tính tiền</td><td>90%</td><td>so với phương pháp cũ</td></tr>
+  </table></div>
+  <p>Điều kiện test gồm: ánh sáng ban ngày/yếu/nhân tạo, góc 0° và 45°, khoảng cách 1.5–3 m, hai hướng sáng (ngược/xuôi nắng). Con số khớp biển số 88.9% (n=100) là một trong số ít chỉ số đo ở cấp hệ thống trong tài liệu khảo sát. Code/dataset: N/A.</p>
+  <div class="assess">
+    <span class="lbl">Nhận xét</span>
+    <p class="pro"><strong>Điểm mạnh:</strong> tích hợp trọn vẹn edge, ALPR, session, tính phí động và theo dõi occupancy; báo cáo độ chính xác <em>theo điều kiện</em> (95% ngày / 90% ánh sáng yếu / 93% góc 45°) thay vì một con số đơn lẻ; sai số occupancy &lt; 5%.</p>
+    <p class="con"><strong>Thiếu sót:</strong> yêu cầu ESP32 + cảm biến IR cho mỗi ô đỗ, chi phí và bảo trì phần cứng cao; OCR Tesseract yếu với biển số ngoài Latin chuẩn; không tách bạch độ chính xác cấp ký tự và cấp biển; không phân tích nguyên nhân các test case thất bại; code/dataset N/A.</p>
+    <p class="bib">BibTeX: <code>pradhan2025iotparking</code></p>
+  </div>
+
+  <h4>A2.2 · Ammar và cộng sự 2023 — nhận dạng xe + biển số đa tầng, edge tại cổng bãi xe <span class="badge verified">Full text</span></h4>
+  <p class="lead">Công trình học thuật gần nhất cho use-case access-control chạy trên edge; đoạt 2 giải thưởng (2021, 2022).</p>
+  <div class="tbl-scroll"><table>
+    <tr><th>Mục</th><th>Nội dung</th></tr>
+    <tr><td>Trích dẫn</td><td>A. Ammar, A. Koubaa, W. Boulila, B. Benjdira, and Y. Alhabashi, "A Multi-Stage Deep-Learning-Based Vehicle and License Plate Recognition System with Real-Time Edge Inference," <em>Sensors</em>, vol. 23, no. 4, p. 2120, 2023.</td></tr>
+    <tr><td>DOI / link</td><td><a href="https://doi.org/10.3390/s23042120">10.3390/s23042120</a> · <strong>full text mở:</strong> <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC9966104/">PMC9966104</a></td></tr>
+    <tr><td>Nơi triển khai</td><td>Cổng bãi xe nhân viên + cổng chính campus Prince Sultan University, Riyadh</td></tr>
+  </table></div>
+  <p><strong>Pipeline 5 tầng (có input size):</strong></p>
+  <ol>
+    <li><strong>YOLOv4</strong> (416×416) detect xe + biển số — nguồn video <strong>RTSP stream</strong></li>
+    <li><strong>Xception</strong> (pretrain ImageNet) + avg-pool 4×4 + 3 FC layer → phân loại <strong>196 lớp đời xe</strong></li>
+    <li>Nhận dạng ký tự — 2 phương án: <em>Model 1</em> YOLOv3 (320×320) + MobileNetV2 CNN (54 lớp ký tự); <em>Model 2b (được chọn)</em> YOLOv4 (416×416) → <strong>27 lớp ký tự đôi</strong></li>
+    <li><strong>DeepSORT tùy biến</strong> + cơ chế <strong>voting qua nhiều frame</strong></li>
+    <li>Tối ưu bằng <strong>NVIDIA TensorRT</strong> (quantization + layer/tensor fusion)</li>
+  </ol>
+  <p><strong>Dataset (tất cả tự thu, biển Saudi):</strong> detect xe+biển 203 ảnh / 819 xe / 246 biển · phân loại đời xe 41.521 ảnh, 196 lớp · detect ký tự đơn 373 ảnh crop, 5.193 ký tự · phân loại ký tự 18.422 ảnh · detect ký tự đôi 593 ảnh, 3.827 ký tự đôi · <strong>đánh giá: 2 video (11m18s + 21m28s) + 100 ảnh tĩnh</strong>.</p>
+  <p><strong>Số liệu và protocol (IoU 0.5):</strong></p>
+  <div class="tbl-scroll"><table>
+    <tr><th>Metric</th><th>Giá trị</th></tr>
+    <tr><td>mAP detect (tổng)</td><td><strong>74.1%</strong> — AP xe 67.6%, AP biển 80.7%</td></tr>
+    <tr><td>Phân loại đời xe</td><td>precision 97.5%, recall/F1/accuracy 97.3%</td></tr>
+    <tr><td>Detect ký tự đơn / đôi (val)</td><td>mAP 99.8% / 99.0%</td></tr>
+    <tr><td><strong>Ảnh tĩnh</strong> (Model 2b)</td><td>ký tự đúng 92.5%, biển đầy đủ đúng <strong>53%</strong>, 9.5 FPS</td></tr>
+    <tr><td><strong>Video 1</strong></td><td>ký tự 81.9%, biển đầy đủ <strong>67%</strong>, 14.4 FPS</td></tr>
+    <tr><td><strong>Video 2</strong></td><td>ký tự 95%, biển đầy đủ <strong>80%</strong>, 18.4 FPS</td></tr>
+    <tr><td><strong>Tổng hợp</strong></td><td>ký tự <strong>88.6%</strong>, biển đầy đủ <strong>74%</strong>, <strong>17.1 FPS</strong> trên Jetson Xavier AGX</td></tr>
+  </table></div>
+  <p><strong>Ba phát hiện định lượng đáng chú ý:</strong></p>
+  <ol>
+    <li><strong>Voting theo frame cải thiện độ chính xác đáng kể với chi phí thấp:</strong> "accuracy jumps from <strong>29% when using a single frame to 69% when using a maximum of 35 frames</strong>". Xử lý video thay vì ảnh tĩnh tăng tương đối 40% cho biển số.</li>
+    <li><strong>Độ phân giải camera có ảnh hưởng quyết định</strong> (cùng Video 2):
+      <div class="tbl-scroll"><table>
+        <tr><th>Độ phân giải</th><th>Miss biển</th><th>Ký tự đúng</th><th>Biển đúng</th><th>FPS</th></tr>
+        <tr><td>1920×1080</td><td>0%</td><td>95%</td><td class="win">80%</td><td>18.4</td></tr>
+        <tr><td>1280×720</td><td>2%</td><td>91.2%</td><td>72%</td><td>19.5</td></tr>
+        <tr><td>720×480</td><td>20%</td><td>79.3%</td><td class="no">23%</td><td>21.2</td></tr>
+      </table></div>
+      Ở 480p, độ chính xác biển giảm mạnh từ 80% xuống 23% — cho thấy ngưỡng thực dụng là ≥ 720p, tốt hơn ở 1080p.</li>
+    <li><strong>Khoảng cách giữa validation và thực tế:</strong> ký tự val 99.8% nhưng biển đầy đủ thực tế chỉ 74% — minh chứng cần báo cáo cả hai cấp độ đo.</li>
+  </ol>
+  <div class="assess">
+    <span class="lbl">Nhận xét</span>
+    <p class="pro"><strong>Điểm mạnh:</strong> pipeline 5 tầng đầy đủ, đánh giá trên cả video lẫn ảnh tĩnh; định lượng rõ hiệu ứng voting đa frame và độ phân giải camera; tối ưu bằng TensorRT cho suy luận edge.</p>
+    <p class="con"><strong>Thiếu sót:</strong> khoảng cách lớn giữa độ chính xác validation (99.8%) và thực tế (74%); 14% xe có đời không nằm trong tập train; vấn đề bảo mật và quyền riêng tư của biển số chỉ được nêu như hướng phát triển tương lai; code/dataset N/A.</p>
+    <p class="bib">BibTeX: <code>ammar2023multistage</code></p>
+  </div>
+
+  <h4>A2.3 · Al-batat và cộng sự 2022 — ALPR end-to-end, có mã nguồn mở <span class="badge verified">Full text · MIT code</span></h4>
+  <p class="lead">Công trình duy nhất trong khảo sát đồng thời có full text mở, mã nguồn chạy được và đánh giá trên 5 dataset công khai.</p>
+  <div class="tbl-scroll"><table>
+    <tr><th>Mục</th><th>Nội dung</th></tr>
+    <tr><td>Trích dẫn</td><td>R. Al-batat, A. Angelopoulou, S. Premkumar, J. Hemanth, and E. Kapetanios, "An End-to-End Automated License Plate Recognition System Using YOLO Based Vehicle and License Plate Detection with Vehicle Classification," <em>Sensors</em>, vol. 22, no. 23, p. 9477, 2022.</td></tr>
+    <tr><td>DOI / link</td><td><a href="https://doi.org/10.3390/s22239477">10.3390/s22239477</a> · <strong>full text mở:</strong> <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC9737602/">PMC9737602</a></td></tr>
+    <tr><td>Mã nguồn</td><td><a href="https://github.com/RedaAlb/alpr-pipeline">github.com/RedaAlb/alpr-pipeline</a> — MIT licence, Darknet framework (GitHub API 2026-07-21: 9★/3 fork)</td></tr>
+  </table></div>
+  <p><strong>Pipeline (có input size):</strong> YOLOv2 (608×416) detect xe → YOLOv4-tiny (416×416) detect biển → YOLOv4-tiny (<strong>352×128</strong>, chọn theo "average aspect ratio (w/h) of all LP patches across all datasets is 2.86") nhận dạng ký tự → ResNet50 phân loại loại xe.</p>
+  <p><strong>Dataset — 5 tập công khai, 7.290 mẫu, đa vùng:</strong></p>
+  <div class="tbl-scroll"><table>
+    <tr><th>Dataset</th><th>Vùng</th><th>Mẫu</th><th>Độ phân giải</th></tr>
+    <tr><td>Caltech Cars</td><td>Mỹ</td><td>124</td><td>896×592</td></tr>
+    <tr><td>English LP</td><td>EU</td><td>509</td><td>640×480</td></tr>
+    <tr><td>OpenALPR EU</td><td>EU</td><td>108</td><td>đa dạng</td></tr>
+    <tr><td>AOLP</td><td>Đài Loan</td><td>2.049</td><td>đa dạng</td></tr>
+    <tr><td>UFPR-ALPR</td><td>Brazil</td><td>4.500</td><td>1920×1080</td></tr>
+  </table></div>
+  <p><strong>Protocol đo (minh bạch):</strong> 36 lớp ký tự (0-9, A-Z); Precision = TP/(TP+FP), Recall = TP/(TP+FN); <strong>IoU riêng cho từng tầng: VD 0.25, LPD 0.65, LPR 0.5</strong>; kết quả trung bình qua 5 lần chia train/val/test ngẫu nhiên (0.7/0.2/0.1).</p>
+  <div class="tbl-scroll"><table>
+    <tr><th>Tầng</th><th>Precision</th><th>Recall</th></tr>
+    <tr><td>Detect xe (VD)</td><td>99.71%</td><td>99.90%</td></tr>
+    <tr><td>Detect biển (LPD)</td><td>99.16%</td><td>99.36%</td></tr>
+    <tr><td>Nhận dạng (LPR, tách riêng)</td><td class="win">99.68%</td><td>97.69%</td></tr>
+    <tr><td><strong>Toàn pipeline</strong></td><td colspan="2"><strong>90.3%</strong> accuracy trung bình (cấp ký tự, qua cả 5 dataset)</td></tr>
+    <tr><td>Phân loại loại xe (ResNet50)</td><td colspan="2"><strong>98.22%</strong> (3 lớp: xe khẩn cấp 449 / xe tải 374 / khác 831)</td></tr>
+  </table></div>
+  <p><strong>Tốc độ (GTX 1060 — GPU đời thấp):</strong> 1 xe <strong>18 FPS</strong>, 2 xe 13 FPS, 3 xe 11 FPS. Tác giả tự lưu ý kết quả "are not a fair comparison to other methods because a very low-end GPU was used". <strong>Failure case:</strong> ký tự khó nhất "O" chỉ đạt 38.96% AP ("K" 83.86%, "M" 86.50%, "Q" 70.84%); UFPR-ALPR chỉ 62.06% theo frame, tăng lên 73.33% với consensus 3 frame; test set nhỏ ở vài dataset ảnh hưởng lớn tới recall.</p>
+  <div class="assess">
+    <span class="lbl">Nhận xét</span>
+    <p class="pro"><strong>Điểm mạnh:</strong> hiếm gặp — đồng thời có toàn văn mở, mã nguồn giấy phép MIT và đánh giá đa vùng trên 5 dataset công khai; protocol đo minh bạch (IoU riêng từng tầng, trung bình 5-fold); phân tích failure case ở cấp ký tự (nhóm ký tự dễ nhầm như "O").</p>
+    <p class="con"><strong>Thiếu sót:</strong> đo trên GPU đời thấp nên số FPS không đại diện; chủ ý không dùng post-processing rule; test set nhỏ ở một số dataset làm nhiễu recall.</p>
+    <p class="bib">BibTeX: <code>albatat2022endtoend</code> · mã nguồn <code>redalb2022alprcode</code></p>
+  </div>
+
+  <h4>A2.4 · Safran và cộng sự 2024 — YOLOv8 đa tầng kèm web dashboard <span class="badge corrected">Abstract</span></h4>
+  <div class="tbl-scroll"><table>
+    <tr><th>Mục</th><th>Nội dung</th></tr>
+    <tr><td>Trích dẫn</td><td>M. Safran, A. Alajmi, and S. Alfarhood, "Efficient Multistage License Plate Detection and Recognition Using YOLOv8 and CNN for Smart Parking Systems," <em>Journal of Sensors</em>, vol. 2024, art. 4917097, pp. 1–18, 2024.</td></tr>
+    <tr><td>DOI / link</td><td><a href="https://doi.org/10.1155/2024/4917097">10.1155/2024/4917097</a></td></tr>
+    <tr><td>Tác giả (verified)</td><td>Mejdl Safran; Abdulmalik Alajmi; Sultan Alfarhood — Crossref 2026-07-21</td></tr>
+    <tr><td>Kiến trúc</td><td><strong>YOLOv5</strong> detect biển → <strong>YOLOv8</strong> detect ký tự → <strong>CNN mới</strong> phân loại ký tự</td></tr>
+    <tr><td>Dataset</td><td>Tự thu, biển số <strong>Saudi</strong>; dùng camera giám sát có sẵn trong bãi (không lắp thêm phần cứng)</td></tr>
+    <tr><td>Số liệu</td><td>Đa tầng <strong>96.1%</strong> vs single-stage <strong>83.9%</strong>; nhận dạng ký tự CNN 97%</td></tr>
+    <tr><td>Dashboard</td><td><em>"integrated into a <strong>web-based dashboard</strong> for real-time visualization and statistical analysis of car park occupancy and vehicle movement with an acceptable time efficiency"</em></td></tr>
+  </table></div>
+  <div class="assess">
+    <span class="lbl">Nhận xét</span>
+    <p class="pro"><strong>Điểm mạnh:</strong> cung cấp bằng chứng định lượng cho kiến trúc đa tầng (96.1% so với 83.9% ở single-stage); tích hợp web dashboard trực quan hóa occupancy và luồng xe; tận dụng camera giám sát có sẵn nên không thêm phần cứng. Abstract nêu thẳng hạn chế của giải pháp cảm biến: "entail high installation and maintenance costs and limited functionality in tracking vehicle movement".</p>
+    <p class="con"><strong>Thiếu sót:</strong> full text N/A (chỉ có abstract); dataset biển Saudi, khác định dạng biển Việt Nam.</p>
+    <p class="bib">BibTeX: <code>safran2024multistage</code></p>
+  </div>
+
+  <h4>A2.5 · Rani và cộng sự 2024 — IPS: module vào/ra + thanh toán QR <span class="badge corrected">Abstract</span></h4>
+  <div class="tbl-scroll"><table>
+    <tr><th>Mục</th><th>Nội dung</th></tr>
+    <tr><td>Trích dẫn</td><td>R. Rani, S. Kumar, S. K. Pippal, M. Gund, U. Chaudhari, R. Agrawal, M. Dalsaniya, and L. Verma, "IPS: Intelligent Parking System Using YOLO and Image Processing," <em>Int. J. Transport Development and Integration</em>, vol. 8, no. 3, pp. 447–453, 2024.</td></tr>
+    <tr><td>DOI / link</td><td><a href="https://doi.org/10.18280/ijtdi.080308">10.18280/ijtdi.080308</a> · <a href="https://www.acadlore.com/article/IJTDI/2024_8_3/ijtdi.080308">Acadlore</a></td></tr>
+    <tr><td>Kiến trúc</td><td><strong>YOLOv5m</strong> detect biển + OCR; module vào ghi biển + timestamp, tài xế chọn block; module ra tính phí theo thời lượng và sinh <strong>QR code động thanh toán không tiếp xúc</strong></td></tr>
+    <tr><td>Dataset</td><td>3.500 ảnh, chia 70/30</td></tr>
+    <tr><td>Số liệu</td><td>LPR <strong>97.11%</strong> (không tính khoảng trắng) / <strong>91.91%</strong> (tính cả khoảng trắng); recall 97.25%</td></tr>
+  </table></div>
+  <div class="assess">
+    <span class="lbl">Nhận xét</span>
+    <p class="pro"><strong>Điểm mạnh:</strong> quy trình vào/ra và tính phí hoàn chỉnh, bổ sung thanh toán QR động không tiếp xúc; minh họa rõ mức độ độ chính xác phụ thuộc quy tắc chuẩn hóa chuỗi (97.11% so với 91.91% chỉ do cách xử lý khoảng trắng).</p>
+    <p class="con"><strong>Thiếu sót:</strong> full text N/A (abstract); không triển khai edge.</p>
+    <p class="bib">BibTeX: <code>rani2024ips</code></p>
+  </div>
+
+  <h4>A2.6 · Arukonda và cộng sự 2026 — YOLOv8 + OCR phân bổ chỗ đỗ <span class="badge corrected">Abstract</span></h4>
+  <div class="tbl-scroll"><table>
+    <tr><th>Mục</th><th>Nội dung</th></tr>
+    <tr><td>Trích dẫn</td><td>S. Arukonda, G. S. Jayanth, A. S. S. Koushik, T. Sarupya, P. V. Kumar, and K. B. Reddy, "Real-Time Vehicle Number Plate Recognition and Smart Parking Allocation Using YOLOv8 and OCR for Intelligent Urban Mobility," <em>Int. J. Intelligent Transportation Systems Research</em>, 2026.</td></tr>
+    <tr><td>DOI / link</td><td><a href="https://doi.org/10.1007/s13177-025-00612-7">10.1007/s13177-025-00612-7</a></td></tr>
+    <tr><td>Tác giả (verified)</td><td>6 tác giả đầy đủ qua Crossref 2026-07-21</td></tr>
+    <tr><td>Kiến trúc</td><td>YOLOv8 detect biển trên video trực tiếp → EasyOCR + Tesseract → hậu xử lý sửa ký tự + <strong>validate định dạng theo quốc gia</strong> → phân bổ chỗ theo rule (20 chỗ, cánh Đông/Tây) → ghi log <strong>Excel</strong></td></tr>
+    <tr><td>Dataset</td><td>Tự gán nhãn, 5.000+ ảnh</td></tr>
+    <tr><td>Số liệu</td><td>Detect <strong>98.5%</strong>, precision 98.2%, recall 97.8%, F1 98.0%; latency 50 ms/frame (phần cứng N/A)</td></tr>
+  </table></div>
+  <div class="assess">
+    <span class="lbl">Nhận xét</span>
+    <p class="pro"><strong>Điểm mạnh:</strong> bổ sung bước validate định dạng biển theo quốc gia; độ chính xác phát hiện cao (98.5%).</p>
+    <p class="con"><strong>Thiếu sót:</strong> latency 50 ms không nêu phần cứng nên không so sánh được; backend chỉ ghi log Excel, không có CSDL thực; full text N/A (abstract).</p>
+    <p class="bib">BibTeX: <code>arukonda2026smartparking</code></p>
+  </div>
+
+  <h4>A2.7 · Moussaoui và cộng sự 2024 — YOLOv8 + EasyOCR <span class="badge corrected">Abstract</span></h4>
+  <div class="tbl-scroll"><table>
+    <tr><th>Mục</th><th>Nội dung</th></tr>
+    <tr><td>Trích dẫn</td><td>H. Moussaoui, N. El Akkad, M. Benslimane, W. El-Shafai, A. Baihan, C. Hewage, and R. S. Rathore, "Enhancing automated vehicle identification by integrating YOLO v8 and OCR techniques…," <em>Scientific Reports</em>, vol. 14, art. 14389, 2024.</td></tr>
+    <tr><td>DOI / link</td><td><a href="https://doi.org/10.1038/s41598-024-65272-1">10.1038/s41598-024-65272-1</a></td></tr>
+    <tr><td>Pipeline (từ abstract)</td><td>Thu <strong>270 ảnh từ internet</strong> → gán nhãn bằng <strong>CVAT</strong> → YOLOv8 detect vùng biển → <strong>k-means clustering + thresholding + phép mở (opening) morphology</strong> làm rõ ký tự → OCR → sinh file text kèm mã quốc gia</td></tr>
+    <tr><td>Số liệu</td><td>Detect/precision/recall <strong>99%</strong>, nhận dạng ký tự <strong>98%</strong>; metric dùng: precision, recall, F1, CLA</td></tr>
+  </table></div>
+  <div class="assess">
+    <span class="lbl">Nhận xét</span>
+    <p class="pro"><strong>Điểm mạnh:</strong> chuỗi tiền xử lý k-means + threshold + opening là tham chiếu hữu ích cho khâu làm rõ ảnh biển; xác nhận tính khả thi của cặp YOLOv8 + EasyOCR.</p>
+    <p class="con"><strong>Thiếu sót:</strong> tập test chỉ 270 ảnh nên con số 99% nhiều khả năng lạc quan so với thực tế; không có số liệu latency/FPS; full text N/A (abstract).</p>
+    <p class="bib">BibTeX: <code>moussaoui2024yolov8ocr</code></p>
+  </div>
+</section>
+
+<!-- A3 -->
+<section class="q" id="a3">
+  <h2>A3 — ALPR trên edge: bằng chứng lượng hoá cho INT8 <span class="badge verified">Quantization</span></h2>
+  <p class="qtext">Nhóm nguồn định lượng đánh đổi giữa độ chính xác, tốc độ và điện năng khi lượng tử hóa INT8 cho suy luận trên thiết bị biên.</p>
+
+  <h4>A3.1 · Sonnara và cộng sự 2025 — "Light-Edge" INT8 trên Jetson Nano <span class="badge verified">Full text · CC-BY</span></h4>
+  <p class="lead">Nguồn định lượng đầy đủ nhất cho câu hỏi INT8 mất bao nhiêu độ chính xác và được bao nhiêu tốc độ.</p>
+  <div class="tbl-scroll"><table>
+    <tr><th>Mục</th><th>Nội dung</th></tr>
+    <tr><td>Trích dẫn</td><td>F. Sonnara, H. Chihaoui, and F. Filali, "Efficient real-time license plate recognition using deep learning on edge devices," <em>J. Real-Time Image Processing</em>, vol. 22, no. 5, art. 159, 2025.</td></tr>
+    <tr><td>DOI / link</td><td><a href="https://doi.org/10.1007/s11554-025-01738-3">10.1007/s11554-025-01738-3</a> — <strong>CC-BY 4.0, PDF mở</strong></td></tr>
+    <tr><td>Kiến trúc</td><td><strong>Light-Edge</strong>: backbone <strong>ResNet-18 + FPN dùng chung</strong>, head detect <strong>anchor-free</strong>, head nhận dạng <strong>CTC</strong> — một network vừa detect vừa đọc. Khối <strong>1×1 channel-fusion</strong> loại bỏ 28% số convolution.</td></tr>
+    <tr><td>Ràng buộc thiết kế</td><td>Phần cứng roadside &lt; 10 W, RAM hạn chế, kết nối chập chờn → loại bỏ phương án offload lên cloud</td></tr>
+  </table></div>
+  <p><strong>Dataset — CCPD (Chinese City Parking Dataset):</strong> tổng <strong>290.316 ảnh</strong> 720×1280, camera cố định ở Bắc Kinh (2016–2018); tên file mã hoá sẵn 4 góc biển + chuỗi 7 ký tự. Official split: 200.000 train / 20.000 val / 20.000 test, cộng 6 subset đánh giá (Blur, FN, Rotate, Tilt, Weather, Challenge = 50.316 ảnh). Nhóm tác giả huấn luyện trên 30.000 ảnh + 2.000 val (giới hạn RAM 4 GB của Jetson Nano) nhưng luôn đánh giá trên đủ 20.000 ảnh test. Đa dạng: 61.4% ngày / 38.6% đêm; quay trong mặt phẳng ±60°, nghiêng ngoài mặt phẳng tới 45°; bề rộng biển 40–420 px (TB 138 px). <strong>Training:</strong> Adam, 38 epoch, batch 32, α=0.9, lr 1e-3 chia 10 mỗi 10 epoch, early-stop 3 epoch.</p>
+  <p><strong>Bảng 2 — kết quả trên Jetson Nano</strong> (export ONNX → TensorRT 8.5, input 1×1280×720):</p>
+  <div class="tbl-scroll"><table>
+    <tr><th>Phương pháp</th><th>Model (MB)</th><th>FPS ↑</th><th>mAP (%) ↑</th><th>Điện (W) ↓</th></tr>
+    <tr><td>TE2E</td><td>145</td><td>2.1</td><td>88.4</td><td>9.5</td></tr>
+    <tr><td>RPNet</td><td>92</td><td>11.3</td><td>90.0</td><td>10.1</td></tr>
+    <tr><td>AF-Net</td><td>56</td><td>8.1</td><td class="win">97.2</td><td>8.8</td></tr>
+    <tr><td>YOLOv8-MobileLPR (re-impl.)</td><td>68</td><td>9.5</td><td>89.8</td><td>9.3</td></tr>
+    <tr><td><strong>Light-Edge (FP32, trước tối ưu)</strong></td><td>38</td><td>3.1</td><td>90.6</td><td>5.4</td></tr>
+    <tr><td><strong>Light-Edge (TensorRT INT8)</strong></td><td>38</td><td class="win">14.2</td><td>90.2</td><td class="win">4.8</td></tr>
+  </table></div>
+  <p><strong>Kết luận về INT8 (nguyên văn):</strong> <em>"INT8 quantisation and kernel fusion raise throughput from 3.1 fps to 14.2 fps yet cost only −0.4 pp mAP"</em> → tăng tốc <strong>4.6×</strong>, chỉ mất <strong>0.4 điểm mAP</strong>. Paper giải thích cơ chế: <em>"TensorRT leaves the first and last layers in FP16, preserving representational fidelity where it matters most"</em> — tức lượng tử hóa hỗn hợp (mixed-precision) chứ không phải INT8 thuần, gợi ý kỹ thuật giữ layer đầu/cuối ở độ chính xác cao.</p>
+  <div class="note"><strong>Cảnh báo trích dẫn:</strong> throughput-per-watt được paper ghi ba lần không nhất quán — "tripling" (§1), "0.57 → 2.96 fps·W⁻¹" (= 5.2×, §3) và "improves 13×" (§5); không nên trích chỉ số này. Các số FPS/mAP/W trong Bảng 2 thì nhất quán và dùng được.</div>
+  <div class="assess">
+    <span class="lbl">Nhận xét</span>
+    <p class="pro"><strong>Điểm mạnh:</strong> cung cấp bảng đối chiếu FP32 và INT8 đầy đủ trên cùng thang đo (model size, FPS, mAP, điện năng); chỉ ra kỹ thuật giữ layer đầu/cuối ở FP16 để bảo toàn độ chính xác; toàn văn CC-BY mở.</p>
+    <p class="con"><strong>Thiếu sót:</strong> tồn tại mâu thuẫn nội tại ở chỉ số throughput-per-watt; huấn luyện chỉ trên 30.000 ảnh do giới hạn RAM; phần cứng Jetson Nano khác lớp thiết bị CPU-only.</p>
+    <p class="bib">BibTeX: <code>sonnara2025lightedge</code></p>
+  </div>
+
+  <h4>A3.2 · Zhu và cộng sự 2025 — YOLOv8n cải tiến cho biển số nhỏ <span class="badge corrected">Abstract</span></h4>
+  <div class="tbl-scroll"><table>
+    <tr><th>Mục</th><th>Nội dung</th></tr>
+    <tr><td>Trích dẫn</td><td>R. Zhu, Q. He, H. Jin, Y. Han, and K. Jiang, "License Plate Detection Based on Improved YOLOv8n Network," <em>Electronics</em>, vol. 14, no. 10, p. 2065, 2025.</td></tr>
+    <tr><td>DOI / link</td><td><a href="https://www.mdpi.com/2079-9292/14/10/2065">10.3390/electronics14102065</a></td></tr>
+    <tr><td>Cải tiến</td><td>Thiết kế lại <strong>C2f</strong>, <strong>SPPF</strong>, và <strong>detection head</strong>; thay <strong>CIoU → WIoU</strong> loss</td></tr>
+    <tr><td>Dataset</td><td>Tự thu, cảnh giám sát, đa dạng ánh sáng/nền/góc/loại xe (không công bố cỡ — N/A)</td></tr>
+    <tr><td>Số liệu</td><td>mAP@0.5 <strong>90.9% → 94.4%</strong>; precision 90.2% → 92.8%; recall 82.9% → 87.9%; <strong>tham số giảm 3.1M → 2.1M</strong>; <strong>86 FPS</strong></td></tr>
+  </table></div>
+  <div class="assess">
+    <span class="lbl">Nhận xét</span>
+    <p class="pro"><strong>Điểm mạnh:</strong> đồng thời tăng mAP (90.9% → 94.4%) và giảm 32% số tham số (3.1M → 2.1M), tức mô hình nhẹ hơn nhưng chính xác hơn — phù hợp bài toán biển nhỏ, xiên, nền phức tạp.</p>
+    <p class="con"><strong>Thiếu sót:</strong> full text N/A (abstract); dataset tự thu không công bố nên khó tái lập.</p>
+    <p class="bib">BibTeX: <code>zhu2025licenseplate</code></p>
+  </div>
+</section>
+
+<!-- A4 -->
+<section class="q" id="a4">
+  <h2>A4 — Bãi xe dựa trên cảm biến IoT: đối chứng với hướng vision <span class="badge verified">Đối chứng</span></h2>
+  <p class="qtext">Ba nguồn độc lập cùng chỉ ra chi phí lắp đặt và bảo trì cao của cảm biến từng-ô, làm căn cứ cho hướng tiếp cận dựa trên camera.</p>
+  <ul>
+    <li><strong>Ndunda &amp; Nicolas 2026</strong> — E. Ndunda and A. Nicolas, "Smart On-Street Parking: Survey of Actual Implementations in Cities and Insights from Practitioners," <a href="https://arxiv.org/abs/2602.06517">arXiv:2602.06517</a>, 2026. Khảo sát ~25 triển khai thực tế và phỏng vấn practitioner tại 10 thành phố. Phát hiện: cảm biến từ chôn dưới đất đầu thập niên 2010 hỏng phần cứng khiến nhiều dự án ngừng sớm; xu hướng dịch sang camera tĩnh (phủ nhiều chỗ đỗ trên mỗi thiết bị) và camera ALPR tuần tra. BibTeX: <code>ndunda2026onstreet</code></li>
+    <li><strong>Safran 2024</strong> (A2.4) độc lập xác nhận: cảm biến "entail high installation and maintenance costs and limited functionality in tracking vehicle movement".</li>
+    <li><strong>Pradhan 2025</strong> (A2.1) là ví dụ hybrid: IR mỗi ô kết hợp ALPR — đổi lấy sai số occupancy &lt; 5% bằng chi phí một ESP32 + IR cho mỗi ô.</li>
+    <li>Tham khảo ngành (phi học thuật): cảm biến siêu âm mỗi ô quảng cáo ~97% trong nhà nhưng cần lắp overhead có nguồn ở mỗi chỗ; camera phủ nhiều chỗ và đồng thời cho occupancy + biển số + dwell time (<a href="https://parkingboxx.com/blog/technology/parking-occupancy-sensors-explained/">Parking BOXX</a>).</li>
+  </ul>
+  <div class="assess">
+    <span class="lbl">Nhận xét tổng hợp</span>
+    <p>Ba nguồn độc lập — khảo sát thực địa (Ndunda), công bố học thuật (Safran) và chi phí phần cứng (Pradhan) — cùng cho thấy giải pháp cảm biến từng-ô tốn kém và khó bảo trì. Đây là căn cứ cho hướng tiếp cận dựa trên camera trong bài toán bãi xe.</p>
+  </div>
+</section>
+
+<!-- B -->
+<section class="q" id="b">
+  <h2>B — Sản phẩm thương mại <span class="badge corrected">Claim vendor</span></h2>
+  <p class="qtext">Vendor Việt Nam (RFID + ANPR) trước, quốc tế (ALPR SDK/camera) sau. Giá và claim tính đến 19/7/2026.</p>
+
+  <h3>B1 · Vendor Việt Nam</h3>
+  <div class="tbl-scroll"><table>
+    <tr><th>Sản phẩm</th><th>Claim ALPR</th><th>Edge</th><th>Dashboard / tính năng</th><th>Giá (2026-07-19)</th></tr>
+    <tr><td><strong>VETC</strong></td><td>RFID eTag + camera AI ANPR đối chiếu chéo; server khớp identity RFID với biển camera đọc (<a href="https://vetc.com.vn/hoi-dap-ve-giai-phap-gui-xe-thanh-toan-dien-tu-khong-dung-vetc-n365.html">VETC FAQ</a>)</td><td>Thiết bị lane tại chỗ</td><td>Thanh toán không dừng từ tài khoản VETC; đối chiếu RFID↔ANPR loại bỏ gian lận đổi vé (<a href="https://eparking.vn/etc-bai-xe/">eParking</a>)</td><td>B2B</td></tr>
+    <tr><td><strong>ePass / Giao thông số</strong> (Viettel)</td><td>Claim <strong>99.95%</strong> — đây là độ chính xác đọc thẻ RFID, không phải camera ALPR (<a href="https://brixtonvietnam.com.vn/tim-hieu-ve-the-thu-phi-khong-dung-vetc-va-epass">Brixton</a>)</td><td>Hạ tầng lane</td><td>Trừ phí từ tài khoản ePass (<a href="https://giaothongso.com.vn/thu-phi-bai-do-xe-khong-su-dung-tien-mat-bang-tai-khoan-epass/">giaothongso.com.vn</a>)</td><td>B2B</td></tr>
+    <tr><td><strong>PTH MParking</strong></td><td>"Nhận diện biển số siêu tốc" trên smartphone, không công bố % (<a href="https://hethonggiuxethongminhpth.com/san-pham/phan-mem-giu-xe-tren-dien-thoai">sản phẩm</a>)</td><td>"Zero-hardware": điện thoại Android làm thiết bị cổng (NFC + chụp biển)</td><td>Quản lý doanh thu, ảnh vào/ra real-time, claim "chống thất thoát 100%"</td><td>Từ <strong>300.000 VNĐ/tháng</strong></td></tr>
+    <tr><td>MegaParking, VietParking, TB-iParking, SDT Parking</td><td>Lane quẹt thẻ + ANPR cho hầm chung cư/văn phòng; không công bố accuracy (<a href="https://megaparking.vn/phan-mem-quan-ly-he-thong-bai-giu-xe-thong-minh/">MegaParking</a>, <a href="https://baigiuxethongminh.vn/">VietParking</a>, <a href="https://tbvision.com.vn/phan-mem-quan-ly-bai-giu-xe-thong-minh-tb-iparking">TB-iParking</a>)</td><td>PC lane + camera IP</td><td>Ảnh vào/ra, báo cáo phí, vé tháng</td><td>Theo dự án</td></tr>
+  </table></div>
+
+  <h3>B2 · Vendor quốc tế</h3>
+  <div class="tbl-scroll"><table>
+    <tr><th>Sản phẩm</th><th>Claim ALPR</th><th>Edge</th><th>Dashboard</th><th>Giá</th></tr>
+    <tr><td><strong>Plate Recognizer</strong> + <strong>ParkPow</strong></td><td>Không công bố accuracy %; "works with blurry, low-res, night-time photos"; 90+ quốc gia. <strong>SDK 50–100 ms</strong>, cloud ~200 ms (<a href="https://platerecognizer.com/">site</a>)</td><td>SDK on-prem chạy Jetson, Raspberry Pi, Windows/Linux</td><td>Log vào/ra + duration, báo cáo occupancy, thực thi policy (giới hạn 3h), tìm theo biển/hãng/model/màu, custom tag + 6 field, alert email/Slack/Teams/SMS, AI xác định hướng xe vào-vs-ra, export CSV/API (<a href="https://platerecognizer.com/parkpow/">ParkPow</a>, <a href="https://parkpow.com/features/">features</a>, <a href="https://guides.platerecognizer.com/docs/parkpow/user-guide/settings/alerts/">alerts</a>)</td><td>Free 2.500 lookup/th; $50/th cho 50k; Stream $35–45/camera/th (<a href="https://platerecognizer.com/pricing/">pricing</a>)</td></tr>
+    <tr><td><strong>Rekor Scout / OpenALPR</strong></td><td>"Best-in-class" (không có %); biển + hãng/model/màu/hướng, ~70 quốc gia (<a href="https://www.openalpr.com/software/scout">Scout</a>)</td><td>Agent trên phần cứng thường; camera <strong>Edge Pro</strong> $1.250 (<a href="https://www.rekor.ai/systems/edge-pro">Edge Pro</a>)</td><td>Dashboard web, alert list, lưu 60 ngày (Pro)</td><td>$5/th home; Basic <strong>$12/th/camera</strong> (<a href="https://docs.rekor.ai/scout/getting-started/subscriptions-and-licensing">docs</a>)</td></tr>
+    <tr><td><strong>Survision</strong></td><td>Không công bố %; thay bằng <strong>Performance Warranty</strong> hợp đồng (tỷ lệ đọc tối thiểu hoặc hoàn tiền); "in as little as 20 ms"; tới 250 km/h (<a href="https://survisiongroup.com/post-lets-be-accurate-about-lpr-accuracy">accuracy</a>, <a href="https://survisiongroup.com/post-introducing-the-5th-generation-of-survision-cameras">gen 5</a>)</td><td>Camera LPR all-in-one xử lý nhúng (<a href="https://survisiongroup.com/post-nanopak">Nanopak</a>)</td><td>Vendor phần cứng, tích hợp vào PARCS</td><td>Bán phần cứng</td></tr>
+  </table></div>
+  <div class="assess">
+    <span class="lbl">Nhận xét về thị trường</span>
+    <p>Không vendor nghiêm túc nào công bố một con số accuracy đơn lẻ: Survision lập luận rằng claim accuracy một con số là thiếu chặt chẽ và thay bằng cam kết hiệu năng theo hợp đồng. Chuẩn phổ biến ở thị trường Việt Nam là RFID/thẻ kết hợp ANPR đối chiếu chéo để chống gian lận. Về dashboard, ParkPow có tập tính năng phong phú nhất (tag, alert overstay/ngoài giờ, drill-down search, export CSV).</p>
+  </div>
+</section>
+
+<!-- C -->
+<section class="q" id="c">
+  <h2>C — Dự án mã nguồn mở <span class="badge verified">GitHub API 2026-07-21</span></h2>
+  <p class="qtext">Số sao, giấy phép và ngày push cuối được đối chiếu qua GitHub REST API ngày 21/7/2026.</p>
+
+  <h3>C1 · Repo Việt Nam</h3>
+  <div class="tbl-scroll"><table>
+    <tr><th>Repo</th><th>Stack</th><th>★ / fork</th><th>License</th><th>Push cuối</th><th>Đánh giá</th></tr>
+    <tr><td><a href="https://github.com/winter2897/Real-time-Auto-License-Plate-Recognition-with-Jetson-Nano">winter2897/Real-time-Auto-LPR-Jetson-Nano</a></td><td>SSD-MobileNet-v1 detect + SSD OCR (36 class); Colab→ONNX→TensorRT; claim 40 FPS Jetson Nano</td><td>226 / 61</td><td class="no">Không có</td><td>29/07/2021</td><td>Biển VN + công bố dataset VN; đã 5 năm không cập nhật</td></tr>
+    <tr><td><a href="https://github.com/trungdinh22/License-Plate-Recognition">trungdinh22/License-Plate-Recognition</a></td><td>YOLOv5 2 giai đoạn (biển → ký tự); PC webcam 15–20 FPS</td><td>100 / 44</td><td class="no">Không có</td><td>13/07/2022</td><td>Hỗ trợ biển VN 1 hàng + 2 hàng; dataset từ Mì AI + winter2897</td></tr>
+    <tr><td><a href="https://github.com/mrzaizai2k/VIETNAMESE_LICENSE_PLATE">mrzaizai2k/VIETNAMESE_LICENSE_PLATE</a></td><td>KNN + OpenCV (không deep learning); biển VN 1 và 2 hàng; use-case bãi giữ xe</td><td>36 / 21</td><td class="yes">MIT</td><td>14/11/2025</td><td>Duy nhất trong nhóm VN có giấy phép rõ và còn bảo trì</td></tr>
+  </table></div>
+  <div class="note"><strong>Lưu ý giấy phép:</strong> hai repo VN phổ biến nhất (winter2897, trungdinh22) không khai báo license; theo mặc định luật bản quyền, mã nguồn không được tái sử dụng, chỉ dataset công bố kèm nguồn mới dùng được. Repo có giấy phép hợp lệ: <code>mrzaizai2k</code> (MIT), <code>fast-alpr</code> (MIT).</div>
+
+  <h3>C2 · Repo quốc tế</h3>
+  <div class="tbl-scroll"><table>
+    <tr><th>Repo</th><th>Stack</th><th>★ / fork</th><th>License</th><th>Push cuối</th><th>Đánh giá</th></tr>
+    <tr><td><a href="https://github.com/ankandrew/fast-alpr">ankandrew/fast-alpr</a></td><td>YOLOv9-t detect + CCT OCR (<code>fast-plate-ocr</code>), ONNX Runtime (CPU/CUDA/OpenVINO/DirectML/QNN)</td><td><strong>724</strong> / 119</td><td class="yes">MIT</td><td><strong>16/03/2026</strong></td><td>ALPR OSS hiện đại, còn bảo trì tích cực; path ONNX CPU phù hợp ARM</td></tr>
+    <tr><td><a href="https://github.com/RedaAlb/alpr-pipeline">RedaAlb/alpr-pipeline</a></td><td>YOLO Darknet + ResNet phân loại xe — mã nguồn chính thức của Al-batat 2022 (A2.3)</td><td>9 / 3</td><td class="yes">MIT</td><td>31/05/2023</td><td>Hiếm: paper + code + protocol đo khớp nhau</td></tr>
+    <tr><td><a href="https://github.com/zxllxz2/smart-parking-system">zxllxz2/smart-parking-system</a></td><td>Frontend React Material Dashboard 2; xem slot, park/checkout, thanh toán</td><td>3 / 3</td><td class="yes">MIT</td><td>19/02/2023</td><td>Demo dashboard React, không có ALPR</td></tr>
+    <tr><td><a href="https://github.com/pratik2374/Automated-Car-parking-system">pratik2374/Automated-Car-parking-system</a></td><td>Flask + YOLO + Tesseract + ThingSpeak</td><td>1 / 2</td><td class="no">Không có</td><td>21/03/2026</td><td>Giá trị tham khảo thấp</td></tr>
+    <tr><td><a href="https://github.com/playatanu/smart-car-parking">playatanu/smart-car-parking</a></td><td>YOLO + OCR, tracking, timestamp vào/ra</td><td>0 / 0</td><td class="no">Không có</td><td>13/02/2025</td><td>Chỉ minh họa ý tưởng session-logging</td></tr>
+  </table></div>
+  <div class="assess">
+    <span class="lbl">Nhận xét tổng hợp</span>
+    <p>Các dự án mã nguồn mở khảo sát hoặc là thư viện ALPR thuần (fast-alpr, winter2897), hoặc là ứng dụng bãi xe kiểu demo không có ALPR (zxllxz2). Không dự án nào kết hợp đồng thời ALPR trên edge, backend thực (CSDL, session, tính phí) và dashboard web — đây là một khoảng trống của hệ sinh thái OSS hiện có.</p>
+  </div>
+</section>
+
+<!-- D -->
+<section class="q" id="d">
+  <h2>D — Bảng so sánh tính năng các hệ thống khảo sát <span class="badge verified">Ma trận</span></h2>
+  <p class="qtext">Chú thích: ✓ có · ~ một phần · — không có/chưa rõ. Hệ thống Việt Nam liệt kê trước.</p>
+  <div class="tbl-scroll"><table>
+    <tr><th>Hệ thống</th><th>Occupancy real-time</th><th>Log session + ảnh</th><th>Tính phí</th><th>Báo cáo/thống kê</th><th>Alert / chống gian lận</th><th>Đa camera</th><th>Edge / cloud</th><th>Màu biển số</th></tr>
+    <tr><td>VETC/ePass (VN, B)</td><td>—</td><td>✓</td><td>✓ (trừ tài khoản)</td><td>✓</td><td>✓ (RFID↔ANPR)</td><td>✓</td><td>Tại chỗ</td><td>—</td></tr>
+    <tr><td>PTH MParking (VN, B)</td><td>~</td><td>✓ (ảnh vào/ra)</td><td>✓</td><td>✓ (doanh thu)</td><td>~ ("chống thất thoát")</td><td>~</td><td>Cloud/on-prem</td><td>—</td></tr>
+    <tr><td>Tran &amp; Bui 2025 (VN, A1.1)</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>Edge (Pi 4)</td><td>—</td></tr>
+    <tr><td>Dang 2024 (VN, A1.2)</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>N/A</td><td>—</td></tr>
+    <tr><td>winter2897 (VN, C1)</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>Edge (Jetson)</td><td>—</td></tr>
+    <tr><td>Pradhan 2025 (A2.1)</td><td>✓ (IR/ô)</td><td>✓</td><td>✓ (giá động)</td><td>~</td><td>~ (khớp 88.9%)</td><td>✓ (4 cam)</td><td>Edge Pi + server</td><td>—</td></tr>
+    <tr><td>Ammar 2023 (A2.2)</td><td>—</td><td>~ (log cổng)</td><td>—</td><td>—</td><td>—</td><td>✓</td><td>Edge (Jetson AGX)</td><td>—</td></tr>
+    <tr><td>Safran 2024 (A2.4)</td><td>✓</td><td>~</td><td>—</td><td>✓ (web dashboard)</td><td>—</td><td>✓ (cam có sẵn)</td><td>Server</td><td>—</td></tr>
+    <tr><td>Rani 2024 (A2.5)</td><td>~ (chọn block)</td><td>✓</td><td>✓ (+QR)</td><td>—</td><td>—</td><td>—</td><td>PC</td><td>—</td></tr>
+    <tr><td>Arukonda 2026 (A2.6)</td><td>✓ (phân bổ ô)</td><td>~ (Excel)</td><td>—</td><td>~</td><td>~ (validate định dạng)</td><td>—</td><td>N/A</td><td>—</td></tr>
+    <tr><td>ParkPow (B2)</td><td>✓</td><td>✓ (ảnh, duration)</td><td>~ (thiên về policy)</td><td>✓ (drill-down)</td><td>✓ (tag, overstay, ngoài giờ)</td><td>✓</td><td>Cả hai</td><td>~ (màu xe)</td></tr>
+    <tr><td>Rekor Scout (B2)</td><td>—</td><td>✓</td><td>—</td><td>✓</td><td>✓</td><td>✓</td><td>Cả hai</td><td>~ (màu xe)</td></tr>
+    <tr><td>fast-alpr (C2)</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>ONNX di động</td><td>—</td></tr>
+  </table></div>
+  <div class="assess">
+    <span class="lbl">Nhận xét tổng hợp</span>
+    <p>Cột "màu biển số" trống hoàn toàn: kể cả ParkPow và Rekor cũng chỉ nhận diện <em>màu xe</em>, không phải <em>màu biển</em>; các vendor Việt Nam chống gian lận bằng RFID (phần cứng bổ sung) thay vì tín hiệu thị giác. Bên cạnh đó, không hệ thống khảo sát nào triển khai trọn vẹn ALPR + backend + dashboard trên một thiết bị edge duy nhất, và yêu cầu tuân thủ Luật Bảo vệ dữ liệu cá nhân đối với ảnh biển số hầu như không được đề cập (Ammar 2023 chỉ nêu như hướng phát triển tương lai).</p>
+  </div>
+</section>
+
+<!-- E -->
+<section class="q" id="e">
+  <h2>E — Tổng hợp số liệu định lượng từ các nghiên cứu <span class="badge verified">Bảng số liệu</span></h2>
+  <p class="qtext">Nguồn Việt Nam đánh dấu [VN]. Cột "Evidence" cho biết mức độ tin cậy của số liệu.</p>
+  <div class="tbl-scroll"><table>
+    <tr><th>#</th><th>Nghiên cứu</th><th>Metric</th><th>Giá trị</th><th>Phần cứng</th><th>Evidence</th><th>BibTeX</th></tr>
+    <tr><td>1</td><td><strong>[VN]</strong> Tran &amp; Bui 2025</td><td>accuracy nhận dạng</td><td class="win">95.68%</td><td>Raspberry Pi 4B</td><td>Thứ cấp</td><td><code>tran2025vietnamlpr</code></td></tr>
+    <tr><td>2</td><td><strong>[VN]</strong> Tran &amp; Bui 2025</td><td>thời gian xử lý</td><td class="win">0.478 s/ảnh</td><td>Raspberry Pi 4B</td><td>Thứ cấp</td><td><code>tran2025vietnamlpr</code></td></tr>
+    <tr><td>3</td><td><strong>[VN]</strong> Le 2023 (xe máy)</td><td>mAP detect</td><td class="win">93%</td><td>GPU training</td><td>Thứ cấp</td><td><code>le2023motorcycleplate</code></td></tr>
+    <tr><td>4</td><td><strong>[VN]</strong> Dang 2024 (bãi trong nhà)</td><td>WER</td><td class="win">0.014</td><td>N/A</td><td>Abstract</td><td><code>dang2024vietnamcrnn</code></td></tr>
+    <tr><td>5</td><td>Sonnara 2025</td><td>INT8 vs FP32</td><td>3.1 → 14.2 FPS (4.6×), mAP 90.6 → 90.2 (−0.4 pp), 5.4 → 4.8 W</td><td>Jetson Nano</td><td>Full text</td><td><code>sonnara2025lightedge</code></td></tr>
+    <tr><td>6</td><td>Ammar 2023</td><td>FPS edge / biển đầy đủ</td><td>17.1 FPS / 74% (video)</td><td>Jetson Xavier AGX</td><td>Full text</td><td><code>ammar2023multistage</code></td></tr>
+    <tr><td>7</td><td>Ammar 2023</td><td>hiệu ứng voting đa frame</td><td>29% (1 frame) → 69% (35 frame)</td><td>—</td><td>Full text</td><td><code>ammar2023multistage</code></td></tr>
+    <tr><td>8</td><td>Ammar 2023</td><td>hiệu ứng độ phân giải</td><td>1080p 80% → 720p 72% → 480p 23%</td><td>Jetson AGX</td><td>Full text</td><td><code>ammar2023multistage</code></td></tr>
+    <tr><td>9</td><td>Al-batat 2022</td><td>ký tự tách riêng vs toàn pipeline</td><td>99.68% vs 90.3% TB</td><td>GTX 1060, 18 FPS</td><td>Full text</td><td><code>albatat2022endtoend</code></td></tr>
+    <tr><td>10</td><td>Pradhan 2025</td><td>khớp biển số hệ thống</td><td>88.9% (n=100)</td><td>Pi 4B + server</td><td>Full text</td><td><code>pradhan2025iotparking</code></td></tr>
+    <tr><td>11</td><td>Pradhan 2025</td><td>accuracy theo điều kiện</td><td>95% ngày / 90% tối / 93% góc 45°</td><td>Pi 4B</td><td>Full text</td><td><code>pradhan2025iotparking</code></td></tr>
+    <tr><td>12</td><td>Safran 2024</td><td>đa tầng vs single-stage</td><td>96.1% vs 83.9%</td><td>camera giám sát</td><td>Abstract</td><td><code>safran2024multistage</code></td></tr>
+    <tr><td>13</td><td>Rani 2024</td><td>LPR (ảnh hưởng khoảng trắng)</td><td>97.11% (bỏ space) / 91.91% (có space)</td><td>PC</td><td>Abstract</td><td><code>rani2024ips</code></td></tr>
+    <tr><td>14</td><td>Zhu 2025</td><td>YOLOv8n cải tiến</td><td>mAP 90.9 → 94.4%, tham số 3.1M → 2.1M, 86 FPS</td><td>GPU</td><td>Abstract</td><td><code>zhu2025licenseplate</code></td></tr>
+    <tr><td>15</td><td>Arukonda 2026</td><td>accuracy detect</td><td>98.5% (latency 50 ms, phần cứng N/A)</td><td>N/A</td><td>Abstract</td><td><code>arukonda2026smartparking</code></td></tr>
+    <tr><td>16</td><td>Moussaoui 2024</td><td>detect / ký tự</td><td>99% / 98% (test set 270 ảnh)</td><td>N/A</td><td>Abstract</td><td><code>moussaoui2024yolov8ocr</code></td></tr>
+    <tr><td>17</td><td><strong>[VN]</strong> winter2897 (OSS)</td><td>claim FPS edge</td><td>40 FPS (SSD-MobileNet)</td><td>Jetson Nano + TensorRT</td><td>Claim repo</td><td><code>winter2897jetsonalpr</code></td></tr>
+    <tr><td>18</td><td>Plate Recognizer (TM)</td><td>latency SDK</td><td>50–100 ms/lookup</td><td>SDK on-prem</td><td>Claim vendor</td><td><code>platerecognizer2026alpr</code></td></tr>
+  </table></div>
+  <div class="note"><strong>Lưu ý phương pháp khi đọc bảng này:</strong>
+    <ol style="margin-top:8px">
+      <li><strong>Dataset khác nhau</strong> (CCPD, Saudi, Ấn Độ, EU/Mỹ/Brazil/Đài Loan, VN) — các con số chỉ mang tính tham khảo, không so sánh head-to-head.</li>
+      <li><strong>Định nghĩa "accuracy" khác nhau</strong> (cấp ký tự / cấp biển / cấp session / WER). Rani 2024 (#13) cho thấy chỉ đổi cách xử lý khoảng trắng đã lệch 5.2 điểm.</li>
+      <li><strong>Cỡ test set khác nhau</strong> — Moussaoui (#16, n=270) minh họa rủi ro con số lạc quan trên tập nhỏ.</li>
+      <li><strong>Không trộn số vendor với số học thuật</strong> — #17, #18 là claim tự công bố, chưa peer-review.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- Research gap -->
+<section class="q" id="gap">
+  <h2>Khoảng trống nghiên cứu <span class="badge unresolved">Tổng hợp</span></h2>
+  <p class="qtext">Những khoảng trống rút ra từ toàn bộ khảo sát, cùng một cảnh báo trích dẫn.</p>
+  <ul>
+    <li><strong>Phân loại màu biển số làm tín hiệu:</strong> không hệ thống học thuật hay thương mại nào trong khảo sát dùng màu biển số làm tín hiệu chống gian lận hay phân loại xe; các sản phẩm quốc tế chỉ nhận diện màu xe.</li>
+    <li><strong>Triển khai trọn vẹn trên một thiết bị edge:</strong> chưa công trình nào tích hợp đồng thời ALPR, backend (CSDL, session, tính phí) và dashboard trên một thiết bị biên duy nhất; các hệ thống edge hiện có vẫn phụ thuộc server ngoài hoặc cloud.</li>
+    <li><strong>Biển số Việt Nam 2 hàng và tuân thủ dữ liệu cá nhân:</strong> tài liệu về biển xe máy 2 hàng còn ít; yêu cầu tuân thủ Luật Bảo vệ dữ liệu cá nhân đối với ảnh biển số hầu như chưa được xử lý (mới dừng ở mức future work).</li>
+    <li><strong>Công bố số liệu vision-only tại Việt Nam:</strong> không vendor thương mại Việt Nam nào (VETC, ePass, MParking, MegaParking, VietParking, TB-iParking) công bố tỷ lệ nhận dạng biển số dựa trên thị giác — hoặc dùng RFID hoặc giữ kín; số công trình học thuật Việt Nam công bố hệ thống bãi xe đầy đủ (edge + backend + dashboard) kèm protocol tái lập được còn rất hạn chế.</li>
+  </ul>
+  <div class="note"><strong>Cảnh báo trích dẫn:</strong> con số "99.95%" của ePass là độ chính xác đọc thẻ <strong>RFID</strong>, không phải độ chính xác ALPR thị giác; không trích dẫn nhầm thành accuracy vision.</div>
+  <p class="colophon">UIT 2026 · Smart Parking · Khảo sát hệ thống tương tự · cập nhật 2026-07-21</p>
+</section>
+
+</div>
+
+<button class="totop" id="totop" aria-label="Lên đầu trang">↑</button>
+
+<script>
+  /* ===========================================================
+     Scroll progress bar + active-TOC highlight + back-to-top.
+     Vanilla JS, no dependencies.
+     =========================================================== */
+  const progress = document.getElementById('progress');
+  const totop = document.getElementById('totop');
+  const tocLinks = Array.from(document.querySelectorAll('nav.toc a'));
+  const sections = tocLinks.map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+
+  function onScroll() {
+    const h = document.documentElement;
+    const scrolled = h.scrollTop / (h.scrollHeight - h.clientHeight);
+    progress.style.width = (scrolled * 100) + '%';
+    totop.classList.toggle('show', h.scrollTop > 600);
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  /* Highlight the TOC entry for the section nearest the top */
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        const id = e.target.getAttribute('id');
+        tocLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + id));
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px', threshold: 0 });
+  sections.forEach(s => io.observe(s));
+
+  totop.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+</script>
+
+</body>
+</html>
