@@ -9,10 +9,10 @@ Tuần 1 (15/07 – 22/07): Khởi động & nghiên cứu tổng quan
 
 ## Việc cần làm
 
-- [ ] Research các hệ thống ALPR / nhận diện phương tiện tương tự (để reference & so sánh kết quả) — @Nhật
+- [x] Research các hệ thống ALPR / nhận diện phương tiện tương tự (để reference & so sánh kết quả) — @Nhật → [docs/research/khao-sat-he-thong-alpr.md](../research/khao-sat-he-thong-alpr.md)
 - [ ] Research các hệ thống quản lý bãi xe / dashboard tương tự (để reference & so sánh kết quả) — @Đức
 - [ ] Research YOLO — tìm hiểu và so sánh YOLOv8 vs YOLO26 —  @Đức
-- [ ] Research quy định biển số xe Việt Nam (bố cục, kích thước, ký tự) và quy chiếu màu biển —@Nhật
+- [x] Research quy định biển số xe Việt Nam (bố cục, kích thước, ký tự) và quy chiếu màu biển —@Nhật → [docs/research/quy-dinh-bien-so-xe-vn.md](../research/quy-dinh-bien-so-xe-vn.md)
 - [ ] Setup môi trường dev — @Đức @Nhật
 
 > Phân công dựa theo vai trò tổng thể trong đề cương (Nhật: phát hiện/OCR/phân loại xe; Đức: màu biển/CSDL/dashboard/triển khai biên). Lưu ý: bản đề cương gốc ghi hoán đổi tạm thời riêng cho mục khảo sát hệ thống tương tự của tuần 1 (Đức tìm hiểu huấn luyện mô hình, Nhật tìm hiểu hệ thống & triển khai biên) — nếu muốn giữ đúng hoán đổi đó, đổi lại 2 dòng research hệ thống tương tự ở trên.
