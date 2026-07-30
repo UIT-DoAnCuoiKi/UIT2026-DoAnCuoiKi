@@ -367,3 +367,128 @@
   howpublished = {\url{https://danieldubinsky.github.io/personal-site/case-studies/yolo26n-hailo-L8/}},
   note         = {INT8 accuracy retention YOLO26 n/s/m/l = 92.3/88.9/84.0/87.4\%; YOLO26n mAP 0.402 (FP32) -> 0.371 (INT8); accessed 21 July 2026}
 }
+
+% ============================================================
+% Dataset survey 2026-07-26 (research/2026-07-26-datasets-vietnam.md)
+% VN plate/vehicle datasets + OCR tools + intl fallbacks
+% ============================================================
+
+@misc{roboflow2024vnplatedet,
+  author       = {{Roboflow Universe contributor (school-fuhih)}},
+  title        = {Vietnamese License Plate — Object Detection Dataset (8{,}397 images)},
+  year         = {2024},
+  howpublished = {\url{https://universe.roboflow.com/school-fuhih/vietnamese-license-plate-tptd0}},
+  note         = {License per-project; verify on page before use. Accessed 26 July 2026}
+}
+
+@misc{kaggle2023vnplatesegment,
+  author       = {Nguyen, Duy Dieu},
+  title        = {Vietnam License Plate Segment Datasets},
+  year         = {2023},
+  howpublished = {\url{https://www.kaggle.com/datasets/duydieunguyen/licenseplates}},
+  note         = {Kaggle; license/size unverified (JS page). Accessed 26 July 2026}
+}
+
+@misc{kaggle2022vncharplate,
+  author       = {Nguyen, Quang Linh},
+  title        = {Character Dataset For Vietnam License Plate},
+  year         = {2022},
+  howpublished = {\url{https://www.kaggle.com/datasets/nguyenquanglinh0109/character-dataset-for-vietnam-license-plate}},
+  note         = {Single-character crops for OCR training; Kaggle. Accessed 26 July 2026}
+}
+
+@misc{roboflow2023vnvehicle,
+  author       = {{Roboflow Universe contributor (car-classification)}},
+  title        = {Vietnamese Vehicle — Object Detection Dataset (1{,}547 images; car/bus/truck/motorcycle)},
+  year         = {2023},
+  howpublished = {\url{https://universe.roboflow.com/car-classification/vietnamese-vehicle/dataset/3}},
+  note         = {License unverified (Roboflow 403). Accessed 26 July 2026}
+}
+
+@misc{kaggle2023vnvehicles,
+  author       = {Duong, Tran},
+  title        = {Vietnamese Vehicles Dataset (HCM City, day and night)},
+  year         = {2023},
+  howpublished = {\url{https://www.kaggle.com/datasets/duongtran1909/vietnamese-vehicles-dataset}},
+  note         = {License CC0 Public Domain (per Kaggle listing); ~4 GB day+night. Accessed 26 July 2026}
+}
+
+@inproceedings{xu2018ccpd,
+  author    = {Xu, Zhenbo and Yang, Wei and Meng, Ajin and Lu, Nanxue and Huang, Huan and Ying, Changchun and Huang, Liusheng},
+  title     = {Towards End-to-End License Plate Detection and Recognition: A Large Dataset and Baseline},
+  booktitle = {Proc. European Conference on Computer Vision (ECCV)},
+  year      = {2018},
+  pages     = {255--271},
+  note      = {CCPD dataset, MIT license. \url{https://github.com/detectRecog/CCPD}}
+}
+
+@inproceedings{laroca2018ufpr,
+  author    = {Laroca, Rayson and Severo, Evair and Zanlorensi, Luiz A. and Oliveira, Luiz S. and Gon{\c{c}}alves, Gabriel Resende and Schwartz, William Robson and Menotti, David},
+  title     = {A Robust Real-Time Automatic License Plate Recognition Based on the {YOLO} Detector},
+  booktitle = {Proc. International Joint Conference on Neural Networks (IJCNN)},
+  year      = {2018},
+  pages     = {1--10},
+  note      = {UFPR-ALPR dataset; academic non-commercial license, citation required. \url{https://github.com/raysonlaroca/ufpr-alpr-dataset}}
+}
+
+@misc{ankandrew2026fastplateocr,
+  author       = {Ankandrew},
+  title        = {fast-plate-ocr: Lightweight and Fast OCR Models for License Plate Text Recognition},
+  year         = {2026},
+  howpublished = {\url{https://github.com/ankandrew/fast-plate-ocr}},
+  note         = {ONNX Runtime inference, export TFLite/CoreML/ONNX; v2 pretrained ~3x more data. Accessed 26 July 2026}
+}
+
+@misc{paddleocr2025ppocrv5,
+  author       = {{PaddlePaddle}},
+  title        = {PP-OCRv5 Multilingual Text Recognition (Vietnamese via latin model)},
+  year         = {2025},
+  howpublished = {\url{https://github.com/PaddlePaddle/PaddleOCR/blob/main/docs/version3.x/algorithm/PP-OCRv5/PP-OCRv5_multi_languages.en.md}},
+  note         = {latin\_PP-OCRv5\_mobile\_rec supports Vietnamese; custom dictionary + fine-tune. Accessed 26 July 2026}
+}
+
+% ============================================================
+% Verified-download inventory 2026-07-28
+% (research/2026-07-28-dataset-inventory-verified.md)
+% Downloaded via Kaggle API + inspected file-level. VN datasets.
+% ============================================================
+
+@misc{tanhphp2026vnplatedet,
+  author       = {Tanh, P.},
+  title        = {Vietnamese License Plates (detection, 2{,}255 images, YOLO)},
+  year         = {2026},
+  howpublished = {\url{https://www.kaggle.com/datasets/tanhphp/vietnamese-license-plates}},
+  note         = {Verified: nc=1 'Bien-so', 2998 boxes, Roboflow-augmented. Accessed 28 July 2026}
+}
+
+@misc{bomaich2022vnplateyolov7,
+  author       = {{bomaich}},
+  title        = {VNLicensePlate\_yolov7 (Vietnamese plate detection)},
+  year         = {2022},
+  howpublished = {\url{https://www.kaggle.com/datasets/bomaich/vnlicenseplate}},
+  note         = {Verified: 498 images, YOLO 1-class, train/valid/test split, full-scene. Accessed 28 July 2026}
+}
+
+@misc{topkek2024vnplateocr,
+  author       = {{topkek69}},
+  title        = {Vietnamese License Plate OCR (cropped plates + string labels)},
+  year         = {2024},
+  howpublished = {\url{https://www.kaggle.com/datasets/topkek69/vietnamese-license-plate-ocr}},
+  note         = {Verified: 6643 real crops + 5547 synthetic, CSV Name/Label/Type (e.g. '30F 11292'), 1+2-row. Accessed 28 July 2026}
+}
+
+@misc{dtkngan2024motorbikeocr,
+  author       = {{dtkngan}},
+  title        = {100 Bien So Xe May --- OCR (Vietnamese motorbike plate strings)},
+  year         = {2024},
+  howpublished = {\url{https://www.kaggle.com/datasets/dtkngan/100-bien-so-xe-may-ocr}},
+  note         = {Verified: 116 imgs + txt string labels (2-row motorbike, e.g. 59N187515), 472x303. Accessed 28 July 2026}
+}
+
+@misc{haihovan2025vehiclecameraview,
+  author       = {{haihovan}},
+  title        = {Vietnam Vehicles (camera view) --- YOLO pose},
+  year         = {2025},
+  howpublished = {\url{https://www.kaggle.com/datasets/haihovan/vietnam-vehicles-camera-view}},
+  note         = {Verified: 156 imgs, YOLO pose nc=4 (car/motorcycle/truck/bus), bus-skewed, intersection CCTV. Accessed 28 July 2026}
+}
