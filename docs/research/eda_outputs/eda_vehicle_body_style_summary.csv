@@ -1,0 +1,2 @@
+dataset,label,license,n_images,n_classes,n_objects_labeled,class_imbalance_max_over_min,resolution_range,mean_brightness,mean_box_area_ratio
+vehicle_body_style,Roboflow Vehicle Body Style Dataset,CC BY 4.0,10000,12,10000,1.02,320-320 x 320-320,83.4,0.3097
