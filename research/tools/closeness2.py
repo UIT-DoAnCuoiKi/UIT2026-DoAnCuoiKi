@@ -52,4 +52,8 @@ def report(name, root):
 
 if __name__=='__main__':
     a=sys.argv[1:]
-    for i in range(0,len(a),2): report(a[i],a[i+1])
+    if len(a) % 2 != 0:
+        print("usage: closeness2.py <name1> <root1> [<name2> <root2> ...]")
+        sys.exit(2)
+    for i in range(0,len(a),2):
+        report(a[i],a[i+1])
