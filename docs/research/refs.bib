@@ -368,25 +368,275 @@
   note         = {INT8 accuracy retention YOLO26 n/s/m/l = 92.3/88.9/84.0/87.4\%; YOLO26n mAP 0.402 (FP32) -> 0.371 (INT8); accessed 21 July 2026}
 }
 
-% ============================================================
-% Dataset survey 2026-07-26 (research/2026-07-26-datasets-vietnam.md)
-% VN plate/vehicle datasets + OCR tools + intl fallbacks
-% ============================================================
+% ---- Appended 2026-07-30 (public dataset survey: VN plates + vehicle/parking context) ----
 
-@misc{roboflow2024vnplatedet,
-  author       = {{Roboflow Universe contributor (school-fuhih)}},
-  title        = {Vietnamese License Plate — Object Detection Dataset (8{,}397 images)},
-  year         = {2024},
-  howpublished = {\url{https://universe.roboflow.com/school-fuhih/vietnamese-license-plate-tptd0}},
-  note         = {License per-project; verify on page before use. Accessed 26 July 2026}
+@inproceedings{xu2018ccpd,
+  author    = {Xu, Zhenbo and Yang, Wei and Meng, Ajin and Lu, Nanxue and Huang, Huan and Ying, Changchun and Huang, Liusheng},
+  title     = {Towards End-to-End License Plate Detection and Recognition: A Large Dataset and Baseline},
+  booktitle = {Proceedings of the European Conference on Computer Vision (ECCV)},
+  year      = {2018},
+  pages     = {255--271},
+  doi       = {10.1007/978-3-030-01261-8_16},
+  note      = {CCPD (Chinese City Parking Dataset); >300k images; MIT-licensed code at github.com/detectRecog/CCPD; verified 2026-07-30 -- Chinese plates only, not directly usable for Vietnamese OCR, candidate for plate-region pretraining}
 }
 
-@misc{kaggle2023vnplatesegment,
-  author       = {Nguyen, Duy Dieu},
+@article{almeida2015pklot,
+  author  = {Almeida, Paulo R. L. and Oliveira, Luiz S. and Britto, Alceu S. and Silva, Eunelson J. and Koerich, Alessandro L.},
+  title   = {{PKLot} -- A Robust Dataset for Parking Lot Classification},
+  journal = {Expert Systems with Applications},
+  volume  = {42},
+  number  = {11},
+  pages   = {4937--4949},
+  year    = {2015},
+  doi     = {10.1016/j.eswa.2015.02.009},
+  note    = {12,417 images / ~695,899 space patches, UFPR04/UFPR05/PUCPR outdoor lots; CC BY 4.0 via Roboflow mirror; NO night images per multiple secondary sources -- verify against original README before citing as primary; verified 2026-07-30}
+}
+
+@article{amato2017cnrpark,
+  author  = {Amato, Giuseppe and Carrara, Fabio and Falchi, Fabrizio and Gennaro, Claudio and Meghini, Carlo and Vairo, Claudio},
+  title   = {Deep Learning for Decentralized Parking Lot Occupancy Detection},
+  journal = {Expert Systems with Applications},
+  volume  = {72},
+  pages   = {327--334},
+  year    = {2017},
+  doi     = {10.1016/j.eswa.2016.10.055},
+  note    = {CNRPark+EXT; ~145k-150k labeled parking-space patches, 9 cameras, includes dark/low-light patches; licence NOT verified directly (cnrpark.it fetch failed with certificate error 2026-07-30) -- confirm terms of use manually before formal use}
+}
+
+@article{hsu2013aolp,
+  author  = {Hsu, Gee-Sern and Chen, Jiun-Chang and Chung, Yu-Zhen},
+  title   = {Application-Oriented License Plate Recognition},
+  journal = {IEEE Transactions on Vehicular Technology},
+  volume  = {62},
+  number  = {2},
+  pages   = {552--561},
+  year    = {2013},
+  doi     = {10.1109/TVT.2012.2226218},
+  note    = {AOLP dataset, 2,049 Taiwanese plate images (AC 681 / LE 757 / RP 611); academic-use only, commercial use prohibited, written permission required to redistribute; verified access terms 2026-07-30}
+}
+
+@misc{openalpr2016benchmarks,
+  author       = {{OpenALPR}},
+  title        = {benchmarks: End-to-end {ALPR} benchmark images (US/EU/BR)},
+  year         = {2016},
+  howpublished = {\url{https://github.com/openalpr/benchmarks}},
+  note         = {AGPL-3.0 licence confirmed via repo LICENSE file; EU subset 108 images, US subset ~222 images; small-scale comparison only, not Vietnamese plates; verified 2026-07-30}
+}
+
+@misc{cuongta2021vnplate,
+  author       = {{Cuong Ta}},
+  title        = {Vietnamese Car License Plate Object Detection Dataset},
+  year         = {2021},
+  howpublished = {\url{https://universe.roboflow.com/cuong-ta-ulxex/vietnamese-car-license-plate}},
+  note         = {Roboflow Universe; 8,255 images, 1 class (plate, detection only, no OCR ground truth); CC0 1.0 (Public Domain); verified via r.jina.ai render 2026-07-30}
+}
+
+@misc{schoolfuhih2023vnplate,
+  author       = {{school-fuhih}},
+  title        = {vietnamese-license-plate Object Detection Dataset},
+  year         = {2023},
+  howpublished = {\url{https://universe.roboflow.com/school-fuhih/vietnamese-license-plate-tptd0}},
+  note         = {Roboflow Universe; 8,397 images, 1 class (plate, detection only); CC BY 4.0; verified via r.jina.ai render 2026-07-30}
+}
+
+@misc{haui2023motorcycleplate,
+  author       = {{Hanoi University of Industry}},
+  title        = {Motorcycle License Plate Object Detection Dataset},
+  year         = {2023},
+  howpublished = {\url{https://universe.roboflow.com/hanoi-university-of-industry/motorcycle-license-plate}},
+  note         = {Roboflow Universe; 1,748 images, 1 class; MIT licence; motorcycle-specific Vietnamese plates; verified via r.jina.ai render 2026-07-30}
+}
+
+@misc{licenseplatereg2025ocrplate,
+  author       = {{license-plate-reg}},
+  title        = {Viet Nam {OCR} plate Object Detection Dataset},
+  year         = {2025},
+  howpublished = {\url{https://universe.roboflow.com/license-plate-reg/viet-nam-ocr-plate}},
+  note         = {Roboflow Universe; 3,819 images, 32 character classes (detect-per-character OCR-style ground truth); CC0 1.0; verified via r.jina.ai render 2026-07-30}
+}
+
+@misc{duydieunguyen2023vnplatesegment,
+  author       = {{duydieunguyen}},
   title        = {Vietnam License Plate Segment Datasets},
   year         = {2023},
   howpublished = {\url{https://www.kaggle.com/datasets/duydieunguyen/licenseplates}},
-  note         = {Kaggle; license/size unverified (JS page). Accessed 26 July 2026}
+  note         = {Kaggle; ~5,000 images split 1-row (LpD, 3,510) / 2-row (LpV, 1,625), polygon corner annotations, YOLO format; licence field "Unknown" on Kaggle -- confirm with author before formal use; verified via r.jina.ai render 2026-07-30}
+}
+
+@misc{bomaich2022vnlicenseplate7,
+  author       = {{bomaich}},
+  title        = {VNLicensePlate\_yolov7},
+  year         = {2022},
+  howpublished = {\url{https://www.kaggle.com/datasets/bomaich/vnlicenseplate}},
+  note         = {Kaggle; 1,000 images, both 1-row and 2-row Vietnamese plates, pre-split train/valid/test, xywh labels for YOLOv7; licence field "Unknown" on Kaggle; verified via r.jina.ai render 2026-07-30}
+}
+
+@misc{carclassification2023vnvehicle,
+  author       = {{Car classification (Roboflow user)}},
+  title        = {Vietnamese vehicle Object Detection Dataset (v3)},
+  year         = {2023},
+  howpublished = {\url{https://universe.roboflow.com/car-classification/vietnamese-vehicle/dataset/3}},
+  note         = {Roboflow Universe; 1,547 images; page states "8 remapped classes" (not re-verified against original 4-class car/bus/truck/motorcycle description); CC BY 4.0; verified via r.jina.ai render 2026-07-30}
+}
+
+@misc{vehicle2022cantho,
+  author       = {{vehicle (Roboflow user)}},
+  title        = {Vehicle Vietnam-CanTho Object Detection Dataset},
+  year         = {2022},
+  howpublished = {\url{https://universe.roboflow.com/vehicle/vehicle-vietnam-cantho-2gxc8}},
+  note         = {Roboflow Universe; 1,110-1,746 images, 4 classes (car/truck/bus/motorbike); CC BY 4.0; daytime street scenes in Can Tho only, no night images noted; verified via r.jina.ai render 2026-07-30}
+}
+
+@misc{uitcvid21,
+  author       = {{UIT-Together Research Group}},
+  title        = {{UIT-CVID21}: Classifying Vehicle In Image from Drone},
+  year         = {2021},
+  howpublished = {\url{https://uit-together.github.io/datasets/}},
+  note         = {Listed as 10,000 images, 4 classes (bus/car/truck/van), drone viewpoint; linked repo github.com/nguyenvd-uit/uit-together-dataset returned HTTP 404 on 2026-07-30 -- dataset file not directly accessible, historical reference only}
+}
+
+% ---- Appended 2026-07-30 (vehicle body-type / classification dataset survey) ----
+
+@inproceedings{krause2013stanfordcars,
+  author    = {Krause, Jonathan and Stark, Michael and Deng, Jia and Fei-Fei, Li},
+  title     = {3{D} Object Representations for Fine-Grained Categorization},
+  booktitle = {4th International IEEE Workshop on 3D Representation and Recognition (3dRR-13)},
+  year      = {2013},
+  note      = {Stanford Cars / Cars196; 16,185 images, 196 make/model/year classes, no official body-type labels; official site (ai.stanford.edu/~jkrause/cars) returned HTTP 404 on 2026-07-30, offline since ~2023; license conflicting between TFDS mirror (CC BY 4.0) and unreachable original terms page -- treat as unverified; verified via TFDS cars196 catalog 2026-07-30}
+}
+
+@inproceedings{yang2015compcars,
+  author    = {Yang, Linjie and Luo, Ping and Loy, Chen Change and Tang, Xiaoou},
+  title     = {A Large-Scale Car Dataset for Fine-Grained Categorization and Verification},
+  booktitle = {Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR)},
+  year      = {2015},
+  note      = {CompCars; 136,726 web-nature + 50,000 surveillance-nature images, 163 makes/1,716 models; 12 explicit body-type classes (MPV/SUV/hatchback/sedan/minibus/fastback/estate/pickup/sports/crossover/convertible/hardtop convertible); non-commercial research use only, redistribution prohibited; verified via mmlab.ie.cuhk.edu.hk official page 2026-07-30}
+}
+
+@inproceedings{tafazzoli2017vmmrdb,
+  author    = {Tafazzoli, Faezeh and Frigui, Hichem and Nishiyama, Keishin},
+  title     = {A Large and Diverse Dataset for Improved Vehicle Make and Model Recognition},
+  booktitle = {Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition (CVPR) Workshops},
+  year      = {2017},
+  note      = {VMMRdb; 291,752 images, 9,170 make/model/year classes (1950-2016), no body-type labels; MIT licence confirmed via github.com/faezetta/VMMRdb LICENSE file; verified 2026-07-30}
+}
+
+@article{dong2015bitvehicle,
+  author  = {Dong, Zhen and Wu, Yuwei and Pei, Mingtao and Jia, Yunde},
+  title   = {Vehicle Type Classification Using a Semisupervised Convolutional Neural Network},
+  journal = {IEEE Transactions on Intelligent Transportation Systems},
+  volume  = {16},
+  number  = {4},
+  pages   = {2247--2256},
+  year    = {2015},
+  doi     = {10.1109/TITS.2015.2402438},
+  note    = {BIT-Vehicle; 9,850 images, 6 classes (Bus/Microbus/Minivan/Sedan/SUV/Truck); official download page iitlab.bit.edu.cn returned DNS resolution failure on 2026-07-30, licence not directly verifiable}
+}
+
+@article{luo2018miotcd,
+  author  = {Luo, Zhiming and Branchaud-Charron, Fr{\'e}d{\'e}ric and Lemaire, Carl and Konrad, Janusz and Li, Shaozi and Mishra, Akshaya and Achkar, Andrew and Eichel, Justin and Jodoin, Pierre-Marc},
+  title   = {{MIO-TCD}: A New Benchmark Dataset for Vehicle Classification and Localization},
+  journal = {IEEE Transactions on Image Processing},
+  volume  = {27},
+  number  = {10},
+  pages   = {5129--5141},
+  year    = {2018},
+  doi     = {10.1109/TIP.2018.2848705},
+  note    = {786,702 images total (648,959 classification / 137,743 localization), 11 classes including Motorcycle and Pickup truck; CC BY-NC-SA 4.0 confirmed on official tcd.miovision.com page; verified 2026-07-30}
+}
+
+@article{wen2020uadetrac,
+  author  = {Wen, Longyin and Du, Dawei and Cai, Zhaowei and Lei, Zhen and Chang, Ming-Ching and Qi, Honggang and Lim, Jongwoo and Yang, Ming-Hsuan and Lyu, Siwei},
+  title   = {{UA-DETRAC}: A New Benchmark and Protocol for Multi-Object Detection and Tracking},
+  journal = {Computer Vision and Image Understanding},
+  volume  = {193},
+  pages   = {102907},
+  year    = {2020},
+  doi     = {10.1016/j.cviu.2020.102907},
+  note    = {~140,000 frames, 8,250 vehicles, only 4 coarse classes (Car/Bus/Van/Others); official site detrac-db.rit.albany.edu closed since 24 May 2024 per web search; only third-party Roboflow/Kaggle mirrors remain, mirror licence (CC BY 4.0) not confirmed against original terms; verified 2026-07-30}
+}
+
+@misc{boonsirisumpun2023vtid2,
+  author       = {Boonsirisumpun, Narong and Surinta, Olarik},
+  title        = {Vehicle Type Image Dataset (Version 2): {VTID2}},
+  year         = {2023},
+  howpublished = {\url{https://data.mendeley.com/datasets/htsngg9tpc/3}},
+  doi          = {10.17632/htsngg9tpc.3},
+  note         = {4,356 images, 5 classes (Sedan 1,230 / Pick-up 1,240 / SUV 680 / Hatchback 606 / Other 600); CC BY 4.0 confirmed on official Mendeley Data page; Kaggle mirror (sujaykapadnis/vehicle-type-image-dataset) lists 4,793 files, discrepancy not resolved; described in Boonsirisumpun \& Surinta, "Vehicle image datasets for image classification," Data in Brief, vol. 53, 110133, 2024; verified 2026-07-30}
+}
+
+@misc{researchprojects2022vehiclebodystyle,
+  author       = {{Research Projects (Roboflow user)}},
+  title        = {Vehicle Body Style Dataset (Object Detection)},
+  year         = {2022},
+  howpublished = {\url{https://universe.roboflow.com/research-projects-qodgb/vehicle-body-style-dataset}},
+  note         = {Roboflow Universe; 10,000 images, 12 classes matching CompCars body-type taxonomy (SUV/Minibus/Sedan/Convertible/Crossover/Fastback/Hardtop Convertible/Hatchback/MPV/Pickup Truck/Sports/Wagon); CC BY 4.0; no motorbike class; verified via r.jina.ai render 2026-07-30}
+}
+
+@misc{mayurmahurkar2023stanfordbodytype,
+  author       = {{mayurmahurkar}},
+  title        = {Stanford Car Body Type Data},
+  year         = {2023},
+  howpublished = {\url{https://www.kaggle.com/datasets/mayurmahurkar/stanford-car-body-type-data}},
+  note         = {Kaggle; unofficial relabeling of Stanford Cars (A1) train split into body-type folders (hatchback/sedan/SUV/etc.) derived from class names, not original Stanford annotations; 8,146 files; licence field "Other (specified in description)", not further verified; verified via r.jina.ai render 2026-07-30}
+}
+
+@misc{kagglevehicle2020tau,
+  author       = {{Tampere University}},
+  title        = {{TAU} Vehicle Type Recognition Competition},
+  year         = {2020},
+  howpublished = {\url{https://www.kaggle.com/c/vehicle}},
+  note         = {Kaggle competition dataset derived from Open Images; 17 classes including Motorcycle, Truck, Bus, Van, Car; licence not directly verified (derived from Open Images CC BY 2.0 per Google policy, not confirmed for this specific export); verified via r.jina.ai render 2026-07-30}
+}
+
+@misc{duongtran2021vnvehicles,
+  author       = {{duongtran1909}},
+  title        = {Vietnamese Vehicles Dataset},
+  year         = {2021},
+  howpublished = {\url{https://www.kaggle.com/datasets/duongtran1909/vietnamese-vehicles-dataset}},
+  note         = {Kaggle; 98,500 files (4.09 GB), split only by daytime/nighttime folders, Ho Chi Minh City; no class labels present, no license stated; not usable directly for body-type classification; verified via r.jina.ai render 2026-07-30}
+}
+
+% ---- Preserved from research/w2-vn-dataset-inventory during merge-conflict resolution ----
+
+@misc{ankandrew2026fastplateocr,
+  author       = {Ankandrew},
+  title        = {fast-plate-ocr: Lightweight and Fast OCR Models for License Plate Text Recognition},
+  year         = {2026},
+  howpublished = {\url{https://github.com/ankandrew/fast-plate-ocr}},
+  note         = {ONNX Runtime inference, export TFLite/CoreML/ONNX; v2 pretrained ~3x more data. Accessed 26 July 2026}
+}
+
+@misc{bomaich2022vnplateyolov7,
+  author       = {{bomaich}},
+  title        = {VNLicensePlate\_yolov7 (Vietnamese plate detection)},
+  year         = {2022},
+  howpublished = {\url{https://www.kaggle.com/datasets/bomaich/vnlicenseplate}},
+  note         = {Verified: 498 images, YOLO 1-class, train/valid/test split, full-scene. Accessed 28 July 2026}
+}
+
+@misc{dtkngan2024motorbikeocr,
+  author       = {{dtkngan}},
+  title        = {100 Bien So Xe May --- OCR (Vietnamese motorbike plate strings)},
+  year         = {2024},
+  howpublished = {\url{https://www.kaggle.com/datasets/dtkngan/100-bien-so-xe-may-ocr}},
+  note         = {Verified: 116 imgs + txt string labels (2-row motorbike, e.g. 59N187515), 472x303. Accessed 28 July 2026}
+}
+
+@misc{duongtran2022vnvehicles,
+  author       = {{duongtran1909}},
+  title        = {Vietnamese Vehicles Dataset (day + night, HCM City)},
+  year         = {2022},
+  howpublished = {\url{https://www.kaggle.com/datasets/duongtran1909/vietnamese-vehicles-dataset}},
+  note         = {Verified 30 July 2026: YOLO detection (jpg+txt), multi-cam HCM traffic, daytime + nighttime folders, nc=4 (id0=motorbike dominant, id1-3 = 4-wheel car/bus/truck). License CC0-1.0}
+}
+
+@misc{haihovan2025vehiclecameraview,
+  author       = {{haihovan}},
+  title        = {Vietnam Vehicles (camera view) --- YOLO pose},
+  year         = {2025},
+  howpublished = {\url{https://www.kaggle.com/datasets/haihovan/vietnam-vehicles-camera-view}},
+  note         = {Verified: 156 imgs, YOLO pose nc=4 (car/motorcycle/truck/bus), bus-skewed, intersection CCTV. Accessed 28 July 2026}
 }
 
 @misc{kaggle2022vncharplate,
@@ -397,12 +647,12 @@
   note         = {Single-character crops for OCR training; Kaggle. Accessed 26 July 2026}
 }
 
-@misc{roboflow2023vnvehicle,
-  author       = {{Roboflow Universe contributor (car-classification)}},
-  title        = {Vietnamese Vehicle — Object Detection Dataset (1{,}547 images; car/bus/truck/motorcycle)},
+@misc{kaggle2023vnplatesegment,
+  author       = {Nguyen, Duy Dieu},
+  title        = {Vietnam License Plate Segment Datasets},
   year         = {2023},
-  howpublished = {\url{https://universe.roboflow.com/car-classification/vietnamese-vehicle/dataset/3}},
-  note         = {License unverified (Roboflow 403). Accessed 26 July 2026}
+  howpublished = {\url{https://www.kaggle.com/datasets/duydieunguyen/licenseplates}},
+  note         = {Kaggle; license/size unverified (JS page). Accessed 26 July 2026}
 }
 
 @misc{kaggle2023vnvehicles,
@@ -411,15 +661,6 @@
   year         = {2023},
   howpublished = {\url{https://www.kaggle.com/datasets/duongtran1909/vietnamese-vehicles-dataset}},
   note         = {License CC0 Public Domain (per Kaggle listing); ~4 GB day+night. Accessed 26 July 2026}
-}
-
-@inproceedings{xu2018ccpd,
-  author    = {Xu, Zhenbo and Yang, Wei and Meng, Ajin and Lu, Nanxue and Huang, Huan and Ying, Changchun and Huang, Liusheng},
-  title     = {Towards End-to-End License Plate Detection and Recognition: A Large Dataset and Baseline},
-  booktitle = {Proc. European Conference on Computer Vision (ECCV)},
-  year      = {2018},
-  pages     = {255--271},
-  note      = {CCPD dataset, MIT license. \url{https://github.com/detectRecog/CCPD}}
 }
 
 @inproceedings{laroca2018ufpr,
@@ -431,12 +672,12 @@
   note      = {UFPR-ALPR dataset; academic non-commercial license, citation required. \url{https://github.com/raysonlaroca/ufpr-alpr-dataset}}
 }
 
-@misc{ankandrew2026fastplateocr,
-  author       = {Ankandrew},
-  title        = {fast-plate-ocr: Lightweight and Fast OCR Models for License Plate Text Recognition},
-  year         = {2026},
-  howpublished = {\url{https://github.com/ankandrew/fast-plate-ocr}},
-  note         = {ONNX Runtime inference, export TFLite/CoreML/ONNX; v2 pretrained ~3x more data. Accessed 26 July 2026}
+@misc{nqa112023bikemotorbike,
+  author       = {{nqa112}},
+  title        = {Vietnamese Bike and Motorbike (classification)},
+  year         = {2023},
+  howpublished = {\url{https://www.kaggle.com/datasets/nqa112/vietnamese-bike-and-motorbike}},
+  note         = {Verified 30 July 2026: folder=class classification; 'bike' folder = bicycles (200+), separate 'motorbike' folder. No car class. Useful only as extra motorbike crops. Accessed 30 July 2026}
 }
 
 @misc{paddleocr2025ppocrv5,
@@ -447,11 +688,21 @@
   note         = {latin\_PP-OCRv5\_mobile\_rec supports Vietnamese; custom dictionary + fine-tune. Accessed 26 July 2026}
 }
 
-% ============================================================
-% Verified-download inventory 2026-07-28
-% (research/2026-07-28-dataset-inventory-verified.md)
-% Downloaded via Kaggle API + inspected file-level. VN datasets.
-% ============================================================
+@misc{roboflow2023vnvehicle,
+  author       = {{Roboflow Universe contributor (car-classification)}},
+  title        = {Vietnamese Vehicle — Object Detection Dataset (1{,}547 images; car/bus/truck/motorcycle)},
+  year         = {2023},
+  howpublished = {\url{https://universe.roboflow.com/car-classification/vietnamese-vehicle/dataset/3}},
+  note         = {License unverified (Roboflow 403). Accessed 26 July 2026}
+}
+
+@misc{roboflow2024vnplatedet,
+  author       = {{Roboflow Universe contributor (school-fuhih)}},
+  title        = {Vietnamese License Plate — Object Detection Dataset (8{,}397 images)},
+  year         = {2024},
+  howpublished = {\url{https://universe.roboflow.com/school-fuhih/vietnamese-license-plate-tptd0}},
+  note         = {License per-project; verify on page before use. Accessed 26 July 2026}
+}
 
 @misc{tanhphp2026vnplatedet,
   author       = {Tanh, P.},
@@ -461,50 +712,10 @@
   note         = {Verified: nc=1 'Bien-so', 2998 boxes, Roboflow-augmented. Accessed 28 July 2026}
 }
 
-@misc{bomaich2022vnplateyolov7,
-  author       = {{bomaich}},
-  title        = {VNLicensePlate\_yolov7 (Vietnamese plate detection)},
-  year         = {2022},
-  howpublished = {\url{https://www.kaggle.com/datasets/bomaich/vnlicenseplate}},
-  note         = {Verified: 498 images, YOLO 1-class, train/valid/test split, full-scene. Accessed 28 July 2026}
-}
-
 @misc{topkek2024vnplateocr,
   author       = {{topkek69}},
   title        = {Vietnamese License Plate OCR (cropped plates + string labels)},
   year         = {2024},
   howpublished = {\url{https://www.kaggle.com/datasets/topkek69/vietnamese-license-plate-ocr}},
   note         = {Verified: 6643 real crops + 5547 synthetic, CSV Name/Label/Type (e.g. '30F 11292'), 1+2-row. Accessed 28 July 2026}
-}
-
-@misc{dtkngan2024motorbikeocr,
-  author       = {{dtkngan}},
-  title        = {100 Bien So Xe May --- OCR (Vietnamese motorbike plate strings)},
-  year         = {2024},
-  howpublished = {\url{https://www.kaggle.com/datasets/dtkngan/100-bien-so-xe-may-ocr}},
-  note         = {Verified: 116 imgs + txt string labels (2-row motorbike, e.g. 59N187515), 472x303. Accessed 28 July 2026}
-}
-
-@misc{haihovan2025vehiclecameraview,
-  author       = {{haihovan}},
-  title        = {Vietnam Vehicles (camera view) --- YOLO pose},
-  year         = {2025},
-  howpublished = {\url{https://www.kaggle.com/datasets/haihovan/vietnam-vehicles-camera-view}},
-  note         = {Verified: 156 imgs, YOLO pose nc=4 (car/motorcycle/truck/bus), bus-skewed, intersection CCTV. Accessed 28 July 2026}
-}
-
-@misc{duongtran2022vnvehicles,
-  author       = {{duongtran1909}},
-  title        = {Vietnamese Vehicles Dataset (day + night, HCM City)},
-  year         = {2022},
-  howpublished = {\url{https://www.kaggle.com/datasets/duongtran1909/vietnamese-vehicles-dataset}},
-  note         = {Verified 30 July 2026: YOLO detection (jpg+txt), multi-cam HCM traffic, daytime + nighttime folders, nc=4 (id0=motorbike dominant, id1-3 = 4-wheel car/bus/truck). License CC0-1.0}
-}
-
-@misc{nqa112023bikemotorbike,
-  author       = {{nqa112}},
-  title        = {Vietnamese Bike and Motorbike (classification)},
-  year         = {2023},
-  howpublished = {\url{https://www.kaggle.com/datasets/nqa112/vietnamese-bike-and-motorbike}},
-  note         = {Verified 30 July 2026: folder=class classification; 'bike' folder = bicycles (200+), separate 'motorbike' folder. No car class. Useful only as extra motorbike crops. Accessed 30 July 2026}
 }

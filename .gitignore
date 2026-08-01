@@ -1,4 +1,12 @@
 .superpowers/
 
-# Secrets — API keys (added 2026-07-30)
+# secrets
 .env
+
+# local Python env
+.venv/
+__pycache__/
+.ipynb_checkpoints/
+
+# downloaded datasets (large, not committed)
+data/

@@ -17,8 +17,8 @@ Smart Parking Management System using Computer Vision and Edge AI — UIT gradua
 
 ## Repo layout
 
-- `report/` — LaTeX thesis, written chapter-per-phase
-- `research/` — research notes + `refs.bib` (BibTeX)
+- `docs/report/` — thesis chapters (drafted as Markdown during active writing; LaTeX only when formalizing — see `docs/report/README.md`), written chapter-per-phase
+- `docs/research/` — research notes + `refs.bib` (BibTeX)
 - `src/ml/`, `src/backend/`, `src/frontend/`, `src/edge/` — code
 - `docs/` — approved outline (đề cương) + specs/plans
 
