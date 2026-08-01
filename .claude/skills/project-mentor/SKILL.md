@@ -12,7 +12,7 @@ Phase-aware guide for the smart parking thesis (15/07/2026 – 23/09/2026). Stac
 1. Get today's date. Locate current week in the plan table below (derive from dates — never assume).
 2. Check repo state against that week's deliverable (does the module/chapter exist? committed?).
 3. Report: current phase, what should be done by now, what's missing, concrete next steps for each student (Nhật/Đức).
-4. Always check the report rule: has the previous phase's chapter been drafted in `report/`? If not, flag it first — báo cáo song hành is a graded requirement.
+4. Always check the report rule: has the previous phase's chapter been drafted in `docs/report/`? If not, flag it first — báo cáo song hành is a graded requirement.
 
 ## Full 10-week plan
 
@@ -41,7 +41,7 @@ Phase-aware guide for the smart parking thesis (15/07/2026 – 23/09/2026). Stac
 
 ## ML best practices to enforce
 
-- **Data:** fixed train/val/test split committed as file lists; never evaluate on training data; version dataset changes (date-stamped snapshot notes in `research/`).
+- **Data:** fixed train/val/test split committed as file lists; never evaluate on training data; version dataset changes (date-stamped snapshot notes in `docs/research/`).
 - **Experiments:** every training run logged — CSV (`src/ml/experiments.csv`: date, model, dataset version, hyperparams, metrics, weights path) by default, W&B optional. No untracked "best model".
 - **Checkpoints:** weights saved to Drive during Colab runs (see `colab-training`), exported to `src/ml/weights/`.
 - **Integration:** freeze module interfaces before week 6 (see `alpr-pipeline`).

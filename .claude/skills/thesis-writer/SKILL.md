@@ -5,7 +5,9 @@ description: Use for all thesis report work — writing chapters, LaTeX setup, c
 
 # Thesis Writer
 
-All report work happens in `report/`. Delegate LaTeX mechanics to global `latex-formatting`, citation rigor to `academic-research-writer`, and diagrams to `architecture-diagrams` (Mermaid/PlantUML exported to PDF/PNG for inclusion).
+All report work happens in `docs/report/`. Delegate LaTeX mechanics to global `latex-formatting`, citation rigor to `academic-research-writer`, and diagrams to `architecture-diagrams` (Mermaid/PlantUML exported to PDF/PNG for inclusion).
+
+Draft each chapter as Markdown first (`docs/report/chapters/<nn>-<slug>.md`) — faster to iterate and review. Only build/update the `.tex` version when explicitly asked to formalize/typeset, or when a milestone genuinely needs the PDF (e.g. submitting to the advisor). See `docs/report/README.md`.
 
 ## Language rules
 
@@ -15,9 +17,9 @@ All report work happens in `report/`. Delegate LaTeX mechanics to global `latex-
 
 ## LaTeX setup
 
-- Engine: **XeLaTeX** (required for Vietnamese via fontspec). Build: `latexmk -xelatex main.tex` run inside `report/`.
-- Structure: `report/main.tex` includes `report/chapters/<nn>-<slug>.tex`, one file per chapter.
-- Bibliography: `biblatex` with `style=ieee`, backend biber; source file `report/refs.bib` — sync entries from `research/refs.bib` (copy needed entries over; `research/refs.bib` is the superset).
+- Engine: **XeLaTeX** (required for Vietnamese via fontspec). Build: `latexmk -xelatex main.tex` run inside `docs/report/`.
+- Structure: `docs/report/main.tex` includes `docs/report/chapters/<nn>-<slug>.tex`, one file per chapter.
+- Bibliography: `biblatex` with `style=ieee`, backend biber; source file `docs/report/refs.bib` — sync entries from `docs/research/refs.bib` (copy needed entries over; `docs/research/refs.bib` is the superset).
 - Template: start from a community UIT thesis template; if the supervisor provides an official one, swap the preamble, keep chapter files.
 
 ## Chapter map (mirrors phases — write each at phase end)
@@ -34,7 +36,7 @@ All report work happens in `report/`. Delegate LaTeX mechanics to global `latex-
 
 ## Writing workflow per chapter
 
-1. Read the relevant `research/` notes and experiment results (`src/ml/experiments.csv`).
+1. Read the relevant `docs/research/` notes and experiment results (`src/ml/experiments.csv`).
 2. Outline the chapter (sections, figures, tables) — confirm with the user before prose.
 3. Draft in Vietnamese; every claim from literature cites a `refs.bib` key; every number traces to an experiment log or benchmark output.
 4. Compile (`latexmk -xelatex`) and fix warnings before presenting.

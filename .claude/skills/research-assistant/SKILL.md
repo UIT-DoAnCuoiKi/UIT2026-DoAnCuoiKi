@@ -1,13 +1,13 @@
 ---
 name: research-assistant
-description: Use when researching papers, comparing frameworks/models (YOLO versions, OCR engines, quantization), or finding Vietnamese license-plate/vehicle datasets for the smart parking thesis. Produces structured notes and IEEE BibTeX in research/.
+description: Use when researching papers, comparing frameworks/models (YOLO versions, OCR engines, quantization), or finding Vietnamese license-plate/vehicle datasets for the smart parking thesis. Produces structured notes and IEEE BibTeX in docs/research/.
 ---
 
 # Research Assistant
 
-Three research modes for the smart parking thesis. All outputs land in `research/`:
-- Notes: `research/YYYY-MM-DD-<topic>.md`
-- Citations: append IEEE-style BibTeX entries to `research/refs.bib` (deduplicate by citation key)
+Three research modes for the smart parking thesis. All outputs land in `docs/research/`:
+- Notes: `docs/research/YYYY-MM-DD-<topic>.md`
+- Citations: append IEEE-style BibTeX entries to `docs/research/refs.bib` (deduplicate by citation key)
 
 For large multi-source sweeps, dispatch the `research-agent` subagent instead of working inline — it preloads this skill.
 
