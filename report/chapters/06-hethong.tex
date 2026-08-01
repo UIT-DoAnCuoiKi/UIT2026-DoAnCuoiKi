@@ -1,0 +1,28 @@
+% =====================================================================
+%  CHƯƠNG 6 — HỆ THỐNG QUẢN LÝ  | Tuần 4-6 | Phụ trách: Đức
+%  DB + logic vào/ra + tính phí + dashboard + tích hợp pipeline
+% =====================================================================
+\chapter{Hệ Thống Quản Lý Bãi Giữ Xe}
+\label{ch:hethong}
+
+\section{Kiến Trúc Tổng Thể}
+\wip{Sơ đồ khối: camera $\rightarrow$ pipeline nhận diện $\rightarrow$ backend (FastAPI) $\rightarrow$
+CSDL (PostgreSQL) $\rightarrow$ dashboard (React). Chèn sơ đồ (Hình~\ref{fig:kientruc}).}
+
+\section{Pipeline Nhận Diện Hợp Nhất}
+\wip{Ghép detection $\rightarrow$ OCR $\rightarrow$ phân loại $\rightarrow$ màu biển thành một API/luồng theo lượt xe.}
+
+\section{Cơ Sở Dữ Liệu}
+\wip{Lược đồ CSDL (bảng xe, lượt vào/ra, phí, ảnh bằng chứng); mã hóa trường nhạy cảm; chính sách lưu trữ.}
+
+\section{Logic Vào/Ra và Chống Gian Lận}
+\wip{Ghi thời gian vào/ra; đối chiếu biển số vào–ra; lưu ảnh toàn cảnh làm bằng chứng; xử lý sai lệch/tranh chấp.}
+
+\section{Tính Phí Tự Động}
+\wip{Quy tắc tính phí theo loại xe + thời gian; xử lý ca đặc biệt.}
+
+\section{Dashboard Quản Lý và Thống Kê}
+\wip{Theo dõi thời gian thực; tra cứu xe trong bãi; thống kê theo loại/màu/lưu lượng/doanh thu (biểu đồ).}
+
+\section{Tích Hợp End-to-End trên PC}
+\wip{Chạy toàn hệ thống trên PC; đo độ trễ từng lượt; ảnh chụp giao diện.}

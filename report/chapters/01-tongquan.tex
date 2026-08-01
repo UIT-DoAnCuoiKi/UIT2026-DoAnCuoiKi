@@ -1,0 +1,54 @@
+% =====================================================================
+%  CHƯƠNG 1 — TỔNG QUAN            | Giai đoạn: Tuần 1 | Phụ trách: Cả 2
+%  Nguồn: research/2026-07-*.md, đề cương (docs/DCDATN...)
+% =====================================================================
+\chapter{Tổng Quan}
+\label{ch:tongquan}
+
+\section{Bối Cảnh và Động Lực}
+\wip{Nhu cầu quản lý bãi giữ xe tại VN; hạn chế của phương pháp thủ công/thẻ từ;
+xu hướng thị giác máy tính + Edge AI. Trích dẫn hệ thống tương tự
+\autocite{pradhan2025iotparking,arukonda2026smartparking,rani2024ips}.}
+
+\section{Vấn Đề Đặt Ra}
+\wip{Bài toán: nhận diện biển số (1 hàng ô tô / 2 hàng xe máy), loại xe, màu nền biển;
+quản lý vào/ra, chống gian lận, tính phí; ràng buộc tài nguyên thiết bị biên.}
+
+\section{Mục Tiêu Nghiên Cứu}
+\subsection{Mục Tiêu Tổng Quát}
+\wip{Xây dựng hệ thống quản lý bãi giữ xe thông minh khả chuyển, ưu tiên Edge AI.}
+\subsection{Mục Tiêu Cụ Thể}
+\wip{Liệt kê 5 mô-đun theo đề cương: (1) nhận diện biển số + OCR; (2) phân loại xe +
+màu biển; (3) CSDL + logic vào/ra + tính phí; (4) dashboard; (5) tối ưu + triển khai biên.}
+
+\section{Đối Tượng và Phạm Vi}
+\subsection{Đối Tượng Nghiên Cứu}
+\wip{Mô hình phát hiện (YOLOv8/YOLO26) + phân loại (ResNet/MobileNet); OCR (PaddleOCR/EasyOCR);
+xử lý ảnh (OpenCV, HSV); nền tảng từ PC/máy chủ đến thiết bị biên (Raspberry Pi, Jetson) + camera;
+kỹ thuật tối ưu/đóng gói đa nền tảng (ONNX, TensorRT, quantization).}
+\subsection{Phạm Vi Nghiên Cứu}
+\wip{Không gian: cổng bãi, xe dừng. Phương tiện: tập trung ô tô + xe máy (train 4 lớp, eval sâu 2).
+Chức năng: biển số, loại xe, màu biển, vào/ra, phí, dashboard — chưa xử lý free-flow.
+Nền tảng: độc lập, minh họa trên một thiết bị biên (Raspberry Pi 5). Dữ liệu: công khai + tự thu.
+Tuân thủ Luật Bảo vệ dữ liệu cá nhân (01/01/2026).}
+
+\section{Kết Quả Mong Đợi}
+\wip{Sản phẩm: hệ thống end-to-end + dashboard; độ chính xác đọc biển \ph{$>$90\%} điều kiện chuẩn.
+Triển khai: khả chuyển PC + biên (Pi 5), độ trễ \ph{$<$2 s}/lượt xe, kèm số liệu so sánh PC vs Edge.
+Tài liệu: báo cáo hoàn chỉnh (viết song hành) + mã nguồn + bộ dữ liệu tự thu thập + video demo.}
+
+\section{Tổng Quan Các Công Trình Liên Quan}
+\subsection{Phát Hiện Đối Tượng và Họ Kiến Trúc YOLO}
+\wip{Two-stage vs one-stage; tiến hóa YOLO \autocite{redmon2016yolo,terven2023comprehensive,jocher2023yolov8,jocher2026yolo26}.}
+\subsection{Nhận Diện Biển Số Xe (ALPR)}
+\wip{Pipeline ALPR đa giai đoạn \autocite{ammar2023multistage,safran2024multistage,zhu2025licenseplate};
+đặc thù biển số Việt Nam \autocite{tran2025vietnamlpr,dang2024vietnamcrnn,le2023motorcycleplate}.}
+\subsection{Hệ Thống Bãi Giữ Xe Thông Minh}
+\wip{So sánh các hệ thống parking \autocite{pradhan2025iotparking,arukonda2026smartparking,rani2024ips}.}
+\subsection{Trí Tuệ Nhân Tạo trên Thiết Bị Biên}
+\wip{Edge AI, quantization/ONNX, benchmark SBC \autocite{mdpi2026sbcbenchmark,sonnara2025lightedge,ultralytics2026rpiguide}.}
+\subsection{Khoảng Trống Nghiên Cứu}
+\wip{Thiếu hệ thống parking Việt hoàn chỉnh, khả chuyển, chạy biên chi phí thấp — chỗ đứng của đề tài.}
+
+\section{Cấu Trúc Báo Cáo}
+\wip{Tóm tắt nội dung 9 chương.}

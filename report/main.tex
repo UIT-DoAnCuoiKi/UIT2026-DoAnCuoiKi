@@ -1,0 +1,61 @@
+% =====================================================================
+%  BÁO CÁO ĐỒ ÁN TỐT NGHIỆP — Hệ thống quản lý bãi giữ xe thông minh
+%  Trường Đại học Công nghệ Thông tin (UIT) — ĐHQG-HCM
+%  Engine: XeLaTeX   |   Build: latexmk -xelatex main.tex  (xem PLAN.md)
+%  Cấu trúc: main.tex -> preamble.tex + frontmatter/ + chapters/ + appendices/
+% =====================================================================
+\documentclass[13pt,a4paper,oneside]{report}
+
+% ---------- Thông tin đề tài (chỉnh ở đây, dùng lại toàn báo cáo) ----------
+\newcommand{\ThesisTitleVi}{Nghiên cứu và xây dựng hệ thống quản lý bãi giữ xe thông minh ứng dụng thị giác máy tính và Edge AI}
+\newcommand{\ThesisTitleEn}{Research and Development of a Smart Parking Management System Using Computer Vision and Edge AI}
+\newcommand{\ThesisTitleShort}{Hệ Thống Bãi Giữ Xe Thông Minh}   % dùng cho header
+\newcommand{\Supervisor}{ThS. Phan Đình Duy}
+\newcommand{\StudentA}{Nguyễn Minh Nhật}
+\newcommand{\StudentAId}{25410104}
+\newcommand{\StudentB}{Lê Quang Hoài Đức}
+\newcommand{\StudentBId}{25410034}
+\newcommand{\AcademicYear}{2025 -- 2026}
+\newcommand{\DefenseDate}{Thành phố Hồ Chí Minh, tháng 9 năm 2026}
+
+\input{preamble}
+
+\begin{document}
+
+% ============================ FRONT MATTER ============================
+\input{frontmatter/titlepage}
+
+\pagenumbering{roman}
+\setcounter{page}{1}
+
+\input{frontmatter/loicamon}       % Lời cảm ơn (tùy chọn — có thể xóa)
+\input{frontmatter/abstract}       % Tóm tắt nội dung + Từ khóa
+
+\tableofcontents
+\listoffigures
+\listoftables
+
+% ============================ MAIN MATTER ============================
+\cleardoublepage
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+\input{chapters/01-tongquan}       % Tuần 1  — Chương 1: Tổng quan
+\input{chapters/02-dulieu}         % Tuần 2  — Chương 2: Dữ liệu
+\input{chapters/03-phathien}       % Tuần 3  — Chương 3: Phát hiện xe & biển số
+\input{chapters/04-ocr-maubien}    % Tuần 3-4 — Chương 4: OCR & màu biển
+\input{chapters/05-phanloai}       % Tuần 5  — Chương 5: Phân loại phương tiện
+\input{chapters/06-hethong}        % Tuần 4-6 — Chương 6: Hệ thống quản lý
+\input{chapters/07-trienkhai}      % Tuần 7-8 — Chương 7: Triển khai thiết bị biên
+\input{chapters/08-danhgia}        % Tuần 9  — Chương 8: Đánh giá & thảo luận
+\input{chapters/09-ketluan}        % Tuần 10 — Chương 9: Kết luận
+
+% ============================ BACK MATTER ============================
+\printbibliography[title={Tài liệu tham khảo}, heading=bibnumbered]
+
+\appendix
+\input{appendices/A-huanluyen}     % Phụ lục A: thông số huấn luyện chi tiết
+\input{appendices/B-ketqua-lop}    % Phụ lục B: kết quả theo từng lớp
+\input{appendices/C-baomat}        % Phụ lục C: tuân thủ bảo vệ dữ liệu cá nhân
+
+\end{document}
