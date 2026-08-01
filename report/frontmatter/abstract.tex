@@ -1,0 +1,20 @@
+% ---------- Tóm tắt nội dung (bám mẫu: heading canh giữa + Từ khóa) ----------
+\chapter*{Tóm tắt nội dung}
+\addcontentsline{toc}{chapter}{Tóm tắt nội dung}
+
+\wip{Viết cuối cùng (Tuần 10), khoảng 200--300 từ, 3--4 đoạn theo cấu trúc mẫu:}
+\begin{itemize}[nosep]
+  \item \textbf{Bối cảnh \& vấn đề:} quản lý bãi giữ xe thủ công tại Việt Nam; nhu cầu
+        tự động hóa nhận diện phương tiện; ưu tiên triển khai trên thiết bị biên (Edge AI).
+  \item \textbf{Phương pháp:} pipeline phát hiện biển số (YOLOv8/YOLO26) $\rightarrow$ OCR
+        $\rightarrow$ phân loại loại xe (ResNet/MobileNet) + màu nền biển (HSV); CSDL, logic
+        vào/ra, đối chiếu chống gian lận, tính phí, dashboard; tối ưu ONNX + quantization.
+  \item \textbf{Kết quả (điền số thật):} độ chính xác đọc biển \ph{$>$90\%}; độ trễ
+        end-to-end \ph{$<$2 s}/lượt xe trên Raspberry Pi 5; so sánh PC vs Edge.
+  \item \textbf{Đóng góp:} hệ thống end-to-end khả chuyển + bộ dữ liệu tự thu thập +
+        bằng chứng khả thi triển khai biên chi phí thấp.
+\end{itemize}
+
+\vspace{0.8em}
+\noindent\textbf{Từ khóa:} nhận diện biển số xe, ALPR, YOLOv8, OCR, phân loại phương tiện,
+Edge AI, Raspberry Pi 5, quản lý bãi giữ xe, thị giác máy tính.

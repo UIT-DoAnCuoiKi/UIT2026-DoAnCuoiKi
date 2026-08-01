@@ -1,0 +1,27 @@
+% =====================================================================
+%  CHƯƠNG 4 — OCR & MÀU BIỂN   | Tuần 3-4 | Phụ trách: Nhật (OCR) + Đức (màu/ánh sáng)
+% =====================================================================
+\chapter{Nhận Dạng Ký Tự và Màu Nền Biển Số}
+\label{ch:ocr-maubien}
+
+\section{Tiền Xử Lý Vùng Biển Số}
+\wip{Cắt vùng biển từ bộ phát hiện; hiệu chỉnh nghiêng (deskew); tách 2 hàng cho biển xe máy.}
+
+\section{Nhận Dạng Ký Tự (OCR)}
+\subsection{Lựa Chọn Công Cụ OCR}
+\wip{So sánh PaddleOCR vs EasyOCR \autocite{paddleocr2025ppocrv5,moussaoui2024yolov8ocr}; lý do chọn.}
+\subsection{Tinh Chỉnh và Hậu Xử Lý}
+\wip{Fine-tune trên biển VN; luật hậu xử lý (định dạng biển VN, sửa nhầm O/0, B/8...).}
+\subsection{Đánh Giá OCR}
+\wip{Độ chính xác mức biển (plate-level) + mức ký tự / CER. Bảng kết quả.}
+
+\section{Nhận Diện Màu Nền Biển Số}
+\subsection{Xử Lý Ánh Sáng}
+\wip{CLAHE + chuẩn hóa ánh sáng; xử lý điều kiện thiếu/thừa sáng.}
+\subsection{Phân Loại Màu bằng Không Gian HSV}
+\wip{Ngưỡng HSV cho 4 màu (trắng/vàng/xanh/đỏ) $\rightarrow$ nhóm xe cá nhân/kinh doanh/nhà nước.}
+\subsection{Đánh Giá Màu Biển}
+\wip{Accuracy theo màu + ma trận nhầm lẫn; đánh giá đa điều kiện ánh sáng.}
+
+\section{Thảo Luận}
+\wip{Nguồn lỗi chính (mờ, chói, nghiêng); giới hạn và hướng cải thiện.}

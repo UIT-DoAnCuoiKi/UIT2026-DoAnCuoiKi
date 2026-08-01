@@ -1,0 +1,83 @@
+% =====================================================================
+%  preamble.tex — gói, font, header/footer, định dạng tiêu đề
+%  Bám định dạng file mẫu (Nhom_6-CS340...): Times, header 2 bên,
+%  Chương N. / N.M. / N.M.K., hình/bảng đánh số toàn cục, IEEE refs.
+% =====================================================================
+
+% ---------- Ngôn ngữ & font (XeLaTeX) ----------
+\usepackage{fontspec}
+\usepackage[vietnamese]{babel}     % tự dịch: Hình, Bảng, Chương, Mục lục, Danh sách hình vẽ...
+% Font chính: Times New Roman (có sẵn trên macOS/Windows, đủ glyph tiếng Việt).
+% Linux: cài msttcorefonts hoặc đổi sang "Liberation Serif" / "TeX Gyre Termes".
+\setmainfont{Times New Roman}
+% \setmainfont{TeX Gyre Termes}    % <- fallback đa nền tảng (cần gói tex-gyre)
+
+% ---------- Trình bày trang ----------
+\usepackage[a4paper,left=3cm,right=2cm,top=2.5cm,bottom=2.5cm]{geometry}
+\usepackage{setspace}
+\onehalfspacing
+\usepackage{indentfirst}           % thụt lề dòng đầu mỗi đoạn (chuẩn VN)
+\setlength{\parindent}{1cm}
+
+% ---------- Đồ họa, bảng, màu ----------
+\usepackage{graphicx}
+\graphicspath{{figures/}}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{xcolor}
+\definecolor{uitblue}{RGB}{0,84,159}
+\usepackage[font=small,labelfont=bf]{caption}
+\usepackage{enumitem}
+\usepackage{amsmath,amssymb}
+% \usepackage{siunitx}             % (tùy chọn) số & đơn vị; đặt output-decimal-marker={,}
+% \sisetup{output-decimal-marker={,}}
+
+% ---------- Hình/bảng đánh số TOÀN CỤC (1,2,3...) như file mẫu ----------
+\usepackage{remreset}
+\makeatletter
+\@removefromreset{figure}{chapter}
+\@removefromreset{table}{chapter}
+\makeatother
+\renewcommand{\thefigure}{\arabic{figure}}
+\renewcommand{\thetable}{\arabic{table}}
+
+% ---------- Header / footer 2 bên (fancyhdr) ----------
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small UIT -- Đồ án tốt nghiệp}
+\fancyhead[R]{\small \ThesisTitleShort{} -- \StudentA{} \& \StudentB}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+% Trang mở đầu chương cũng giữ header giống file mẫu:
+\fancypagestyle{plain}{%
+  \fancyhf{}%
+  \fancyhead[L]{\small UIT -- Đồ án tốt nghiệp}%
+  \fancyhead[R]{\small \ThesisTitleShort{} -- \StudentA{} \& \StudentB}%
+  \fancyfoot[C]{\thepage}%
+  \renewcommand{\headrulewidth}{0.4pt}%
+}
+
+% ---------- Định dạng tiêu đề: "Chương N. Tựa", "N.M. Tựa" ----------
+\usepackage{titlesec}
+\titleformat{\chapter}[hang]
+  {\normalfont\Large\bfseries}
+  {\chaptertitlename\ \thechapter.}{0.6em}{}
+\titlespacing*{\chapter}{0pt}{6pt}{18pt}
+\titlelabel{\thetitle.\quad}       % thêm dấu chấm sau số mục: "1.1." , "1.1.1."
+
+% ---------- Thư mục tài liệu tham khảo IEEE ----------
+\usepackage[backend=biber,style=ieee,sorting=none]{biblatex}
+\addbibresource{refs.bib}
+
+% ---------- Liên kết ----------
+\usepackage[hidelinks]{hyperref}
+
+% ---------- Tiện ích soạn thảo: đánh dấu phần CHƯA VIẾT ----------
+% Dùng \wip{ghi chú} để chèn ghi chú "đang làm" nổi bật (dễ tìm khi rà soát).
+\newcommand{\wip}[1]{\textcolor{red}{\textbf{[TODO: #1]}}}
+% Dùng \ph{...} cho số liệu placeholder cần thay bằng kết quả thật.
+\newcommand{\ph}[1]{\textcolor{orange}{\underline{#1}}}

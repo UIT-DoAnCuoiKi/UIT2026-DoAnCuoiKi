@@ -1,0 +1,23 @@
+% =====================================================================
+%  CHƯƠNG 7 — TRIỂN KHAI THIẾT BỊ BIÊN  | Tuần 7-8 | Phụ trách: Nhật (tối ưu) + Đức (deploy)
+% =====================================================================
+\chapter{Triển Khai trên Thiết Bị Biên}
+\label{ch:trienkhai}
+
+\section{Nền Tảng Phần Cứng}
+\wip{Raspberry Pi 5 (ARM Cortex-A76, RAM); giao tiếp camera; lý do chọn \autocite{ultralytics2026rpiguide}.}
+
+\section{Tối Ưu Mô Hình}
+\subsection{Xuất ONNX}
+\wip{Chuyển mô hình sang ONNX; ONNX Runtime trên ARM.}
+\subsection{Lượng Tử Hóa (Quantization)}
+\wip{INT8 quantization; đánh đổi độ chính xác trước/sau nén \autocite{sonnara2025lightedge}.}
+\subsection{Khả Chuyển Đa Nền Tảng}
+\wip{Thiết kế độc lập nền tảng; nêu đường tối ưu thay thế (TensorRT trên Jetson) tuy phần
+minh họa chính chạy trên Raspberry Pi 5 — bám đối tượng NC ở Chương~\ref{ch:tongquan}.}
+
+\section{Đóng Gói và Triển Khai}
+\wip{Service hóa pipeline; khởi động cùng hệ thống; (tùy chọn) container hóa.}
+
+\section{Chạy Thử trên Raspberry Pi 5}
+\wip{Cấu hình chạy; xác nhận hệ thống hoạt động end-to-end trên thiết bị biên; ảnh minh họa.}

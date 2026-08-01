@@ -1,0 +1,30 @@
+% =====================================================================
+%  CHƯƠNG 2 — DỮ LIỆU             | Giai đoạn: Tuần 2 | Phụ trách: Cả 2
+%  Nguồn: research/2026-07-26-datasets-vietnam.md, dataset-inventory-verified.md
+% =====================================================================
+\chapter{Dữ Liệu}
+\label{ch:dulieu}
+
+\section{Nguồn Dữ Liệu}
+\wip{Bộ công khai (biển số/xe VN) + ảnh tự thu thập tại cổng bãi. Trích dẫn nguồn
+\autocite{roboflow2024vnplatedet,kaggle2023vnplatesegment,kaggle2022vncharplate,roboflow2023vnvehicle,kaggle2023vnvehicles}.}
+
+\section{Thu Thập và Gắn Nhãn}
+\wip{Quy trình thu thập (thiết bị, góc, điều kiện ánh sáng); công cụ nhãn; định dạng
+nhãn (YOLO bbox cho biển/xe, chuỗi ký tự cho OCR, nhãn loại xe + màu biển).}
+
+\section{Thống Kê Tập Dữ Liệu}
+\wip{Bảng thống kê (Bảng~\ref{tab:datasplit}): số ảnh, số lớp, phân bố loại xe/màu biển,
+chia train/val/test. Dùng booktabs.}
+% \begin{table}[htbp]\centering\caption{Thống kê phân chia tập dữ liệu.}\label{tab:datasplit}
+% \begin{tabular}{lrrr}\toprule Tập & Train & Val & Test \\\midrule ... \\\bottomrule\end{tabular}\end{table}
+
+\section{Tiền Xử Lý và Tăng Cường Dữ Liệu}
+\wip{Resize/letterbox, chuẩn hóa; augmentation (mosaic, HSV jitter, xoay, mờ) và lý do.
+Mất cân bằng lớp + cách xử lý.}
+
+\section{Đặc Điểm và Thách Thức}
+\wip{Biển bẩn/nghiêng/thiếu sáng, biển 2 hàng xe máy, đa dạng màu nền — nêu ảnh minh họa (Hình~\ref{...}).}
+
+\section{Tuân Thủ Bảo Vệ Dữ Liệu Cá Nhân}
+\wip{Ảnh biển số = dữ liệu cá nhân; ẩn danh khi công bố; kiểm soát truy cập. Xem Phụ lục~\ref{app:baomat}.}
