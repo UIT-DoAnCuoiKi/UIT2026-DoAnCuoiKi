@@ -1,7 +1,6 @@
 # src/ml/plate_detect/tests/test_pipeline_smoke.py
 import os
 import cv2
-import numpy as np
 import pytest
 from plate_detect.config import Config
 from plate_detect.data.fixtures import make_raw_fixture
@@ -30,7 +29,10 @@ def test_full_pipeline_cpu(tmp_path):
     # 3. inference via PlateDetector (pt backend)
     from plate_detect.inference.plate_detector import PlateDetector
     det = PlateDetector(best, backend="pt", conf=0.01)
-    img = cv2.imread(sorted((tmp_path / "proc" / "images" / "val").glob("*.jpg"))[0].as_posix())
+    val_imgs = sorted((tmp_path / "proc" / "images" / "val").glob("*.jpg"))
+    assert val_imgs, "prepare() produced no val images — check split logic"
+    img = cv2.imread(val_imgs[0].as_posix())
+    assert img is not None, f"cv2.imread returned None for {val_imgs[0]}"
     dets = det.detect(img)           # may be empty on a 1-epoch model; must not crash
     assert isinstance(dets, list)
 
