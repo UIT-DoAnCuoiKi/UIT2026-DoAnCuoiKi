@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-def polygon_to_bbox(coords: list[float]):
+def polygon_to_bbox(coords: list[float]) -> tuple[float, float, float, float] | None:
     xs = [min(1.0, max(0.0, v)) for v in coords[0::2]]
     ys = [min(1.0, max(0.0, v)) for v in coords[1::2]]
     x1, x2 = min(xs), max(xs)
