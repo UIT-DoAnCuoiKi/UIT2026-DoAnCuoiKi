@@ -16,3 +16,13 @@ def test_find_duplicates_flags_near():
     names = {d[0] for d in dups}
     assert "q0" in names          # duplicate of t0
     assert "q1" not in names      # flat image, different
+
+def test_ahash_grayscale_input():
+    # ahash must handle an already-gray 2D array (not just 3-channel BGR)
+    g = np.full((64, 64), 120, np.uint8)
+    assert isinstance(ahash(g), int)
+
+def test_find_duplicates_empty_train():
+    # empty train dict -> nothing can be a duplicate
+    assert find_duplicates({}, {"q": ahash(_img(0))}) == []
+
