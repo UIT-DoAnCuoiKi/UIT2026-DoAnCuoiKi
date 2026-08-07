@@ -23,3 +23,13 @@ def test_decode_v8_conf_and_nms():
     boxes, scores, classes = decode_v8(raw, conf=0.25, iou=0.5, nc=2)
     assert len(boxes) == 2            # the 0.85 box suppressed by NMS with 0.9
     assert 0 in classes and 1 in classes
+
+def test_decode_v8_empty():
+    raw = np.zeros((6, 0))          # (4+nc, M=0): zero detections, nc=2
+    boxes, scores, classes = decode_v8(raw, conf=0.5, iou=0.5, nc=2)
+    assert boxes.shape == (0, 4) and len(scores) == 0
+
+def test_decode_v26_empty():
+    raw = np.zeros((0, 6))          # (N=0, 6): zero detections
+    boxes, scores, classes = decode_v26(raw, conf=0.5)
+    assert len(boxes) == 0

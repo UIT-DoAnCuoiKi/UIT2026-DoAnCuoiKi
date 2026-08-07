@@ -33,6 +33,8 @@ def decode_v26(raw: np.ndarray, conf: float) -> tuple[np.ndarray, np.ndarray, np
 
 def decode_v8(raw: np.ndarray, conf: float, iou: float, nc: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     raw = np.asarray(raw, float)
+    # assumes a non-square head; if M happens to equal 4+nc the transpose is ambiguous
+    # (an inherent YOLOv8 head-format limitation, not specific to this code)
     if raw.shape[0] == 4 + nc:
         raw = raw.T                       # (M, 4+nc)
     xywh, cls = raw[:, :4], raw[:, 4:4 + nc]
