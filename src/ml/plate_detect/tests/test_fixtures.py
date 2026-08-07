@@ -20,6 +20,6 @@ def test_make_raw_fixture_deterministic(tmp_path):
     a = tmp_path / "a"; b = tmp_path / "b"
     make_raw_fixture(str(a), n_per_split=3, seed=42)
     make_raw_fixture(str(b), n_per_split=3, seed=42)
-    la = sorted(p.name for p in (a / "labels" / "train").glob("*.txt"))
-    lb = sorted(p.name for p in (b / "labels" / "train").glob("*.txt"))
-    assert la == lb
+    for name in ["train_0.txt", "train_1.txt", "train_2.txt"]:
+        assert (a / "labels" / "train" / name).read_text() == \
+               (b / "labels" / "train" / name).read_text()

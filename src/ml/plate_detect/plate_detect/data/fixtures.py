@@ -24,7 +24,7 @@ def make_raw_fixture(root: str, n_per_split: int = 10, seed: int = 0) -> None:
             x2, y2 = int(cx + pw / 2), int(cy + ph / 2)
             cv2.rectangle(img, (x1, y1), (x2, y2), (235, 235, 235), -1)
             cv2.imwrite(os.path.join(img_dir, f"{split}_{i}.jpg"), img)
-            corners = [x1 / W, y1 / H, x2 / W, y1 / H, x2 / W, y2 / H, x1 / W, y2 / H]
+            corners = [max(0.0, min(1.0, x1 / W)), max(0.0, min(1.0, y1 / H)), max(0.0, min(1.0, x2 / W)), max(0.0, min(1.0, y1 / H)), max(0.0, min(1.0, x2 / W)), max(0.0, min(1.0, y2 / H)), max(0.0, min(1.0, x1 / W)), max(0.0, min(1.0, y2 / H))]
             line = str(cls) + " " + " ".join(f"{v:.6f}" for v in corners)
             with open(os.path.join(lbl_dir, f"{split}_{i}.txt"), "w") as f:
                 f.write(line + "\n")
