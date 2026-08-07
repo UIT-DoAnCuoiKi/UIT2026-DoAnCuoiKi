@@ -17,7 +17,10 @@ def _cfg_from_args(a) -> Config:
 
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
-    p = argparse.ArgumentParser(prog="plate_detect")
+    p = argparse.ArgumentParser(
+        prog="plate_detect",
+        epilog="Global flags follow the subcommand, e.g. plate_detect check --dry-run --processed-dir DIR",
+    )
     sub = p.add_subparsers(dest="cmd", required=True)
 
     for name in ("prepare", "train", "eval", "export", "check"):

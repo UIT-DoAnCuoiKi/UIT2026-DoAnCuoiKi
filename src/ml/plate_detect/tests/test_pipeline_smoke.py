@@ -40,3 +40,9 @@ def test_full_pipeline_cpu(tmp_path):
     from plate_detect.export.to_onnx import export
     onnx_path = export(best, str(tmp_path / "model.onnx"), imgsz=64)
     assert os.path.exists(onnx_path)
+
+    # exercise the ONNX backend seam (family-dispatch + rescale), not just pt
+    onnx_detector = PlateDetector(onnx_path, backend="onnx", conf=0.01)
+    onnx_dets = onnx_detector.detect(img)
+    assert isinstance(onnx_dets, list)
+

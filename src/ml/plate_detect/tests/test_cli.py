@@ -26,3 +26,13 @@ def test_unknown_subcommand_errors():
         assert False, "should have raised SystemExit"
     except SystemExit as e:
         assert e.code != 0
+
+
+def test_help_documents_flag_ordering(capsys):
+    """Epilog must tell users that global flags follow the subcommand."""
+    try:
+        main(["--help"])
+    except SystemExit:
+        pass
+    out = capsys.readouterr().out
+    assert "follow the subcommand" in out
