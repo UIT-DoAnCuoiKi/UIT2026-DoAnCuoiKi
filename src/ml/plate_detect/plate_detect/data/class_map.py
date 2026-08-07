@@ -9,11 +9,11 @@ def infer_layout_map(objects_by_class: dict[int, list[float]]) -> dict[int, str]
 
 
 def verify_class_map(inferred: dict[int, str], yaml_names: dict[int, str] | None) -> dict[int, str]:
-    if yaml_names:
+    if yaml_names is not None:
         for cid, name in inferred.items():
             yn = str(yaml_names.get(cid, "")).lower()
-            is_1 = ("1" in yn) or ("dai" in yn) or ("long" in yn) or ("lpd" in yn) or ("bsd" in yn)
-            is_2 = ("2" in yn) or ("vuong" in yn) or ("square" in yn) or ("lpv" in yn) or ("bsv" in yn)
+            is_1 = ("1hang" in yn) or ("dai" in yn) or ("long" in yn) or ("lpd" in yn) or ("bsd" in yn)
+            is_2 = ("2hang" in yn) or ("vuong" in yn) or ("square" in yn) or ("lpv" in yn) or ("bsv" in yn)
             if is_1 and name != "bien_1hang":
                 raise ValueError(f"class {cid}: yaml '{yn}' vs inferred '{name}'")
             if is_2 and name != "bien_2hang":
