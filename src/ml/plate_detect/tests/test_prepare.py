@@ -22,7 +22,7 @@ def test_prepare_end_to_end(tmp_path, raw_fixture):
     # manifests written
     assert os.path.exists(os.path.join(cfg.split_dir, "train.txt"))
     # data contract holds
-    assert validate_processed(cfg.processed_dir) == []
+    assert validate_processed(cfg.processed_dir, cfg.num_classes) == []
     # train kept intact (10 fixture train images), val(10) split into val+test
     assert summary["counts"]["train"] == 10
     assert summary["counts"]["val"] + summary["counts"]["test"] == 10

@@ -28,7 +28,9 @@ class A1Adapter:
                 lp = os.path.join(lbl_dir, stem + ".txt")
                 objects = []
                 if os.path.exists(lp):
-                    for ln in open(lp).read().splitlines():
+                    with open(lp) as fh:
+                        label_lines = fh.read().splitlines()
+                    for ln in label_lines:
                         parts = ln.split()
                         if len(parts) >= 9 and parts[0].lstrip("-").isdigit():
                             objects.append((int(parts[0]), list(map(float, parts[1:9]))))

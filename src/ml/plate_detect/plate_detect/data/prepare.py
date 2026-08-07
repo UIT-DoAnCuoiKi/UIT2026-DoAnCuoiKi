@@ -68,7 +68,7 @@ def prepare(cfg: Config, dedup_threshold: int = 5) -> dict:
             stems.append(stem)
         counts[split] = len(recs)
         with open(os.path.join(cfg.split_dir, f"{split}.txt"), "w") as f:
-            f.write("\n".join(stems) + "\n")
+            f.write("\n".join(stems) + ("\n" if stems else ""))
 
     # dataset yaml
     os.makedirs(os.path.dirname(cfg.dataset_yaml) or ".", exist_ok=True)
