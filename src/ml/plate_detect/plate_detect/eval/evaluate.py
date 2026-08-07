@@ -17,12 +17,13 @@ def aggregate_seeds(runs: list[dict]) -> dict[str, tuple[float, float]]:
     Returns:
         Dict mapping metric key to (mean, std) tuple.
     """
-    keys = runs[0].keys()
+    if not runs:
+        return {}
     out = {}
-    for k in keys:
+    for k in runs[0].keys():
         vals = [r[k] for r in runs]
-        std = statistics.pstdev(vals) if len(vals) > 1 else 0.0
-        out[k] = (statistics.mean(vals), std)
+        # population std: a single seed yields 0.0 (pstdev handles len==1 natively)
+        out[k] = (statistics.mean(vals), statistics.pstdev(vals))
     return out
 
 

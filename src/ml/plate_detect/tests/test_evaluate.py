@@ -20,3 +20,22 @@ def test_append_experiment_schema(tmp_path):
     header, row = csv.read_text().splitlines()[:2]
     assert header == "date,model,dataset,hyperparams,mAP50,mAP50-95,precision,recall,weights"
     assert "yolo26n" in row and "A1" in row
+
+
+def test_aggregate_single_seed():
+    agg = aggregate_seeds([{"map50": 0.9, "map5095": 0.6, "precision": 0.9, "recall": 0.9}])
+    assert agg["map50"] == (0.9, 0.0)   # population std of one value is 0.0
+
+
+def test_aggregate_empty_returns_empty():
+    assert aggregate_seeds([]) == {}
+
+
+def test_append_twice_one_header_two_rows(tmp_path):
+    csv = tmp_path / "experiments.csv"
+    m = {"map50": 0.9, "map5095": 0.6, "precision": 0.9, "recall": 0.9}
+    append_experiment(str(csv), "yolo26n", "A1", "h", m, "w1.pt")
+    append_experiment(str(csv), "yolov8n", "A1", "h", m, "w2.pt")
+    lines = csv.read_text().splitlines()
+    assert lines[0] == "date,model,dataset,hyperparams,mAP50,mAP50-95,precision,recall,weights"
+    assert len(lines) == 3   # one header + two data rows
