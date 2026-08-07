@@ -36,3 +36,27 @@ def test_bad_class_and_range(tmp_path):
     assert any("range" in e for e in errs)
     with pytest.raises(ValueError):
         assert_valid(r)
+
+def test_malformed_class_field(tmp_path):
+    r = str(tmp_path); _mk(r)
+    _write_img(r, "train", "a"); _write_lbl(r, "train", "a", "car 0.5 0.5 0.2 0.2\n")
+    errs = validate_processed(r)
+    assert any("class id" in e for e in errs)   # reported, did not crash
+
+def test_nonnumeric_coord(tmp_path):
+    r = str(tmp_path); _mk(r)
+    _write_img(r, "train", "a"); _write_lbl(r, "train", "a", "0 abc 0.5 0.2 0.2\n")
+    errs = validate_processed(r)
+    assert any("coord" in e for e in errs)
+
+def test_short_line(tmp_path):
+    r = str(tmp_path); _mk(r)
+    _write_img(r, "train", "a"); _write_lbl(r, "train", "a", "0 0.5\n")
+    errs = validate_processed(r)
+    assert any("fields" in e for e in errs)
+
+def test_orphan_label(tmp_path):
+    r = str(tmp_path); _mk(r)
+    _write_lbl(r, "train", "a", "0 0.5 0.5 0.2 0.2\n")   # label, no image
+    errs = validate_processed(r)
+    assert any("orphan" in e for e in errs)

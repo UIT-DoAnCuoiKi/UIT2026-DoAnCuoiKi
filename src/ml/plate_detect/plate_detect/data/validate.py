@@ -21,14 +21,28 @@ def validate_processed(processed_dir: str, num_classes: int = 2) -> list[str]:
         for stem in lbl_stems - img_stems:
             errors.append(f"[{split}] orphan label '{stem}' has no image")
         for lp in glob.glob(os.path.join(lbl_dir, "*.txt")):
-            for ln in open(lp).read().splitlines():
+            with open(lp) as f:
+                lines = f.read().splitlines()
+            for ln in lines:
                 p = ln.split()
                 if not p:
                     continue
-                cid = int(p[0])
+                if len(p) < 5:
+                    errors.append(f"[{split}] {os.path.basename(lp)}: line has {len(p)} fields, expected >= 5")
+                    continue
+                try:
+                    cid = int(p[0])
+                except ValueError:
+                    errors.append(f"[{split}] {os.path.basename(lp)}: invalid class id '{p[0]}'")
+                    continue
                 if cid < 0 or cid >= num_classes:
                     errors.append(f"[{split}] {os.path.basename(lp)}: class {cid} out of range")
-                for v in map(float, p[1:5]):
+                try:
+                    coords = [float(v) for v in p[1:5]]
+                except ValueError:
+                    errors.append(f"[{split}] {os.path.basename(lp)}: non-numeric coord in '{ln}'")
+                    continue
+                for v in coords:
                     if v < 0.0 or v > 1.0:
                         errors.append(f"[{split}] {os.path.basename(lp)}: coord {v} out of range")
     return errors
