@@ -21,3 +21,9 @@ def test_build_train_args_seed_varies():
     a0 = build_train_args(cfg, "d.yaml", 0, "runs", "m_s0")
     a2 = build_train_args(cfg, "d.yaml", 2, "runs", "m_s2")
     assert a0["seed"] == 0 and a2["seed"] == 2
+
+
+def test_run_name_encodes_model_and_seed():
+    from plate_detect.train.trainer import run_name
+    assert run_name("yolo26n", 1) == "yolo26n_s1"
+    assert run_name("yolov8n", 0) == "yolov8n_s0"

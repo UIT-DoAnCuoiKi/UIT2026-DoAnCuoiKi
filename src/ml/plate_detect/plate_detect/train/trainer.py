@@ -3,7 +3,12 @@ from ..config import Config
 from .registry import resolve
 
 
+def run_name(model_key: str, seed: int) -> str:
+    return f"{model_key}_s{seed}"
+
+
 def build_train_args(cfg: Config, data_yaml: str, seed: int, project: str, name: str) -> dict:
+    """Return the Ultralytics train() kwargs (fixed for a fair comparison; includes A1-tuned augmentation presets)."""
     return {
         "data": data_yaml,
         "imgsz": cfg.imgsz,
@@ -27,6 +32,7 @@ def build_train_args(cfg: Config, data_yaml: str, seed: int, project: str, name:
 def run_train(model_key: str, cfg: Config, data_yaml: str, seed: int, project: str) -> str:
     from ultralytics import YOLO
     model = YOLO(resolve(model_key))
-    name = f"{model_key}_s{seed}"
+    name = run_name(model_key, seed)
     results = model.train(**build_train_args(cfg, data_yaml, seed, project, name))
     return str(results.save_dir)
+
