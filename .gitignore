@@ -8,5 +8,6 @@
 __pycache__/
 .ipynb_checkpoints/
 
-# downloaded datasets (large, not committed)
-data/
+# downloaded datasets (large, not committed) — anchored to repo root so
+# nested package source dirs like src/ml/plate_detect/plate_detect/data/ stay tracked
+/data/
