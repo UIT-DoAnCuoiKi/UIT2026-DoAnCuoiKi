@@ -11,8 +11,10 @@ def detection_delta(a, b) -> float:
     delta = float(abs(len(a) - len(b)))
     n = min(len(a), len(b))
     if n:
-        dists = [np.linalg.norm(_center(a[i]) - _center(b[i])) for i in range(n)]
-        delta += float(np.mean(dists)) / 1000.0     # normalize by ~image-diagonal proxy
+        a_s = sorted(a, key=lambda d: d.conf, reverse=True)
+        b_s = sorted(b, key=lambda d: d.conf, reverse=True)
+        dists = [np.linalg.norm(_center(a_s[i]) - _center(b_s[i])) for i in range(n)]
+        delta += float(np.mean(dists)) / 1000.0
     return delta
 
 
@@ -25,6 +27,9 @@ def export(weights_pt: str, out_onnx: str, imgsz: int = 640) -> str:
     import shutil
     model = YOLO(weights_pt)
     produced = model.export(format="onnx", imgsz=imgsz, opset=12)
+    if produced is None:
+        raise RuntimeError("Ultralytics export returned None — check the weights path and export format")
     if str(produced) != out_onnx:
         shutil.copy(str(produced), out_onnx)
     return out_onnx
+

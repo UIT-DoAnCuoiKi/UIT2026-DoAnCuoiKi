@@ -19,3 +19,11 @@ def test_count_mismatch_fails_parity():
     b = [_det(10, 0.9)]
     assert detection_delta(a, b) >= 1.0
     assert not parity_ok(a, b)
+
+
+def test_detection_delta_order_independent():
+    d_low = _det(10, 0.6)
+    d_high = _det(50, 0.9)
+    # same detections, different list order -> delta 0 after internal conf-sort
+    assert detection_delta([d_low, d_high], [d_high, d_low]) == 0.0
+
