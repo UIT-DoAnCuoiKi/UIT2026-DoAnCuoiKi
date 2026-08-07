@@ -19,3 +19,7 @@ dev = ["pytest"]
 
 [tool.setuptools.packages.find]
 include = ["plate_detect*"]
+
+[tool.pytest.ini_options]
+markers = ["slow: end-to-end tests that train a tiny model"]
+
