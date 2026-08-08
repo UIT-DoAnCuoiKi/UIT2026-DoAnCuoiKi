@@ -43,7 +43,7 @@ Phase-aware guide for the smart parking thesis (15/07/2026 – 23/09/2026). Stac
 
 - **Data:** fixed train/val/test split committed as file lists; never evaluate on training data; version dataset changes (date-stamped snapshot notes in `docs/research/`).
 - **Experiments:** every training run logged — CSV (`src/ml/experiments.csv`: date, model, dataset version, hyperparams, metrics, weights path) by default, W&B optional. No untracked "best model".
-- **Checkpoints:** weights saved to Drive during Colab runs (see `colab-training`), exported to `src/ml/weights/`.
+- **Checkpoints:** weights checkpointed during training runs, exported to `src/ml/weights/`.
 - **Integration:** freeze module interfaces before week 6 (see `alpr-pipeline`).
 - **Evaluation:** measure quantization accuracy drop explicitly — the accuracy/speed trade-off is a required thesis result, not a nuisance.
 
