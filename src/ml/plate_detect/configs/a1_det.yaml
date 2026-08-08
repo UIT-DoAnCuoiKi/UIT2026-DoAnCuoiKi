@@ -1,0 +1,7 @@
+path: /Users/ducqhle/Documents/workspace/UIT2026-DoAnCuoiKi/data/processed/a1_det
+train: images/train
+val: images/val
+test: images/test
+names:
+  1: bien_2hang
+  0: bien_1hang
