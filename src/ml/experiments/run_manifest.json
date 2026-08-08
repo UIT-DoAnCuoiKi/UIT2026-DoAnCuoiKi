@@ -1,0 +1,16 @@
+{
+  "epochs": 15,
+  "batch_size": 32,
+  "lr": 0.0001,
+  "optimizer": "Adam",
+  "augmentation": "RandomResizedCrop(224, scale=0.8-1.0), RandomHorizontalFlip, RandomRotation(10), ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2)",
+  "loss": "CrossEntropyLoss(weight=class_weights), trọng số nghịch tỉ lệ số mẫu mỗi lớp",
+  "device": "cuda (NVIDIA GeForce RTX 4070)",
+  "models": [
+    "resnet18",
+    "mobilenet_v3_small"
+  ],
+  "data_source": "B5 (Vehicle Body Style Dataset), gộp 12 kiểu dáng gốc thành 3 lớp",
+  "data_dir": "data\\processed\\vehicle-style",
+  "note": "Loại thô (car/motorcycle/bus/truck) dùng một model YOLO pretrained trên COCO (cụ thể YOLOv8n), không huấn luyện thêm; xem src/ml/predict_vehicle.py"
+}
