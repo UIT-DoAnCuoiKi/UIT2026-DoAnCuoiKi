@@ -80,13 +80,31 @@ passed with `--config`.
 - `src/ml/experiments.csv` — appended metrics per run
 - `docs/report/figures/plate_det_comparison.md` — YOLO26n vs YOLOv8n table
 
-## Colab
+## Colab (incl. VSCode-driven runtime)
 
 Open `notebooks/train-plate-det.ipynb` from the `feat/plate-detect-a1` branch and
-run the **Setup** cell. It clones the branch (GitHub PAT), installs this package,
-and unzips raw A1 from Google Drive (`MyDrive/UIT_2025/datasets/A1.zip`, mounted
-and symlinked into the raw path — no per-session re-download). All later cells
-call the CLI.
+run the **Setup** cell. It clones the branch, installs this package, and pulls raw
+A1 from a Drive-shared `A1.zip` via `gdown`, symlinked into the raw path. All later
+cells call the CLI.
+
+**Headless caveat.** When the runtime is driven from VSCode (kernel = Colab GPU VM),
+`drive.mount()` and Colab **Secrets** do not work — they need the Colab web frontend
+and fail with `400 Bad Request` / cancelled auth. So Setup:
+
+- reads the **GitHub PAT** from a `getpass` prompt (not a Colab secret);
+- fetches data with **`gdown`** (not `drive.mount`) → share `A1.zip` as *Anyone with
+  the link* and paste its file id into `DRIVE_FILE_ID`.
+
+**PAT setup (private org repo).** A `403 Write access not granted` on clone means the
+token has no read access. Use either:
+
+- *Classic PAT* — scope `repo`; if the org enforces SSO, click **Authorize/Configure
+  SSO** on the token for `UIT-DoAnCuoiKi`.
+- *Fine-grained PAT* — Resource owner = the **org**, select the repo, permission
+  **Contents: Read-only**, then approve it in org → Settings → Personal access tokens.
+
+Verify before Colab: `git ls-remote https://<TOKEN>@github.com/UIT-DoAnCuoiKi/UIT2026-DoAnCuoiKi.git HEAD`
+prints a hash = good.
 
 ## Caveat — dedup leakage
 
