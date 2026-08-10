@@ -1,4 +1,5 @@
 from __future__ import annotations
+import os
 from ..config import Config
 from .registry import resolve
 
@@ -24,7 +25,10 @@ def build_train_args(cfg: Config, data_yaml: str, seed: int,
         "degrees": 5.0,
         "perspective": 0.0005,
         "close_mosaic": 10,
-        "project": project,
+        # Absolute project path so Ultralytics' get_save_dir does NOT prepend
+        # RUNS_DIR/<task>/ (which turns "runs" into "runs/detect/runs/<name>").
+        # Absolute => save_dir = <project>/<name>, matching how eval/export reconstruct it.
+        "project": os.path.abspath(project),
         "name": name,
         "exist_ok": True,
         "verbose": False,
