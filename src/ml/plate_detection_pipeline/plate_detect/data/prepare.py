@@ -101,7 +101,7 @@ def prepare(cfg: Config, dedup_threshold: int = 5, drop_dups: bool = False) -> d
             "names": {int(k): v for k, v in class_map.items()},
         }, f, sort_keys=False)
 
-    # pHash report → report chapter
+    # pHash near-duplicate report, used in the report chapter
     report = os.path.join(cfg.processed_dir, "phash_report.txt")
     with open(report, "w") as f:
         f.write(f"# pHash near-duplicate report (Hamming <= {dedup_threshold})\n")

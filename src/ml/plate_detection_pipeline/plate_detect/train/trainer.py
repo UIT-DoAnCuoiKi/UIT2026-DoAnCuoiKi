@@ -10,8 +10,8 @@ def run_name(model_key: str, seed: int, imgsz: int) -> str:
 
 def build_train_args(cfg: Config, data_yaml: str, seed: int,
                      project: str, name: str, imgsz: int) -> dict:
-    """Ultralytics train() kwargs — fixed across both models for a fair comparison;
-    A1-tuned augmentation (mild brightness for ~8% dark images, mild skew for gate camera)."""
+    """Ultralytics train() kwargs, fixed across both models for a fair comparison.
+    A1-tuned augmentation: mild brightness for ~8% dark images, mild skew for gate camera."""
     return {
         "data": data_yaml,
         "imgsz": imgsz,

@@ -28,7 +28,7 @@ def export(weights_pt: str, out_onnx: str, imgsz: int = 640) -> str:
     model = YOLO(weights_pt)
     produced = model.export(format="onnx", imgsz=imgsz, opset=12)
     if produced is None:
-        raise RuntimeError("Ultralytics export returned None — check weights path / format")
+        raise RuntimeError("Ultralytics export returned None; check weights path / format")
     if str(produced) != out_onnx:
         shutil.copy(str(produced), out_onnx)
     return out_onnx

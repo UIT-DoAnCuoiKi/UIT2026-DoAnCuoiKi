@@ -19,7 +19,6 @@ def run_eval(weights_pt: str, data_yaml: str, imgsz: int,
         "map5095": float(box.map),
         "precision": float(box.mp),
         "recall": float(box.mr),
-        "per_class_ap": [float(x) for x in getattr(box, "maps", [])],
     }
 
 

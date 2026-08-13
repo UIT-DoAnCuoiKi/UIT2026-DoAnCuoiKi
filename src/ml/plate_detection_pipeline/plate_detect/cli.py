@@ -1,6 +1,5 @@
 from __future__ import annotations
 import argparse
-import glob
 import os
 import sys
 import cv2
@@ -11,7 +10,7 @@ from .train.registry import MODEL_REGISTRY
 from .train.trainer import run_train, run_name
 from .eval.evaluate import run_eval, aggregate_seeds, append_experiment, comparison_table
 from .eval.metrics import bootstrap_ci, model_stats, measure_latency
-from .export.to_onnx import export, parity_ok
+from .export.to_onnx import export
 from .inference.plate_detector import PlateDetector
 
 
@@ -45,7 +44,6 @@ def _best_paths(project: str, model: str, imgsz: int, seeds: list[int]) -> list[
 def _latency_onnx(onnx_path: str, image, names: dict, conf: float, iou: float):
     """Model-only (network forward) vs end-to-end (forward + decode/NMS) on ONNX."""
     import numpy as np
-    import onnxruntime as ort
     det = PlateDetector(onnx_path, backend="onnx", names=names, conf=conf, iou=iou)
     det.detect(image)                       # warm the session
     sess = det._session
