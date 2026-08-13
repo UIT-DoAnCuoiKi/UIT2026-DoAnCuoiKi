@@ -11,3 +11,16 @@ __pycache__/
 # downloaded datasets (large, not committed) — anchored to repo root so
 # nested package source dirs like src/ml/plate_detect/plate_detect/data/ stay tracked
 /data/
+
+# macOS
+.DS_Store
+
+# training results / large binaries (kept locally, not committed)
+runs/
+weights/
+
+# notebook run artifacts + kaggle log dumps
+src/ml/plate_detection_pipeline/notebooks/klog*/
+src/ml/plate_detection_pipeline/notebooks/kaggle_out/
+src/ml/plate_detection_pipeline/notebooks/out13/
+src/ml/plate_detection_pipeline/output/
