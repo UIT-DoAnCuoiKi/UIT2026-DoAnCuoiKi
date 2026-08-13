@@ -1,0 +1,56 @@
+device: cuda (NVIDIA GeForce RTX 4070)
+
+===== style / resnet18 =====
+[resnet18] 3 lop: ['GamCao', 'Sedan', 'XeTai']
+[resnet18] epoch 1/15 train_loss=0.4608 val_acc=0.8729 val_f1_macro=0.8752
+[resnet18] epoch 2/15 train_loss=0.2416 val_acc=0.8979 val_f1_macro=0.9061
+[resnet18] epoch 3/15 train_loss=0.1836 val_acc=0.8809 val_f1_macro=0.8961
+[resnet18] epoch 4/15 train_loss=0.1528 val_acc=0.9005 val_f1_macro=0.9129
+[resnet18] epoch 5/15 train_loss=0.1253 val_acc=0.9085 val_f1_macro=0.9150
+[resnet18] epoch 6/15 train_loss=0.1119 val_acc=0.9145 val_f1_macro=0.9244
+[resnet18] epoch 7/15 train_loss=0.0867 val_acc=0.9135 val_f1_macro=0.9267
+[resnet18] epoch 8/15 train_loss=0.0796 val_acc=0.9015 val_f1_macro=0.9150
+[resnet18] epoch 9/15 train_loss=0.0619 val_acc=0.9150 val_f1_macro=0.9272
+[resnet18] epoch 10/15 train_loss=0.0572 val_acc=0.9145 val_f1_macro=0.9246
+[resnet18] epoch 11/15 train_loss=0.0649 val_acc=0.9110 val_f1_macro=0.9118
+[resnet18] epoch 12/15 train_loss=0.0617 val_acc=0.9050 val_f1_macro=0.9174
+[resnet18] epoch 13/15 train_loss=0.0620 val_acc=0.9225 val_f1_macro=0.9315
+[resnet18] epoch 14/15 train_loss=0.0460 val_acc=0.9145 val_f1_macro=0.9197
+[resnet18] epoch 15/15 train_loss=0.0472 val_acc=0.9115 val_f1_macro=0.9188
+[style/resnet18] test: accuracy=0.8997 f1_macro=0.9012
+  classes: ['GamCao', 'Sedan', 'XeTai']
+  confusion matrix:
+[[266  61   7]
+ [ 27 542   0]
+ [  4   0  80]]
+
+===== style / mobilenet_v3_small =====
+[mobilenet_v3_small] 3 lop: ['GamCao', 'Sedan', 'XeTai']
+[mobilenet_v3_small] epoch 1/15 train_loss=0.7239 val_acc=0.7999 val_f1_macro=0.7774
+[mobilenet_v3_small] epoch 2/15 train_loss=0.4090 val_acc=0.8299 val_f1_macro=0.8342
+[mobilenet_v3_small] epoch 3/15 train_loss=0.3110 val_acc=0.8634 val_f1_macro=0.8664
+[mobilenet_v3_small] epoch 4/15 train_loss=0.2523 val_acc=0.8664 val_f1_macro=0.8726
+[mobilenet_v3_small] epoch 5/15 train_loss=0.2278 val_acc=0.8744 val_f1_macro=0.8817
+[mobilenet_v3_small] epoch 6/15 train_loss=0.1946 val_acc=0.8534 val_f1_macro=0.8446
+[mobilenet_v3_small] epoch 7/15 train_loss=0.1692 val_acc=0.8734 val_f1_macro=0.8758
+[mobilenet_v3_small] epoch 8/15 train_loss=0.1557 val_acc=0.8924 val_f1_macro=0.8945
+[mobilenet_v3_small] epoch 9/15 train_loss=0.1425 val_acc=0.8804 val_f1_macro=0.8802
+[mobilenet_v3_small] epoch 10/15 train_loss=0.1343 val_acc=0.8889 val_f1_macro=0.8904
+[mobilenet_v3_small] epoch 11/15 train_loss=0.1147 val_acc=0.8844 val_f1_macro=0.8911
+[mobilenet_v3_small] epoch 12/15 train_loss=0.0965 val_acc=0.9010 val_f1_macro=0.9014
+[mobilenet_v3_small] epoch 13/15 train_loss=0.0913 val_acc=0.8974 val_f1_macro=0.8969
+[mobilenet_v3_small] epoch 14/15 train_loss=0.0899 val_acc=0.8869 val_f1_macro=0.8891
+[mobilenet_v3_small] epoch 15/15 train_loss=0.0756 val_acc=0.9050 val_f1_macro=0.9082
+[style/mobilenet_v3_small] test: accuracy=0.9007 f1_macro=0.9069
+  classes: ['GamCao', 'Sedan', 'XeTai']
+  confusion matrix:
+[[278  50   6]
+ [ 39 530   0]
+ [  2   1  81]]
+
+Da ghi 2 dong vao E:\Learn\UIT\UIT2026-DoAnCuoiKi\src\ml\experiments.csv
+
+=== Bang so sanh ===
+         model         params        onnx_MB         cpu_ms       accuracy       f1_macro
+      resnet18       11178051           44.7           8.57         0.8997         0.9012
+mobilenet_v3_small        1520931           6.09           4.82         0.9007         0.9069
