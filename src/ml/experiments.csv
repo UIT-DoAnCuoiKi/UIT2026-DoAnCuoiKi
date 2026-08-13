@@ -1,1 +1,5 @@
 date,model,dataset,hyperparams,mAP50,mAP50-95,precision,recall,weights
+2026-08-13,yolov8n,A1,"imgsz=640;epochs=100;seeds=[0, 1, 2]",0.9892,0.8644,0.9899,0.9823,runs/yolov8n_s0_640/weights/best.pt
+2026-08-13,yolo26n,A1,"imgsz=640;epochs=100;seeds=[0, 1, 2]",0.9801,0.8593,0.9751,0.9691,runs/yolo26n_s0_640/weights/best.pt
+2026-08-13,yolov8n,A1,"imgsz=640;epochs=100;seeds=[0, 1, 2]",0.9892,0.8644,0.9899,0.9823,runs/yolov8n_s0_640/weights/best.pt
+2026-08-13,yolo26n,A1,"imgsz=640;epochs=100;seeds=[0, 1, 2]",0.9801,0.8593,0.9751,0.9691,runs/yolo26n_s0_640/weights/best.pt
