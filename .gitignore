@@ -8,6 +8,7 @@
 __pycache__/
 .ipynb_checkpoints/
 
+
 # downloaded datasets (large, not committed) — anchored to repo root so
 # nested package source dirs like src/ml/plate_detect/plate_detect/data/ stay tracked
 /data/
@@ -24,3 +25,17 @@ src/ml/plate_detection_pipeline/notebooks/klog*/
 src/ml/plate_detection_pipeline/notebooks/kaggle_out/
 src/ml/plate_detection_pipeline/notebooks/out13/
 src/ml/plate_detection_pipeline/output/
+
+# downloaded datasets (large, not committed) — anchored to repo root only,
+# so it doesn't also swallow src/ml/data/ (small committed class-list/split files)
+/data/
+
+# training checkpoints/weights (large; keep only small exported onnx if needed)
+src/ml/checkpoints/
+src/ml/weights/*.pt
+
+# editor-local settings
+.vscode/
+
+# ad-hoc personal test photos of real vehicles (may show plates - personal data, not a tracked dataset)
+testimage/
