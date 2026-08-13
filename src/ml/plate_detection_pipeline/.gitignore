@@ -1,0 +1,11 @@
+*.egg-info/
+__pycache__/
+*.pyc
+.pytest_cache/
+runs/
+# Ultralytics COCO base weights auto-download into CWD; they are NOT our detector.
+# Ignore stray model binaries EXCEPT the ones we publish under weights/ via git-lfs.
+*.pt
+!weights/*.pt
+*.onnx
+!weights/*.onnx

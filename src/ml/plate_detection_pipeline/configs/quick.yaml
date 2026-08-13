@@ -1,0 +1,9 @@
+# Quick smoke-test config — NOT for real experiments (10 epochs, single seed).
+# Use: plate_detect train --config src/ml/plate_detection_pipeline/configs/quick.yaml
+imgsz: 640
+epochs: 10
+batch: 16
+patience: 20
+seeds: [0]
+conf: 0.25
+iou: 0.5

@@ -1,5 +1,5 @@
 dataset,label,license,n_images,n_classes,n_objects_labeled,resolution_range,mean_brightness,pct_dark,mean_box_area_ratio
 haui_motorcycle_plate,A4 - Motorcycle plate (HaUI),MIT,1748,1,1748,472-472 x 303-303,111.1,0.0,0.039
-school_fuhih_vn_plate,A3 - vietnamese-license-plate (school-fuhih),CC BY 4.0,8357,1,8548,640-640 x 640-640,100.7,12.8,0.0278
-kaggle_vn_plate_segment,"A1 - Vietnam License Plate Segment (Kaggle, duydieunguyen)",Unknown (verify with author),4578,2,5200,380-4032 x 285-3024,102.1,10.7,0.0432
-cuongta_vn_car_plate,A2 - Vietnamese Car License Plate (Cuong Ta),Public Domain (CC0),8254,1,8445,240-2000 x 160-1500,100.0,13.7,0.0277
+school_fuhih_vn_plate,A3 - vietnamese-license-plate (school-fuhih),CC BY 4.0,8357,1,8548,640-640 x 640-640,99.9,12.5,0.0278
+kaggle_vn_plate_segment,"A1 - Vietnam License Plate Segment (Kaggle, duydieunguyen)",Unknown (verify with author),4578,2,5200,332-600 x 249-799,104.8,8.3,0.0432
+cuongta_vn_car_plate,A2 - Vietnamese Car License Plate (Cuong Ta),Public Domain (CC0),8254,1,8445,216-2000 x 159-1500,99.4,14.0,0.0277

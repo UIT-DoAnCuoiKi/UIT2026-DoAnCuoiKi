@@ -1,3 +1,9 @@
+
 date,model,stage,dataset,hyperparams,mAP50,mAP50-95,precision,recall,weights,accuracy,f1_macro,params,onnx_size_mb,cpu_ms
 2026-08-07,resnet18,style,"B5 (Vehicle Body Style Dataset), gộp 12 kiểu dáng gốc thành 3 lớp",epochs=15;batch=32;lr=0.0001,,,,,src\ml\weights\vehicle-style-resnet18.pt,0.8997,0.9012,11178051,44.7,8.57
 2026-08-07,mobilenet_v3_small,style,"B5 (Vehicle Body Style Dataset), gộp 12 kiểu dáng gốc thành 3 lớp",epochs=15;batch=32;lr=0.0001,,,,,src\ml\weights\vehicle-style-mobilenet_v3_small.pt,0.9007,0.9069,1520931,6.09,4.82
+2026-08-13,yolov8n,A1,"imgsz=640;epochs=100;seeds=[0, 1, 2]",0.9892,0.8644,0.9899,0.9823,runs/yolov8n_s0_640/weights/best.pt
+2026-08-13,yolo26n,A1,"imgsz=640;epochs=100;seeds=[0, 1, 2]",0.9801,0.8593,0.9751,0.9691,runs/yolo26n_s0_640/weights/best.pt
+2026-08-13,yolov8n,A1,"imgsz=640;epochs=100;seeds=[0, 1, 2]",0.9892,0.8644,0.9899,0.9823,runs/yolov8n_s0_640/weights/best.pt
+2026-08-13,yolo26n,A1,"imgsz=640;epochs=100;seeds=[0, 1, 2]",0.9801,0.8593,0.9751,0.9691,runs/yolo26n_s0_640/weights/best.pt
+

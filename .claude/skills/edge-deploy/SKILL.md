@@ -32,5 +32,5 @@ One row per (model, platform, precision):
 ## Packaging
 
 - systemd unit `parking-edge.service`: runs capture→pipeline→POST to backend loop; `Restart=on-failure`; env file for backend URL + model paths.
-- Pi setup script `src/edge/setup.sh`: apt deps, venv, pinned pip installs (match Colab pins where shared), model download from Drive/release artifact.
+- Pi setup script `src/edge/setup.sh`: apt deps, venv, pinned pip installs (match training-env pins where shared), model download from release artifact.
 - Backend may run on the Pi itself (Postgres via docker) or on LAN PC — both supported via env config; document which was used for each benchmark row.

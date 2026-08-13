@@ -5,7 +5,7 @@ description: Use when writing model training, evaluation, or export code — YOL
 
 # ML Training
 
-Training/eval/export code lives in `src/ml/`. Environment: Google Colab GPU (see `colab-training` skill for environment; this skill owns the training logic). Log every run to `src/ml/experiments.csv` (date, model, dataset version, hyperparams, metrics, weights path).
+Training/eval/export code lives in `src/ml/`. Environment: local GPU/CPU (device auto-detected via `torch.cuda.is_available()`; no hardcoded paths or runtime assumptions). Log every run to `src/ml/experiments.csv` (date, model, dataset version, hyperparams, metrics, weights path).
 
 ## Detection (vehicle + plate) — ultralytics YOLOv8
 

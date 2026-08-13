@@ -12,7 +12,7 @@ Smart Parking Management System using Computer Vision and Edge AI — UIT gradua
 - **ML:** Python, YOLOv8/YOLO26 (ultralytics), PaddleOCR/EasyOCR, OpenCV (HSV, CLAHE), ONNX + quantization
 - **App:** FastAPI backend, React dashboard, PostgreSQL
 - **Edge target:** Raspberry Pi 5, end-to-end latency target < 2 s/vehicle
-- **Training environment:** Google Colab GPU (see `colab-training` skill)
+- **Training environment:** local GPU/CPU (see `ml-training` skill)
 - **Report:** LaTeX (XeLaTeX), Vietnamese prose with English technical terms kept, IEEE citations
 
 ## Repo layout
@@ -45,7 +45,6 @@ Report rule: every phase ends with its chapter drafted (viết song hành).
 - `research-assistant` — papers, tech comparisons, dataset research (heavy sweeps → dispatch `research-agent`)
 - `thesis-writer` — all report/LaTeX work
 - `ml-training` — YOLO/ResNet/MobileNet training + eval code
-- `colab-training` — Colab notebook environment (browser, VS Code extension, colab-mcp), checkpoints, weight export
 - `alpr-pipeline` — detection→OCR→color integration code
 - `backend-dashboard` — FastAPI/PostgreSQL/React code
 - `edge-deploy` — ONNX Runtime on Pi, quantization, benchmarks

@@ -1,0 +1,14 @@
+{
+  "id": "ducleathome/plate-detect-a1-kaggle",
+  "title": "plate-detect-a1-kaggle",
+  "code_file": "train-plate-detection_kaggle.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "machine_shape": "NvidiaTeslaT4",
+  "enable_internet": true,
+  "dataset_sources": ["duydieunguyen/licenseplates"],
+  "competition_sources": [],
+  "kernel_sources": []
+}
