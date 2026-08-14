@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "plate_color"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "opencv-python-headless",
+    "numpy",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.scripts]
+plate_color = "plate_color.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["plate_color*"]
