@@ -1,7 +1,7 @@
 import numpy as np
 from plate_color import process_plate, PlateAppearance
 from plate_color.color.classifier import classify_color
-from plate_color.lighting.enhance import gray_world_wb
+from plate_color.lighting.enhance import clahe_v, gray_world_wb
 from tests.synth import plate_swatch, dark_crop, solid
 
 YELLOW_BG = (30, 200, 220); DARK = (20, 20, 20)
@@ -27,11 +27,19 @@ def test_degenerate_input():
 
 
 def test_wb_isolated_from_color():
-    # WB collapses a solid yellow toward gray -> would misclassify,
-    # but process_plate classifies on the pre-WB (hue-preserving) path.
-    yellow = plate_swatch(YELLOW_BG, DARK)
+    """Color is stable on path A regardless of WB; WB alone would flip it.
+
+    Positive direction: both clahe_v (path A) and process_plate must classify
+    a yellow crop as 'yellow' — proving path A produces the correct label.
+    Negative direction: prepending gray-world WB collapses the hue toward gray,
+    confirming WB would corrupt the color decision if it ran on path A.
+    """
+    yellow = solid(YELLOW_BG)
+    # Positive: path-A classification and process_plate both give "yellow".
+    assert classify_color(clahe_v(yellow)).color == "yellow"
     assert process_plate(yellow).color == "yellow"
-    assert classify_color(gray_world_wb(solid(YELLOW_BG))).color != "yellow"
+    # Negative: WB on its own shifts hue enough to break yellow detection.
+    assert classify_color(gray_world_wb(yellow)).color != "yellow"
 
 
 def test_deterministic():

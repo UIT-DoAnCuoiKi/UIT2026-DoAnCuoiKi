@@ -7,11 +7,12 @@ right operator chain based on the lighting condition label produced by
 
 Design rationale
 ----------------
-All tone operations run in HSV so that colour information (hue/saturation)
-is never corrupted by brightness adjustments.  The gray-world white-balance
-step runs **last and unconditionally** on every condition: it fixes residual
-colour casts from mixed or coloured parking-lot lighting without interfering
-with the tone correction applied above it.
+CLAHE runs in HSV (V channel only); gamma and gray-world white balance operate
+in BGR.  The gray-world white-balance step runs **last and unconditionally** on
+every condition: it fixes residual colour casts from mixed or coloured
+parking-lot lighting without interfering with the tone correction applied above
+it.  CLAHE expands contrast; gray-world WB is applied afterward and may
+rescale channels.
 
 Dispatch table (``enhance``)
 ----------------------------
@@ -41,7 +42,7 @@ def clahe_v(crop_bgr: np.ndarray, clip: float = 2.0, grid: int = 8) -> np.ndarra
     Args:
         crop_bgr: BGR uint8 image (H, W, 3).
         clip: CLAHE clip limit — caps redistribution to avoid amplifying noise.
-        grid: Tile grid size in pixels; smaller tiles = more local contrast.
+        grid: Number of tiles per axis (CLAHE divides the image into grid×grid tiles).
 
     Returns:
         BGR uint8 image with enhanced local contrast on V only.
