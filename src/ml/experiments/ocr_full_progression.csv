@@ -1,0 +1,6 @@
+variant,description,acc_topkek,acc_vnplate
+V0_synthetic_raw,V0: sinh tổng hợp nguyên bản,0.5105,0.625
+V1_real_only,V1: chỉ ảnh thật,0.4955,0.5104
+V2_synthetic_degraded,V2: sinh tổng hợp đã hạ cấp,0.542,0.6458
+V3_seed42,"V3: + sửa nhãn biển 2 dòng (seed 42, chốt)",0.5886,0.875
+V3_seed123,"V3: + sửa nhãn biển 2 dòng (seed 123, đối chiếu)",0.5736,0.9271

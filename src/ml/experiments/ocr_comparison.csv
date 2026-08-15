@@ -1,0 +1,4 @@
+method,description,plate_accuracy,plate_cer,accuracy_1hang,accuracy_2hang,model_size_mb,ms_per_plate,params
+RapidOCR,"PP-OCRv3 rec pretrained (ONNXRuntime, da ngon ngu)",0.3423,0.3422,0.4362,0.3054,10.7,7.2,
+EasyOCR,"CRNN pretrained (PyTorch, tieng Anh, det+rec)",0.1171,0.5187,0.0957,0.1255,98.3,16.6,
+CRNN_VN,"CRNN tu train rieng charset bien VN (36 lop), nhan bien 2 dong da sua + seed co dinh",0.589,0.1743,0.654,0.563,1.7,1.69,424933

@@ -7,3 +7,8 @@ date,model,stage,dataset,hyperparams,mAP50,mAP50-95,precision,recall,weights,acc
 2026-08-13,yolov8n,A1,"imgsz=640;epochs=100;seeds=[0, 1, 2]",0.9892,0.8644,0.9899,0.9823,runs/yolov8n_s0_640/weights/best.pt
 2026-08-13,yolo26n,A1,"imgsz=640;epochs=100;seeds=[0, 1, 2]",0.9801,0.8593,0.9751,0.9691,runs/yolo26n_s0_640/weights/best.pt
 
+2026-08-14,crnn_ctc,ocr,topkek_plate_ocr (train.csv + train_synthetic.csv),epochs=40;batch=64;lr=0.001,,,,,src\ml\weights\plate-ocr-crnn.pt,0.509,,424933,1.7,1.27
+2026-08-14,crnn_ctc_V0_synthetic_raw,ocr,topkek_plate_ocr (train + synthetic),epochs=40;batch=64;lr=0.001,,,,,src/ml/weights/plate-ocr-crnn-V0_synthetic_raw.pt,0.509,,424933,1.7,1.25
+2026-08-14,crnn_ctc_V1_real_only,ocr,topkek_plate_ocr (train + synthetic),epochs=40;batch=64;lr=0.001,,,,,src/ml/weights/plate-ocr-crnn-V1_real_only.pt,0.4955,,424933,1.7,1.59
+2026-08-14,crnn_ctc_V2_synthetic_degraded,ocr,topkek_plate_ocr (train + synthetic),epochs=40;batch=64;lr=0.001,,,,,src/ml/weights/plate-ocr-crnn-V2_synthetic_degraded.pt,0.542,,424933,1.7,1.3
+2026-08-14,crnn_ctc_v3_seed42,ocr,"topkek_plate_ocr (train+synthetic, nhan bien 2 dong da sua)",epochs=40;batch=64;lr=0.001;seed=42,,,,,src/ml/weights/plate-ocr-crnn.pt,0.589,,424933,1.7,1.69

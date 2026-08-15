@@ -274,7 +274,7 @@
   title        = {Vietnamese Bike License Plate Recognition Challenge},
   year         = {2018},
   howpublished = {\url{https://mapr.uit.edu.vn/2018/vietnamese-bike-license-plate-recognition}},
-  note         = {1st Int. Conf. on Multimedia Analysis and Pattern Recognition (MAPR), UIT; dataset link stale as of 19 July 2026}
+  note         = {1st Int. Conf. on Multimedia Analysis and Pattern Recognition (MAPR), UIT; 3,000 motorbike images captured at a hotel parking slot (2,000 train / 1,000 test), ground truth = plate count + x y w h + plate string; download link still "update soon" and no mirror found on GitHub/HuggingFace/Zenodo as of 14 August 2026 -- request directly from UIT/VAPR organizers (mapr@uit.edu.vn)}
 }
 
 @misc{ndunda2026onstreet,
@@ -452,7 +452,7 @@
   title        = {Viet Nam {OCR} plate Object Detection Dataset},
   year         = {2025},
   howpublished = {\url{https://universe.roboflow.com/license-plate-reg/viet-nam-ocr-plate}},
-  note         = {Roboflow Universe; 3,819 images, 32 character classes (detect-per-character OCR-style ground truth); CC0 1.0; verified via r.jina.ai render 2026-07-30}
+  note         = {Roboflow Universe; 3,819 images, 32 character classes (detect-per-character OCR-style ground truth); CC0 1.0; verified via r.jina.ai render 2026-07-30. Re-verified 2026-08-14: class names are numeric ids 0-29 plus "C" and "words" with NO id-to-character mapping published, and v1 preprocessing is "Resize: Stretch to 640x640" -- this is a downstream copy of licenseplatevn2024ocrplate, prefer the original}
 }
 
 @misc{duydieunguyen2023vnplatesegment,
@@ -669,7 +669,7 @@
   booktitle = {Proc. International Joint Conference on Neural Networks (IJCNN)},
   year      = {2018},
   pages     = {1--10},
-  note      = {UFPR-ALPR dataset; academic non-commercial license, citation required. \url{https://github.com/raysonlaroca/ufpr-alpr-dataset}}
+  note      = {UFPR-ALPR dataset; academic non-commercial license, citation required. \url{https://github.com/raysonlaroca/ufpr-alpr-dataset}. Re-verified 2026-08-14 on web.inf.ufpr.br/vri/databases/ufpr-alpr: 4,500 images at 1920x1080 from 150 vehicles (900 gray-plate cars, 300 red-plate cars, 300 motorcycles per camera set), annotations include plate string and per-character positions; camera and vehicle both moving; day/night ratio not stated}
 }
 
 @misc{nqa112023bikemotorbike,
@@ -718,4 +718,109 @@
   year         = {2024},
   howpublished = {\url{https://www.kaggle.com/datasets/topkek69/vietnamese-license-plate-ocr}},
   note         = {Verified: 6643 real crops + 5547 synthetic, CSV Name/Label/Type (e.g. '30F 11292'), 1+2-row. Accessed 28 July 2026}
+}
+
+% ---- Appended 2026-08-14 (second-pass VN plate OCR dataset survey; see docs/research/2026-08-14-dataset-ocr-bien-so-lan-2.md) ----
+
+@misc{licenseplatevn2024ocrplate,
+  author       = {{License Plate VN (Roboflow user)}},
+  title        = {License Plate - {OCR} Object Detection Dataset},
+  year         = {2024},
+  howpublished = {\url{https://universe.roboflow.com/license-plate-vn/license-plate-ocr-hugcj}},
+  note         = {Roboflow Universe, published 11-12 April 2024; 3,819 images; 31 classes named with REAL characters (0-9 and A B C D E F G H K L M N P R S T U V X Y Z, i.e. the valid Vietnamese serial letter set), so plate strings can be reconstructed from per-character boxes; v1 preprocessing is Auto-Orient ONLY (no resize, original resolution preserved); filenames split into xemay* (motorbike, 2-row), CarLongPlate* (car, 1-row) and PlateBaza* (origin unverified); LICENCE NOT STATED on the page while two downstream copies claim CC0 and CC BY 4.0 -- treat licence as unverified; verified via r.jina.ai render 2026-08-14}
+}
+
+@misc{ntts2026ocrplatevn,
+  author       = {{NTTs Workspace (Roboflow user)}},
+  title        = {{OCR} License Plate {VN} Object Detection Dataset},
+  year         = {2026},
+  howpublished = {\url{https://universe.roboflow.com/ntts-workspace/ocr-license-plate-vn}},
+  note         = {Roboflow Universe, v3 generated 16 May 2026; 3,188 images, 36 classes 0-9 and A-Z; CC BY 4.0; preprocessing "Resize: Fit (white edges) in 640x640" plus rotation/brightness/exposure/blur/noise augmentation; same source filenames (xemay*, CarLongPlate*, PlateBaza*) as licenseplatevn2024ocrplate; verified via r.jina.ai render 2026-08-14}
+}
+
+@inproceedings{laroca2022cross,
+  author    = {Laroca, Rayson and Cardoso, Everton V. and Lucio, Diego R. and Estevam, Valter and Menotti, David},
+  title     = {On the Cross-dataset Generalization in License Plate Recognition},
+  booktitle = {International Conference on Computer Vision Theory and Applications (VISAPP)},
+  year      = {2022},
+  pages     = {166--178},
+  doi       = {10.5220/0010846800003124},
+  note      = {RodoSol-ALPR dataset: 20,000 images at 1280x720 from static cameras at highway toll booths (ES-060, Brazil), split evenly into 5,000 each of car/motorcycle x Brazilian/Mercosur layouts, i.e. 10,000 motorcycle images with TWO-ROW plates; captured day and night, clear and rainy; per-image text file gives vehicle type, plate layout, plate string and the (x,y) of all four plate corners; academic non-commercial use, requires signed licence agreement emailed from a university account to rblsantos@inf.ufpr.br; verified via repo README 2026-08-14. \url{https://github.com/raysonlaroca/rodosol-alpr-dataset}}
+}
+
+@article{nascimento2025superres,
+  author  = {Nascimento, Valfride and Lima, Gabriel E. and Ribeiro, Rafael O. and Schwartz, William Robson and Laroca, Rayson and Menotti, David},
+  title   = {Toward Advancing License Plate Super-Resolution in Real-World Scenarios: A Dataset and Benchmark},
+  journal = {Journal of the Brazilian Computer Society},
+  year    = {2025},
+  eprint  = {2505.06393},
+  archivePrefix = {arXiv},
+  note    = {UFPR-SR-Plates: 10,000 tracks / 100,000 paired low- and high-resolution plate images with character labels; recognition rate rises from 1.7\% to 31.1\% with single-image super-resolution and to 44.7\% when fusing multiple super-resolved frames of the same track; dataset page \url{https://valfride.github.io/nascimento2024toward/}; verified 2026-08-14 -- direct evidence for the "resolution is the bottleneck" argument and for multi-frame fusion at the parking gate}
+}
+
+@inproceedings{wojcik2025lplc,
+  author    = {Wojcik, Lucas and Lima, Gabriel E. and Nascimento, Valfride and Nascimento Jr., Eduil and Laroca, Rayson and Menotti, David},
+  title     = {{LPLC}: A Dataset for License Plate Legibility Classification},
+  booktitle = {Conference on Graphics, Patterns and Images (SIBGRAPI)},
+  year      = {2025},
+  eprint    = {2508.18425},
+  archivePrefix = {arXiv},
+  note      = {10,210 images with 12,687 annotated plates from Brazilian traffic radars, labelled perfect/good/poor/illegible; no explicit pixel-height threshold given; publicly available at \url{https://github.com/lmlwojcik/lplc-dataset}; verified 2026-08-14 -- useful as a published framework for describing test-set image quality instead of ad-hoc pixel bins}
+}
+
+@misc{agrawal2024glpd,
+  author = {Agrawal, Siddharth},
+  title  = {Global License Plate Dataset},
+  year   = {2024},
+  eprint = {2405.10949},
+  archivePrefix = {arXiv},
+  note   = {5M+ images from 74 countries, mostly scraped from Platesmania; annotations include plate string, four corner vertices, segmentation masks and vehicle make/model/colour; licence CC BY-NC-ND 4.0; Vietnam NOT listed in the reported country distribution and the HuggingFace mirror (siddagra/Global-Licenseplate-Dataset) returned HTTP 401 on 2026-08-14 -- availability for this project unverified}
+}
+
+@misc{nndam2021vnplategen,
+  author       = {{NNDam}},
+  title        = {Vietnamese-License-Plate-Generator: synthetic Vietnamese plate generator for {OCR}},
+  year         = {2021},
+  howpublished = {\url{https://github.com/NNDam/Vietnamese-License-Plate-Generator}},
+  note         = {Generates rectangle (1-row car) and square (2-row motorbike) Vietnamese plate templates with a bundled font (MyFont-Regular\_ver3.otf) and background images; outputs YOLO-format labels; character set and templates configurable at the top of synthesis\_plate.py; NO LICENSE file in the repository (all rights reserved by default) -- internal project use only; verified 2026-08-14}
+}
+
+@misc{raidendg2025vnplatecctv,
+  author       = {{raidendg}},
+  title        = {license-plate-dataset (Vietnamese Vehicle License Plate, {CCTV})},
+  year         = {2025},
+  howpublished = {\url{https://www.kaggle.com/datasets/raidendg/license-plate-dataset}},
+  note         = {Kaggle; 1,000 raw CCTV images, total archive only 24.75 MB (about 25 KB per image, i.e. low resolution); MIT licence; NO annotation of any kind described, therefore unusable for OCR training; verified via r.jina.ai render 2026-08-14}
+}
+
+@misc{lowlightimages2024plate,
+  author       = {{Lowlight images (Roboflow user)}},
+  title        = {Low-light license plate Object Detection Dataset},
+  year         = {2024},
+  howpublished = {\url{https://universe.roboflow.com/lowlight-images/low-light-license-plate}},
+  note         = {Roboflow Universe; 335 images, single class license-plate (bounding box only, no character labels); CC BY 4.0; the only low-light-specific plate dataset found in the 2026-08-14 sweep, but the country of the plates is not stated and cannot be assumed Vietnamese; verified via r.jina.ai render 2026-08-14}
+}
+
+@misc{unidatapro2026plateocr,
+  author       = {{UniData Pro}},
+  title        = {license-plate-detection ({OCR}, 32+ countries)},
+  year         = {2026},
+  howpublished = {\url{https://huggingface.co/datasets/UniDataPro/license-plate-detection}},
+  note         = {Advertises 1,200,000+ OCR-annotated plate images across 32+ countries INCLUDING Vietnam, with plate text, bbox, country, visibility and plate colour; however the public HuggingFace copy is a 140-image preview under CC BY-NC-ND 4.0 and the full set is a paid commercial product -- not usable for this thesis; verified 2026-08-14}
+}
+
+@misc{cvat2026annotation,
+  author       = {{CVAT.ai}},
+  title        = {{CVAT}: Computer Vision Annotation Tool},
+  year         = {2026},
+  howpublished = {\url{https://github.com/cvat-ai/cvat}},
+  note         = {CVAT Community released under the MIT License; supports bounding boxes, polygons, masks, keypoints, cuboids and tags; self-hosted via Docker Compose so image data never leaves local infrastructure (relevant to personal-data handling for stored plate images); verified 2026-08-14}
+}
+
+@misc{labelstudio2026ocr,
+  author       = {{HumanSignal}},
+  title        = {Label Studio and its Optical Character Recognition labelling template},
+  year         = {2026},
+  howpublished = {\url{https://labelstud.io/templates/optical_character_recognition}},
+  note         = {Apache 2.0 licence, self-hostable via Docker or pip; the built-in OCR template combines Image + Labels + Rectangle/Polygon region tags with a TextArea tag configured perRegion="true", i.e. exactly the "draw the plate region then type the plate string" workflow needed for creating plate-string ground truth; repository \url{https://github.com/HumanSignal/label-studio}; verified 2026-08-14}
 }
