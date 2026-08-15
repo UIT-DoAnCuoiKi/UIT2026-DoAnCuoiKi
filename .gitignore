@@ -19,6 +19,9 @@ __pycache__/
 # training results / large binaries (kept locally, not committed)
 runs/
 weights/
+# ...nhưng src/ml/weights/ có quy tắc riêng ở dưới (chỉ *.pt bị loại, *.onnx nhỏ được giữ)
+# nên phải gỡ ẩn cả thư mục này trước, không thì không "nhìn" được vào bên trong
+!src/ml/weights/
 
 # notebook run artifacts + kaggle log dumps
 src/ml/plate_detection_pipeline/notebooks/klog*/
@@ -33,6 +36,9 @@ src/ml/plate_detection_pipeline/output/
 # training checkpoints/weights (large; keep only small exported onnx if needed)
 src/ml/checkpoints/
 src/ml/weights/*.pt
+# các bản onnx thí nghiệm (V0/V1/V2/seed...) giữ local để đối chiếu, không commit -
+# chỉ file chính thức không có hậu tố (vd plate-ocr-crnn.onnx) mới được track
+src/ml/weights/*-V*.onnx
 
 # editor-local settings
 .vscode/

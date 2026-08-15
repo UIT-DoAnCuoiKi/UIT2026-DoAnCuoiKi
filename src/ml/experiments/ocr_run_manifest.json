@@ -1,0 +1,14 @@
+{
+  "epochs": 40,
+  "batch_size": 64,
+  "lr": 0.001,
+  "optimizer": "Adam",
+  "loss": "CTCLoss(blank=0, zero_infinity=True)",
+  "augmentation": "xoay ngẫu nhiên ±4 độ, biến dạng phối cảnh nhẹ ngẫu nhiên, chỉnh sáng/tối ngẫu nhiên ±25, làm mờ Gauss 3x3 (xác suất 30%); ảnh sinh tổng hợp còn được hạ cấp về đúng phân phối độ phân giải của ảnh thật trước khi augment",
+  "device": "cuda (NVIDIA GeForce RTX 4070)",
+  "seed": 42,
+  "architecture": "CNN 5 lớp (32-64-96-96-96 kênh) + BiLSTM 1 lớp (96 ẩn) + CTC, đầu vào 1 kênh xám 48x128, chuỗi đặc trưng đầu ra 32 bước thời gian",
+  "charset": "36 ký tự: 0-9 và A-Z",
+  "data_source": "topkek_plate_ocr train.csv (5.313 dòng, crop thật) + train_synthetic.csv (5.547 ảnh, hạ cấp độ phân giải) = 9.130 biển; biển 2 dòng tách dòng trên/dòng dưới theo đúng dấu cách trong nhãn gốc (label_raw), không còn dùng cách đoán theo độ dài của phiên bản đầu",
+  "note": "Model cuối (seed 42) chọn dựa trên val_row_cer (độc lập với tập test), không chọn theo điểm số cao nhất trên tập test độc lập, để tránh biến tập test thành công cụ chọn model. Chi tiết 3 vòng cải tiến (hạ cấp dữ liệu sinh tổng hợp, sửa lỗi chia nhãn biển 2 dòng, kiểm soát seed) xem docs/report/chapters/04-ocr.md mục 4.3"
+}
