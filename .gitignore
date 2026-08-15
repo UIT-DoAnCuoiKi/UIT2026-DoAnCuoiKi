@@ -1,5 +1,9 @@
 .superpowers/
 
+# AI assistant setup (skills, agents, instructions) — local only, not committed
+.claude/
+CLAUDE.md
+
 # secrets
 .env
 
