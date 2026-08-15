@@ -1,0 +1,11 @@
+metric,bucket,count,percent
+color,white,1210,92.2
+color,yellow,82,6.2
+color,blue,13,1.0
+color,red,8,0.6
+color,unknown,0,0.0
+lighting,normal,971,74.0
+lighting,glare,321,24.4
+lighting,low_light,18,1.4
+lighting,overexposed,2,0.2
+lighting,low_contrast,1,0.1

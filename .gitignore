@@ -24,7 +24,7 @@ weights/
 src/ml/plate_detection_pipeline/notebooks/klog*/
 src/ml/plate_detection_pipeline/notebooks/kaggle_out/
 src/ml/plate_detection_pipeline/notebooks/out13/
-src/ml/plate_detection_pipeline/output/
+src/ml/plate_detection_pipeline/output/plate_det_results_20260812_2212
 
 # downloaded datasets (large, not committed) — anchored to repo root only,
 # so it doesn't also swallow src/ml/data/ (small committed class-list/split files)
