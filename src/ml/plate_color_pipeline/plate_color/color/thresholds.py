@@ -48,3 +48,12 @@ MIN_CONSIDERED_FRAC = 0.15  # classifiable fraction below this → unknown
 # 0.35 prevents a split vote (e.g. half white text + half yellow bg) from picking
 # either colour with false confidence.
 CONF_FLOOR = 0.35           # winner share below this → unknown
+
+# ── xác định vùng nền biển thật trước khi tính màu ────────────────────────────
+# pad=4 mặc định của PlateDetector (plate_detection_pipeline) cộng thêm biên
+# quanh bbox YOLO; viền này (+ quang sai màu/nén JPEG ở rìa crop nhỏ) có thể
+# lệch hue khỏi nền biển thật, gây nhận nhầm màu (đo thực nghiệm: biển trắng
+# CarLongPlate306 bị đọc thành "blue" do đúng dải viền này). Dùng Otsu +
+# contour lớn nhất (cùng kỹ thuật deskew() trong pipeline/ocr.py) để tìm đúng
+# vùng nền biển, bỏ viền nhiễu, thay vì đoán 1 tỉ lệ % cố định.
+COLOR_MIN_CONTOUR_AREA_FRAC = 0.3  # contour lớn nhất phải chiếm tối thiểu 30% crop mới tin cậy (giống ngưỡng deskew())
