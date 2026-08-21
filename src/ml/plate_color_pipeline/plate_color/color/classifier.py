@@ -73,12 +73,28 @@ def classify_color(crop_bgr: np.ndarray) -> ColorResult:
     if h < 8 or w < 8:
         return ColorResult("unknown", 0.0, {})
 
+    # Thu hẹp về đúng vùng nền biển trước khi đếm màu: crop từ PlateDetector có
+    # thêm biên (pad=4) quanh bbox YOLO, và rìa crop nhỏ dễ dính quang sai màu/
+    # nén JPEG — cả hai có thể lệch hue khỏi nền biển thật, gây nhận nhầm màu.
+    # Dùng Otsu + contour lớn nhất (cùng kỹ thuật deskew() trong pipeline/ocr.py)
+    # để tìm vùng nền biển thật, không đoán 1 tỉ lệ % cố định. Không tìm được
+    # contour đủ tin cậy thì lùi về dùng nguyên crop, không cố ép.
+    gray = cv2.cvtColor(crop_bgr, cv2.COLOR_BGR2GRAY)
+    _, mask = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if contours:
+        largest = max(contours, key=cv2.contourArea)
+        if cv2.contourArea(largest) >= T.COLOR_MIN_CONTOUR_AREA_FRAC * mask.size:
+            x, y, cw, ch = cv2.boundingRect(largest)
+            if cw >= 4 and ch >= 4:
+                crop_bgr = crop_bgr[y:y + ch, x:x + cw]
+
     hsv = cv2.cvtColor(crop_bgr, cv2.COLOR_BGR2HSV)
     H = hsv[:, :, 0].astype(int)   # 0–179; cast to int so comparisons are safe
     S = hsv[:, :, 1]
     V = hsv[:, :, 2]
 
-    total = h * w
+    total = crop_bgr.shape[0] * crop_bgr.shape[1]  # dùng kích thước sau khi cắt viền, không phải crop gốc
 
     # Saturation mask — only chromatic (coloured) pixels are tested against hue bands.
     sat = S >= T.SAT_MIN_FOR_HUE
