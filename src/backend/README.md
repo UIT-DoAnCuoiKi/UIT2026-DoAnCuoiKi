@@ -133,46 +133,42 @@ Vai: `staff` làm nghiệp vụ cổng và tra cứu; `admin` thêm cấu hình,
 
 ## OpenAPI và sinh client frontend (Orval)
 
-Backend tự phát hành đặc tả OpenAPI. UI React nên sinh client TypeScript từ đây thay vì gõ tay endpoint:
+Backend tự phát hành đặc tả OpenAPI. UI React sinh client TypeScript từ đây thay vì gõ tay endpoint:
 
 - Swagger UI: `http://localhost:8000/docs`
 - ReDoc: `http://localhost:8000/redoc`
 - Schema thô: `http://localhost:8000/openapi.json`
 
-Lưu schema ra file (tùy chọn, để sinh offline hoặc ghim phiên bản):
+`create_app()` đặt `generate_unique_id_function` theo tên hàm handler, nên
+operationId sạch (`login`, `confirm_entry`, `list_sessions`...) và Orval sinh
+hook đọc được (`useLogin`, `useConfirmEntry`, `useListSessions`).
+
+Xuất schema ra file. Hai đường:
 
 ```sh
+# a) Offline, không cần chạy server (hợp CI và máy chưa mở service):
+python scripts/export_openapi.py            # ghi ../frontend/openapi.json
+
+# b) Từ backend đang chạy:
 curl -s localhost:8000/openapi.json > ../frontend/openapi.json
 ```
 
-Sinh client bằng Orval (https://orval.dev). Ví dụ `src/frontend/orval.config.ts`:
-
-```ts
-import { defineConfig } from "orval";
-
-export default defineConfig({
-  parking: {
-    input: "http://localhost:8000/openapi.json",
-    output: {
-      target: "src/api/parking.ts",
-      client: "react-query",
-      httpClient: "fetch",
-      baseUrl: "http://localhost:8000",
-      mode: "tags-split",
-    },
-  },
-});
-```
-
-Chạy:
+Sinh client bằng Orval (https://orval.dev). Config sẵn ở `src/frontend/orval.config.ts`
+(client `react-query`, `mode: tags-split`, mutator axios gắn JWT). Code sinh ra
+nằm trong `src/frontend/src/api/generated/` (gitignore); mutator viết tay
+`src/api/axios-instance.ts` giữ nguyên.
 
 ```sh
 cd src/frontend
-npm i -D orval
-npx orval
+npm install
+npm run gen:api            # đọc ./openapi.json đã xuất ở bước trên
+# hoặc lấy trực tiếp từ backend đang chạy:
+npm run gen:api:remote
 ```
 
-Orval sinh hàm gọi API cộng hook React Query cộng kiểu TypeScript khớp schema. Gắn `Authorization: Bearer <token>` (JWT từ `POST /auth/login`) và `X-Edge-Key` cho `POST /captures` qua mutator hoặc interceptor của client.
+Orval sinh hàm gọi API cộng hook React Query cộng kiểu TypeScript khớp schema.
+JWT (`Authorization: Bearer <token>` từ `POST /auth/login`) gắn tự động qua
+interceptor trong `axios-instance.ts`; `X-Edge-Key` cho `POST /captures` gắn tay khi gọi.
 
 Lưu ý: `WS /ws/gate` là WebSocket, không nằm trong OpenAPI; nối tay bằng `WebSocket` của trình duyệt, dùng fallback `GET /captures/latest` (có trong schema) khi cần.
 

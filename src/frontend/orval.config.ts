@@ -7,8 +7,10 @@ export default defineConfig({
   parking: {
     input: "./openapi.json",
     output: {
-      target: "src/api/endpoints.ts",
-      schemas: "src/api/model",
+      // Code sinh ra nằm riêng trong generated/ để clean:true không xoá nhầm
+      // axios-instance.ts (mutator viết tay) ở src/api/.
+      target: "src/api/generated/endpoints.ts",
+      schemas: "src/api/generated/model",
       client: "react-query",
       mode: "tags-split",
       mock: false,

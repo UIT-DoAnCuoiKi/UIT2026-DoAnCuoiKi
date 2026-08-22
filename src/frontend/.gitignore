@@ -1,0 +1,8 @@
+node_modules/
+package-lock.json
+
+# Artifact sinh tự động, không commit. Tái tạo bằng:
+#   backend: python scripts/export_openapi.py   -> openapi.json
+#   frontend: npm run gen:api                    -> src/api/generated/
+openapi.json
+src/api/generated/
