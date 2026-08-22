@@ -1,0 +1,11 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+RUN pip install --no-cache-dir httpx
+
+COPY src/backend/scripts/simulate_edge.py ./simulate_edge.py
+
+# MVP dùng simulator. Trên Pi với pipeline thật: cài thêm requirements src/ml,
+# copy src/ml cộng worker thật, và đổi CMD sang worker đó.
+CMD ["python", "simulate_edge.py", "--images", "/images", "--backend", "http://backend:8000", "--direction", "in", "--edge-key", "edge-dev-key"]
