@@ -1,0 +1,64 @@
+services:
+  db:
+    image: postgres:16
+    env_file: .env
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build:
+      context: ./src/backend
+      dockerfile: Containerfile
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - images:/data/images
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  retention:
+    build:
+      context: ./src/backend
+      dockerfile: Containerfile
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - images:/data/images
+    entrypoint: ["sh", "-c", "while true; do python -m scripts.run_retention; sleep 86400; done"]
+
+  edge-worker:
+    build:
+      context: .
+      dockerfile: src/edge/Containerfile
+    env_file: .env
+    depends_on:
+      - backend
+    volumes:
+      - ./sample_images:/images
+    profiles: ["edge"]
+
+  frontend:
+    build: ./src/frontend
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+    profiles: ["frontend"]
+
+volumes:
+  pgdata:
+  images:

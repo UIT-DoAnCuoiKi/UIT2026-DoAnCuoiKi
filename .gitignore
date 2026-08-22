@@ -49,3 +49,10 @@ src/ml/weights/*-V*.onnx
 
 # ad-hoc personal test photos of real vehicles (may show plates - personal data, not a tracked dataset)
 testimage/
+
+# backend runtime: ảnh mã hóa và thư mục lưu cục bộ (dữ liệu cá nhân, không commit)
+src/backend/data/
+*.enc
+
+# node / frontend deps
+node_modules/

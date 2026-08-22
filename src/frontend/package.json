@@ -1,0 +1,17 @@
+{
+  "name": "parking-frontend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "gen:api": "orval",
+    "gen:api:remote": "orval --input http://localhost:8000/openapi.json"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.59.0",
+    "axios": "^1.7.7"
+  },
+  "devDependencies": {
+    "orval": "^7.3.0",
+    "typescript": "^5.6.0"
+  }
+}
