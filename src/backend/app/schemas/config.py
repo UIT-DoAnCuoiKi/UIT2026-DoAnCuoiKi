@@ -6,6 +6,8 @@ class PriceRuleIn(BaseModel):
     mode: str  # flat | block
     unit_price: int
     block_minutes: int | None = None
+    grace_minutes: int = 0
+    daily_cap: int | None = None
     active: bool = True
 
 
@@ -13,6 +15,8 @@ class PriceRuleUpdate(BaseModel):
     mode: str | None = None
     unit_price: int | None = None
     block_minutes: int | None = None
+    grace_minutes: int | None = None
+    daily_cap: int | None = None
     active: bool | None = None
 
 
@@ -22,6 +26,8 @@ class PriceRuleOut(BaseModel):
     mode: str
     unit_price: int
     block_minutes: int | None = None
+    grace_minutes: int = 0
+    daily_cap: int | None = None
     active: bool
     model_config = {"from_attributes": True}
 

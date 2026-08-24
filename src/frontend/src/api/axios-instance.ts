@@ -18,6 +18,18 @@ AXIOS_INSTANCE.interceptors.request.use((config) => {
   return config;
 });
 
+// Hết hạn hoặc 401 thì xóa token và đưa về màn đăng nhập.
+AXIOS_INSTANCE.interceptors.response.use(
+  (res) => res,
+  (error: AxiosError) => {
+    if (error.response?.status === 401 && typeof window !== "undefined") {
+      localStorage.removeItem("token");
+      if (window.location.pathname !== "/login") window.location.assign("/login");
+    }
+    return Promise.reject(error);
+  },
+);
+
 // Mutator mà Orval gọi cho từng endpoint.
 export const customInstance = <T>(config: AxiosRequestConfig): Promise<T> => {
   return AXIOS_INSTANCE({ ...config }).then(({ data }) => data);

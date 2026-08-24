@@ -14,6 +14,8 @@ class PriceRule(Base):
     mode: Mapped[str] = mapped_column(String(8))            # flat | block
     unit_price: Mapped[int] = mapped_column(Integer)        # VND
     block_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    grace_minutes: Mapped[int] = mapped_column(Integer, default=0)
+    daily_cap: Mapped[int | None] = mapped_column(Integer, nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     updated_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

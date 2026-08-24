@@ -24,6 +24,7 @@ class CaptureResponse(BaseModel):
     reading_id: int
     capture_id: str
     direction: str
+    lane: str | None = None
     review_state: str
     plate_text: str | None = None
     plate_valid: bool | None = None

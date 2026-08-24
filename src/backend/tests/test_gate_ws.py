@@ -16,8 +16,13 @@ def test_captures_latest_returns_recent(client, db_session, tmp_path, monkeypatc
 
     r = client.get("/captures/latest")
     assert r.status_code == 200
-    assert r.json()["capture_id"] == "L1"
-    assert r.json()["review_state"] == "confident"
+    body = r.json()
+    assert body["capture_id"] == "L1"
+    assert body["review_state"] == "confident"
+    # enriched pipeline meta so the dashboard gate can render camera + chips
+    assert "vehicle_type" in body and "color" in body
+    assert "plate_valid" in body and "image_asset_id" in body
+    assert "lane" in body and "duplicate" in body
 
 
 def test_ws_gate_receives_event(client, tmp_path, monkeypatch):
@@ -31,3 +36,8 @@ def test_ws_gate_receives_event(client, tmp_path, monkeypatch):
         event = ws.receive_json()
     assert event["capture_id"] == "WS1"
     assert event["direction"] == "in"
+    assert set(event) >= {
+        "reading_id", "capture_id", "direction", "lane", "review_state",
+        "plate_text", "vehicle_group", "vehicle_type", "color",
+        "plate_valid", "image_asset_id", "duplicate",
+    }

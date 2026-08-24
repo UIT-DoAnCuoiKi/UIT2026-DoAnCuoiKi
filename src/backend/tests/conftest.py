@@ -75,3 +75,34 @@ def staff_headers(client, make_user):
     make_user(username="gate", password="pw", role="staff")
     token = client.post("/auth/login", json={"username": "gate", "password": "pw"}).json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture()
+def admin_headers(client, make_user):
+    make_user(username="boss", password="pw", role="admin")
+    token = client.post("/auth/login", json={"username": "boss", "password": "pw"}).json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture()
+def make_reading(db_session):
+    from app.models import PlateReading
+    from app.security import crypto
+    from app.security.plate import plate_hash
+
+    def _make(plate: str = "51F12345", direction: str = "in", vehicle_type: str | None = None):
+        reading = PlateReading(
+            capture_id=f"cap-{plate}-{direction}",
+            direction=direction,
+            plate_text_ciphertext=crypto.encrypt_text(plate),
+            plate_hash=plate_hash(plate),
+            plate_valid=True,
+            vehicle_type=vehicle_type,
+            review_state="confident",
+        )
+        db_session.add(reading)
+        db_session.commit()
+        db_session.refresh(reading)
+        return reading
+
+    return _make

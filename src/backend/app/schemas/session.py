@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 class EntryRequest(BaseModel):
     reading_id: int
+    zone_id: int | None = None
 
 
 class ExitRequest(BaseModel):
@@ -21,6 +22,12 @@ class ManualRequest(BaseModel):
 
 class ResolveRequest(BaseModel):
     fee_amount: int
+
+
+class LostTicketRequest(BaseModel):
+    reading_id: int
+    penalty_amount: int
+    vehicle_group: str | None = None
 
 
 class PlatePatch(BaseModel):

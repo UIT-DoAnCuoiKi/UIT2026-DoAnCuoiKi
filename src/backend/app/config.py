@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     image_storage_dir: str = "./data/images"
     retention_days: int = 30
     edge_api_key: str = "edge-dev-key"
+    inference_engine: str = "fake"   # fake | ml
     admin_username: str = "admin"
     admin_password: str = ""
 
