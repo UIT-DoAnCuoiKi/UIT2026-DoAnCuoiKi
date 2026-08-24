@@ -22,6 +22,8 @@ def list_price_rules(db: Session = Depends(get_db), user: User = Depends(get_cur
 def create_price_rule(body: PriceRuleIn, db: Session = Depends(get_db), admin: User = Depends(admin_only)):
     if body.mode not in ("flat", "block"):
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "mode phải là flat hoặc block")
+    if body.mode == "block" and not body.block_minutes:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "mode block cần block_minutes > 0")
     rule = PriceRule(**body.model_dump(), updated_by=admin.id)
     db.add(rule); db.commit(); db.refresh(rule)
     return rule
@@ -34,6 +36,8 @@ def update_price_rule(rule_id: int, body: PriceRuleUpdate, db: Session = Depends
         raise HTTPException(status.HTTP_404_NOT_FOUND, "không tìm thấy bảng giá")
     for field, value in body.model_dump(exclude_none=True).items():
         setattr(rule, field, value)
+    if rule.mode == "block" and not rule.block_minutes:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "mode block cần block_minutes > 0")
     rule.updated_by = admin.id
     db.commit(); db.refresh(rule)
     return rule

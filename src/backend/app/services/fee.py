@@ -19,6 +19,8 @@ def compute_fee(rule: PriceRule, entry_time: datetime, exit_time: datetime) -> t
     if rule.mode == "flat":
         return rule.unit_price, {"mode": "flat", "unit_price": rule.unit_price}
 
+    if not rule.block_minutes:
+        raise ValueError("price rule mode block thiếu block_minutes")
     blocks = max(1, math.ceil(minutes / rule.block_minutes))
     fee = blocks * rule.unit_price
     snapshot = {
