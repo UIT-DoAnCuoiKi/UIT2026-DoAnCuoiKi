@@ -1,4 +1,5 @@
 from datetime import datetime
+from uuid import uuid4
 
 from sqlalchemy import DateTime, ForeignKey, Integer, JSON, String, func
 from sqlalchemy.orm import Mapped, mapped_column
@@ -10,11 +11,14 @@ class ParkingSession(Base):
     __tablename__ = "session"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    uuid: Mapped[str] = mapped_column(String(36), unique=True, index=True, default=lambda: str(uuid4()))
     plate_hash: Mapped[str] = mapped_column(String(64), index=True)
     plate_ciphertext: Mapped[str] = mapped_column(String(512))
     vehicle_group: Mapped[str] = mapped_column(String(16))
     vehicle_type: Mapped[str | None] = mapped_column(String(16), nullable=True)
     status: Mapped[str] = mapped_column(String(16), index=True)  # in_lot | pending_manual | completed | disputed
+    lot_id: Mapped[int | None] = mapped_column(ForeignKey("parking_lot.id"), nullable=True)
+    zone_id: Mapped[int | None] = mapped_column(ForeignKey("zone.id"), nullable=True)
 
     entry_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     exit_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.routing import APIRoute
 
-from app.routers import auth, captures, config, gate_ws, health, images, readings, sessions, stats, users
+from app.routers import auth, captures, config, devices, gate_ws, health, images, incidents, payments, readings, registry, sessions, shifts, spaces, stats, sync, users
 
 
 def _operation_id(route: APIRoute) -> str:
@@ -25,6 +25,13 @@ def create_app() -> FastAPI:
     app.include_router(images.router)
     app.include_router(stats.router)
     app.include_router(config.router)
+    app.include_router(spaces.router)
+    app.include_router(shifts.router)
+    app.include_router(payments.router)
+    app.include_router(devices.router)
+    app.include_router(incidents.router)
+    app.include_router(registry.router)
+    app.include_router(sync.router)
     app.include_router(gate_ws.router)
     return app
 

@@ -8,15 +8,19 @@ from app.clock import now_utc
 from app.config import settings
 from app.db import get_db
 from app.deps import get_current_user
-from app.models import ImageAsset, ParkingSession, PlateReading, User
+from app.models import ImageAsset, ParkingSession, PlateReading, User, Zone
 from app.schemas.session import (
-    EntryRequest, ExitRequest, ExitResult, ManualRequest, ReadingBrief, ResolveRequest,
+    EntryRequest, ExitRequest, ExitResult, LostTicketRequest, ManualRequest, ReadingBrief, ResolveRequest,
     SessionBrief, SessionDetail, SessionListResponse, SessionOut,
 )
 from app.security import crypto
 from app.security.plate import normalize_plate, plate_hash
 from app.services.fee import compute_fee, get_active_rule
+from app.services.audit import write_audit
 from app.services.matching import Candidate, find_match
+from app.services.occupancy import lot_is_full
+from app.services.registry import is_blacklisted, is_exempt
+from app.services.sync import enqueue_session
 from app.services.vehicle_groups import group_for
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
@@ -43,9 +47,18 @@ def confirm_entry(body: EntryRequest, db: Session = Depends(get_db), user: User 
     if reading is None or reading.direction != "in":
         raise HTTPException(status.HTTP_404_NOT_FOUND, "không tìm thấy reading vào hợp lệ")
 
+    lot_id = None
+    if body.zone_id is not None:
+        zone = db.get(Zone, body.zone_id)
+        if zone is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "không tìm thấy khu")
+        lot_id = zone.lot_id
+        if lot_is_full(db, lot_id):
+            raise HTTPException(status.HTTP_409_CONFLICT, "bãi đã đầy")
+
     group = group_for(reading.vehicle_type) or "unknown"
     has_plate = bool(reading.plate_hash)
-    warning = None
+    warnings: list[str] = []
     if has_plate:
         dup = db.scalars(
             select(ParkingSession).where(
@@ -54,7 +67,10 @@ def confirm_entry(body: EntryRequest, db: Session = Depends(get_db), user: User 
             )
         ).first()
         if dup is not None:
-            warning = "biển trùng một xe đang trong bãi"
+            warnings.append("biển trùng một xe đang trong bãi")
+        if is_blacklisted(db, reading.plate_hash):
+            warnings.append("biển trong danh sách đen")
+    warning = "; ".join(warnings) or None
 
     session = ParkingSession(
         plate_hash=reading.plate_hash or "",
@@ -64,12 +80,15 @@ def confirm_entry(body: EntryRequest, db: Session = Depends(get_db), user: User 
         status="in_lot" if has_plate else "pending_manual",
         entry_time=now_utc(),
         entry_reading_id=reading.id,
+        lot_id=lot_id,
+        zone_id=body.zone_id,
         match_flag="exact" if has_plate else None,
         created_by=user.id,
     )
     db.add(session)
     db.commit()
     db.refresh(session)
+    enqueue_session(db, session)
     return _session_out(session, warning=warning)
 
 
@@ -88,18 +107,23 @@ def _set_retention(db: Session, session: ParkingSession) -> None:
 
 
 def _complete_session(db: Session, session: ParkingSession, exit_reading_id: int | None, match_flag: str, user: User) -> None:
-    rule = get_active_rule(db, session.vehicle_group)
-    if rule is None:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "chưa có bảng giá cho nhóm xe này")
     session.exit_reading_id = exit_reading_id
     session.exit_time = now_utc()
     session.match_flag = match_flag
-    fee, snapshot = compute_fee(rule, session.entry_time, session.exit_time)
-    session.fee_amount = fee
-    session.fee_rule_snapshot = snapshot
+    if is_exempt(db, session.plate_hash):
+        session.fee_amount = 0
+        session.fee_rule_snapshot = {"exempt": True}
+    else:
+        rule = get_active_rule(db, session.vehicle_group)
+        if rule is None:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "chưa có bảng giá cho nhóm xe này")
+        fee, snapshot = compute_fee(rule, session.entry_time, session.exit_time)
+        session.fee_amount = fee
+        session.fee_rule_snapshot = snapshot
     session.status = "completed"
     session.closed_by = user.id
     _set_retention(db, session)
+    enqueue_session(db, session)
 
 
 @router.post("/exit", response_model=ExitResult)
@@ -225,6 +249,46 @@ def resolve_session(session_id: int, body: ResolveRequest, db: Session = Depends
     db.commit()
     db.refresh(session)
     return _session_out(session)
+
+
+@router.post("/lost-ticket", response_model=SessionOut)
+def lost_ticket(body: LostTicketRequest, db: Session = Depends(get_db), user: User = Depends(get_current_user)) -> SessionOut:
+    reading = db.get(PlateReading, body.reading_id)
+    if reading is None or reading.direction != "out":
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "không tìm thấy reading ra hợp lệ")
+    group = body.vehicle_group or group_for(reading.vehicle_type) or "unknown"
+    session = ParkingSession(
+        plate_hash=reading.plate_hash or "",
+        plate_ciphertext=reading.plate_text_ciphertext or "",
+        vehicle_group=group,
+        vehicle_type=reading.vehicle_type,
+        status="completed",
+        exit_time=now_utc(),
+        exit_reading_id=reading.id,
+        fee_amount=body.penalty_amount,
+        match_flag="lost_ticket",
+        closed_by=user.id,
+    )
+    db.add(session)
+    _set_retention(db, session)
+    write_audit(db, user_id=user.id, action="lost_ticket", entity_type="session",
+                entity_id=None, detail=f"penalty={body.penalty_amount} group={group}")
+    db.commit()
+    db.refresh(session)
+    return _session_out(session)
+
+
+@router.get("/overstay", response_model=list[SessionOut])
+def overstay(hours: int = Query(24, ge=1), db: Session = Depends(get_db), user: User = Depends(get_current_user)) -> list[SessionOut]:
+    cutoff = now_utc() - timedelta(hours=hours)
+    rows = db.scalars(
+        select(ParkingSession).where(
+            ParkingSession.status == "in_lot",
+            ParkingSession.entry_time.is_not(None),
+            ParkingSession.entry_time < cutoff,
+        ).order_by(ParkingSession.entry_time)
+    ).all()
+    return [_session_out(s) for s in rows]
 
 
 @router.get("", response_model=SessionListResponse)
