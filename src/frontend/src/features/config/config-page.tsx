@@ -7,13 +7,14 @@ import { SurfaceCard } from "@/components/surface-card";
 import { getRole } from "@/lib/auth";
 
 export function ConfigPage() {
-  const isRoot = getRole() === "root";
+  const role = getRole();
+  const canManageUsers = role === "root" || role === "manager";
   return (
     <div className="space-y-4">
       <Tabs defaultValue="price">
         <TabsList>
           <TabsTrigger value="price">Bảng giá</TabsTrigger>
-          {isRoot && <TabsTrigger value="users">Tài khoản</TabsTrigger>}
+          {canManageUsers && <TabsTrigger value="users">Tài khoản</TabsTrigger>}
           <TabsTrigger value="lanes">Lane</TabsTrigger>
           <TabsTrigger value="toggles">Feature toggle</TabsTrigger>
         </TabsList>
@@ -22,7 +23,7 @@ export function ConfigPage() {
             <PriceRulesTab />
           </SurfaceCard>
         </TabsContent>
-        {isRoot && (
+        {canManageUsers && (
           <TabsContent value="users">
             <SurfaceCard variant="white">
               <UsersTab />

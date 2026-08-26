@@ -9,6 +9,7 @@ import { saveToken } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Brand } from "@/components/brand";
 
 const schema = z.object({
   username: z.string().min(1, "Bắt buộc"),
@@ -34,20 +35,51 @@ export function LoginPage() {
       const res = await mutateAsync({ data });
       saveToken(res.access_token);
       nav("/gate");
-    } catch {
-      setAuthError("Sai tên đăng nhập hoặc mật khẩu");
+    } catch (err) {
+      const status = (err as { response?: { status?: number } }).response?.status;
+      if (status === 401) {
+        setAuthError("Sai tên đăng nhập hoặc mật khẩu");
+      } else if (status === undefined) {
+        setAuthError("Không kết nối được máy chủ. Kiểm tra backend hoặc CORS.");
+      } else {
+        setAuthError("Đăng nhập thất bại, thử lại.");
+      }
       setFocus("username");
     }
   };
 
   return (
     <div className="grid h-full grid-cols-1 md:grid-cols-2">
-      <div className="relative hidden items-center justify-center bg-[#1c1c1c] md:flex">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#95a4fc]/30 to-transparent" aria-hidden />
-        <span className="relative text-2xl font-semibold text-white">Bãi đỗ xe</span>
+      <div className="relative hidden overflow-hidden bg-[#1c1c1c] md:flex md:flex-col md:justify-between md:p-12">
+        <div
+          className="pointer-events-none absolute -left-24 -top-24 h-96 w-96 rounded-full bg-[#95a4fc]/25 blur-3xl"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute -bottom-24 -right-16 h-80 w-80 rounded-full bg-[#a1e3cb]/15 blur-3xl"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.06]"
+          aria-hidden
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 1px 1px, #ffffff 1px, transparent 0)",
+            backgroundSize: "22px 22px",
+          }}
+        />
+        <div className="relative">
+          <Brand size="lg" invert showTagline />
+        </div>
+        <p className="relative max-w-lg text-lg leading-relaxed text-white/60">
+          Nhận diện biển số bằng thị giác máy tính và Edge AI. Quản lý ra vào, phí và
+          thống kê bãi đỗ theo thời gian thực.
+        </p>
+        <div className="relative text-sm text-white/35">UIT · Đồ án tốt nghiệp 2026</div>
       </div>
       <div className="flex items-center justify-center p-8">
         <form onSubmit={handleSubmit(onSubmit)} className="w-full max-w-sm space-y-4" noValidate>
+          <Brand size="sm" className="mb-2 md:hidden" />
           <h1 className="text-xl font-semibold">Đăng nhập</h1>
           {authError && (
             <p role="alert" className="text-sm text-st-red">

@@ -17,6 +17,15 @@ class Settings(BaseSettings):
     inference_engine: str = "fake"   # fake | ml
     admin_username: str = "admin"
     admin_password: str = ""
+    # Origin của dashboard được phép gọi API (CORS). Nhiều origin phân tách bằng dấu phẩy.
+    cors_origins: str = (
+        "http://localhost:8080,http://localhost:5173,"
+        "http://127.0.0.1:8080,http://127.0.0.1:5173"
+    )
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
 
 
 @lru_cache

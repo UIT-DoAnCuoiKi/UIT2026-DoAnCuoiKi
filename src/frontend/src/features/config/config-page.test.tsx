@@ -9,14 +9,20 @@ vi.mock("./toggles-tab", () => ({ TogglesTab: () => <div>TOGGLES</div> }));
 const roleRef = { current: "manager" as string };
 vi.mock("@/lib/auth", () => ({ getRole: () => roleRef.current }));
 
-test("manager does not see Tài khoản tab", () => {
+test("manager sees Tài khoản tab", () => {
   roleRef.current = "manager";
   render(<ConfigPage />);
-  expect(screen.queryByText("Tài khoản")).toBeNull();
+  expect(screen.getByText("Tài khoản")).toBeInTheDocument();
 });
 
 test("root sees Tài khoản tab", () => {
   roleRef.current = "root";
   render(<ConfigPage />);
   expect(screen.getByText("Tài khoản")).toBeInTheDocument();
+});
+
+test("staff does not see Tài khoản tab", () => {
+  roleRef.current = "staff";
+  render(<ConfigPage />);
+  expect(screen.queryByText("Tài khoản")).toBeNull();
 });
