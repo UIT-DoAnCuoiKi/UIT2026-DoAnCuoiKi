@@ -4,12 +4,12 @@ from app.models import AuditLog
 
 
 def test_login_success_and_audit(client, make_user, db_session):
-    make_user(username="admin1", password="pw", role="admin")
+    make_user(username="admin1", password="pw", role="root")
     r = client.post("/auth/login", json={"username": "admin1", "password": "pw"})
     assert r.status_code == 200
     body = r.json()
     assert body["access_token"]
-    assert body["role"] == "admin"
+    assert body["role"] == "root"
     logs = db_session.scalars(select(AuditLog).where(AuditLog.action == "login")).all()
     assert len(logs) == 1
 

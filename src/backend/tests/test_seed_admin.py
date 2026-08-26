@@ -11,7 +11,7 @@ def test_seed_creates_admin_once(db_session, monkeypatch):
 
     assert seed_admin(db_session) is True
     admin = db_session.scalars(select(User).where(User.username == "root")).one()
-    assert admin.role == "admin"
+    assert admin.role == "root"
 
     assert seed_admin(db_session) is False  # idempotent
 

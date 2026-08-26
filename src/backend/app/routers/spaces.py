@@ -11,7 +11,7 @@ from app.schemas.space import (
 from app.services.occupancy import occupancy_report
 
 router = APIRouter(tags=["spaces"])
-admin_only = require_role("admin")
+admin_only = require_role("manager", "root")
 
 
 @router.get("/lots", response_model=list[LotOut])

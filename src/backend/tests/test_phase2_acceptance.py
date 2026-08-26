@@ -4,7 +4,7 @@ from app.models import AuditLog
 
 
 def test_end_to_end_auth_flow(client, make_user, db_session):
-    make_user(username="root", password="rootpw", role="admin")
+    make_user(username="root", password="rootpw", role="root")
 
     r = client.post("/auth/login", json={"username": "root", "password": "rootpw"})
     assert r.status_code == 200

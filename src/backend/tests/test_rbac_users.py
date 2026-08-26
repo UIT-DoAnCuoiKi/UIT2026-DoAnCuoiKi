@@ -14,7 +14,7 @@ def test_staff_cannot_access_users(client, make_user):
 
 
 def test_admin_crud_and_lock(client, make_user):
-    make_user(username="admin1", password="pw", role="admin")
+    make_user(username="admin1", password="pw", role="root")
     h = {"Authorization": f"Bearer {_token(client, 'admin1', 'pw')}"}
 
     r = client.post("/users", json={"username": "newstaff", "password": "pw2", "role": "staff"}, headers=h)

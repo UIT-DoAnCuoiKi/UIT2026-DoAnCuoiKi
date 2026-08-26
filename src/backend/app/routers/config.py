@@ -10,7 +10,7 @@ from app.schemas.config import (
 )
 
 router = APIRouter(tags=["config"])
-admin_only = require_role("admin")
+admin_only = require_role("manager", "root")
 
 
 @router.get("/price-rules", response_model=list[PriceRuleOut])

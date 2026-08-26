@@ -10,8 +10,8 @@ from app.security.passwords import hash_password
 from app.services.audit import write_audit
 
 router = APIRouter(prefix="/users", tags=["users"])
-admin_only = require_role("admin")
-_ROLES = ("staff", "admin")
+admin_only = require_role("root")
+_ROLES = ("staff", "manager", "root")
 
 
 @router.post("", response_model=UserOut, status_code=status.HTTP_201_CREATED)

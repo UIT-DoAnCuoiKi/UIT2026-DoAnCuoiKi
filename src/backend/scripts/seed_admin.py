@@ -15,7 +15,7 @@ def seed_admin(db: Session) -> bool:
     db.add(User(
         username=settings.admin_username,
         password_hash=hash_password(settings.admin_password),
-        role="admin",
+        role="root",
         active=True,
     ))
     db.commit()

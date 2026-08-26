@@ -11,7 +11,7 @@ from app.services.audit import write_audit
 from app.services.device import device_health, record_heartbeat
 
 router = APIRouter(tags=["devices"])
-admin_only = require_role("admin")
+admin_only = require_role("manager", "root")
 
 
 @router.post("/devices", response_model=DeviceOut, status_code=status.HTTP_201_CREATED)

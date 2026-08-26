@@ -10,7 +10,7 @@ from app.services.image_store import store_encrypted_image
 from app.services.retention import purge_expired
 
 
-def test_dashboard_and_retention(client, db_session, staff_headers, tmp_path, monkeypatch):
+def test_dashboard_and_retention(client, db_session, staff_headers, admin_headers, tmp_path, monkeypatch):
     from app.config import settings
     monkeypatch.setattr(settings, "image_storage_dir", str(tmp_path))
     monkeypatch.setattr(settings, "retention_days", 30)
@@ -35,7 +35,7 @@ def test_dashboard_and_retention(client, db_session, staff_headers, tmp_path, mo
     assert db_session.scalars(select(AuditLog).where(AuditLog.action == "view_image")).all()
 
     # thống kê doanh thu toàn thời gian
-    stats = client.get("/stats", headers=staff_headers).json()
+    stats = client.get("/stats", headers=admin_headers).json()
     assert stats["revenue"] == 5000
 
     # job xóa dữ liệu quá hạn

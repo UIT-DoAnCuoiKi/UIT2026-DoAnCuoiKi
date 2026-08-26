@@ -40,7 +40,7 @@ def config(db: Session = Depends(get_db)) -> dict:
     }
 
 
-central_admin = require_role("admin")
+central_admin = require_role("root")
 
 
 @router.get("/central/sessions")

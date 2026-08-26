@@ -12,7 +12,7 @@ from app.security import crypto
 from app.security.plate import plate_hash
 
 router = APIRouter(tags=["registry"])
-admin_only = require_role("admin")
+admin_only = require_role("manager", "root")
 
 
 def _plate_fields(plate_text: str) -> dict:
