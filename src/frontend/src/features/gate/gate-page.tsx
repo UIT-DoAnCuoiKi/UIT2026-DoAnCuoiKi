@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { GateKpis } from "./gate-kpis";
 import { GateCaptureView } from "./gate-capture";
 import { DecisionPanel } from "./decision-panel";
 import { GateEventsRail } from "./gate-events-rail";
@@ -21,7 +20,6 @@ export function GatePage() {
           Mất kết nối realtime. Đang dùng chế độ dự phòng (polling).
         </div>
       )}
-      <GateKpis />
       <div className="flex gap-2">
         <Button
           variant={direction === "in" ? "default" : "outline"}
