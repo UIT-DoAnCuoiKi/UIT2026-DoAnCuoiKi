@@ -79,6 +79,7 @@ def staff_headers(client, make_user):
 
 @pytest.fixture()
 def admin_headers(client, make_user):
+    """Auth headers for a root user (fixture name kept for compatibility)."""
     make_user(username="boss", password="pw", role="root")
     token = client.post("/auth/login", json={"username": "boss", "password": "pw"}).json()["access_token"]
     return {"Authorization": f"Bearer {token}"}

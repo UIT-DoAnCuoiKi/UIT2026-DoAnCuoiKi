@@ -3,7 +3,7 @@ def _token(client, make_user, role):
     return client.post("/auth/login", json={"username": role, "password": "pw"}).json()["access_token"]
 
 
-def test_price_rule_crud_admin(client, make_user):
+def test_price_rule_crud_root(client, make_user):
     h = {"Authorization": f"Bearer {_token(client, make_user, 'root')}"}
     r = client.post("/price-rules", json={"vehicle_group": "xe_may", "mode": "flat", "unit_price": 3000}, headers=h)
     assert r.status_code == 201
@@ -31,7 +31,7 @@ def test_feature_toggle_get_default_and_update(client, make_user):
     assert client.patch("/feature-toggles", json={"read_plate": True}, headers=staff_h).status_code == 403
 
 
-def test_lane_crud_admin(client, make_user):
+def test_lane_crud_root(client, make_user):
     h = {"Authorization": f"Bearer {_token(client, make_user, 'root')}"}
     r = client.post("/lanes", json={"name": "lane1", "rtsp_url": "rtsp://x"}, headers=h)
     assert r.status_code == 201

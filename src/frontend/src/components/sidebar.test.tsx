@@ -31,3 +31,10 @@ test("root sees Thống kê and Cấu hình", () => {
   expect(screen.getByText("Thống kê")).toBeInTheDocument();
   expect(screen.getByText("Cấu hình")).toBeInTheDocument();
 });
+
+test("collapsed hides wordmark and nav labels", () => {
+  saveToken(jwt("root"));
+  render(<MemoryRouter><Sidebar collapsed={true} /></MemoryRouter>);
+  expect(screen.queryByText("SmartPark")).toBeNull();
+  expect(screen.queryByText("Cấu hình")).toBeNull();
+});
