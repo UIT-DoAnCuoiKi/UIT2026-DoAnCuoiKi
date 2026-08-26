@@ -18,7 +18,7 @@ function tree(initial: string) {
         <Route
           path="/config"
           element={
-            <RequireRole roles={["admin"]}>
+            <RequireRole roles={["manager", "root"]}>
               <div>CONFIG</div>
             </RequireRole>
           }
@@ -34,14 +34,20 @@ test("no token redirects to login", () => {
   expect(screen.getByText("LOGIN")).toBeInTheDocument();
 });
 
-test("staff blocked from admin route -> gate", () => {
+test("staff blocked from config route -> gate", () => {
   saveToken(jwt("staff"));
   render(tree("/config"));
   expect(screen.getByText("GATE")).toBeInTheDocument();
 });
 
-test("admin allowed", () => {
-  saveToken(jwt("admin"));
+test("manager allowed", () => {
+  saveToken(jwt("manager"));
+  render(tree("/config"));
+  expect(screen.getByText("CONFIG")).toBeInTheDocument();
+});
+
+test("root allowed", () => {
+  saveToken(jwt("root"));
   render(tree("/config"));
   expect(screen.getByText("CONFIG")).toBeInTheDocument();
 });

@@ -9,21 +9,25 @@ function jwt(role: string) {
   return `${b64({})}.${b64({ role, exp: Math.floor(Date.now() / 1000) + 3600 })}.s`;
 }
 
-test("staff does not see Cấu hình; admin does", () => {
+test("staff sees only Trạm cổng and Quản lý phiên", () => {
   saveToken(jwt("staff"));
-  const { rerender } = render(
-    <MemoryRouter>
-      <Sidebar collapsed={false} />
-    </MemoryRouter>,
-  );
-  expect(screen.queryByText("Cấu hình")).toBeNull();
+  render(<MemoryRouter><Sidebar collapsed={false} /></MemoryRouter>);
   expect(screen.getByText("Trạm cổng")).toBeInTheDocument();
+  expect(screen.getByText("Quản lý phiên")).toBeInTheDocument();
+  expect(screen.queryByText("Thống kê")).toBeNull();
+  expect(screen.queryByText("Cấu hình")).toBeNull();
+});
 
-  saveToken(jwt("admin"));
-  rerender(
-    <MemoryRouter>
-      <Sidebar collapsed={false} />
-    </MemoryRouter>,
-  );
+test("manager sees Thống kê and Cấu hình", () => {
+  saveToken(jwt("manager"));
+  render(<MemoryRouter><Sidebar collapsed={false} /></MemoryRouter>);
+  expect(screen.getByText("Thống kê")).toBeInTheDocument();
+  expect(screen.getByText("Cấu hình")).toBeInTheDocument();
+});
+
+test("root sees Thống kê and Cấu hình", () => {
+  saveToken(jwt("root"));
+  render(<MemoryRouter><Sidebar collapsed={false} /></MemoryRouter>);
+  expect(screen.getByText("Thống kê")).toBeInTheDocument();
   expect(screen.getByText("Cấu hình")).toBeInTheDocument();
 });

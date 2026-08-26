@@ -1,7 +1,7 @@
 import { jwtDecode } from "jwt-decode";
 
 type Claims = { role?: string; exp?: number };
-export type Role = "staff" | "admin";
+export type Role = "root" | "manager" | "staff";
 const KEY = "token";
 
 export function saveToken(token: string): void {
@@ -28,7 +28,7 @@ function claims(): Claims | null {
 
 export function getRole(): Role | null {
   const r = claims()?.role;
-  return r === "staff" || r === "admin" ? r : null;
+  return r === "root" || r === "manager" || r === "staff" ? r : null;
 }
 
 export function isExpired(): boolean {

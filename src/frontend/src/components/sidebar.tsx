@@ -2,13 +2,14 @@ import { NavLink } from "react-router-dom";
 import { LayoutGrid, ListChecks, BarChart3, Settings, type LucideIcon } from "lucide-react";
 import { getRole, type Role } from "@/lib/auth";
 import { cn } from "@/lib/cn";
+import { Brand, LogoMark } from "@/components/brand";
 
 type Item = { to: string; label: string; Icon: LucideIcon; roles: Role[] };
 const ITEMS: Item[] = [
-  { to: "/gate", label: "Trạm cổng", Icon: LayoutGrid, roles: ["staff", "admin"] },
-  { to: "/sessions", label: "Quản lý phiên", Icon: ListChecks, roles: ["staff", "admin"] },
-  { to: "/stats", label: "Thống kê", Icon: BarChart3, roles: ["staff", "admin"] },
-  { to: "/config", label: "Cấu hình", Icon: Settings, roles: ["admin"] },
+  { to: "/gate", label: "Trạm cổng", Icon: LayoutGrid, roles: ["staff", "manager", "root"] },
+  { to: "/sessions", label: "Quản lý phiên", Icon: ListChecks, roles: ["staff", "manager", "root"] },
+  { to: "/stats", label: "Thống kê", Icon: BarChart3, roles: ["manager", "root"] },
+  { to: "/config", label: "Cấu hình", Icon: Settings, roles: ["manager", "root"] },
 ];
 
 export function Sidebar({ collapsed }: { collapsed: boolean }) {
@@ -16,7 +17,9 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
   const items = ITEMS.filter((i) => role && i.roles.includes(role));
   return (
     <nav className="flex h-full flex-col gap-1 p-3" aria-label="Điều hướng chính">
-      <div className="mb-4 px-2 text-sm font-semibold">Bãi đỗ xe</div>
+      <div className="mb-4 px-2">
+        {collapsed ? <LogoMark size={28} /> : <Brand size="sm" />}
+      </div>
       {items.map(({ to, label, Icon }) => (
         <NavLink
           key={to}

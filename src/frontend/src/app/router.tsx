@@ -12,7 +12,7 @@ export const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
   {
     element: (
-      <RequireRole roles={["staff", "admin"]}>
+      <RequireRole roles={["staff", "manager", "root"]}>
         <AppShell />
       </RequireRole>
     ),
@@ -21,11 +21,18 @@ export const router = createBrowserRouter([
       { path: "gate", element: <GatePage /> },
       { path: "sessions", element: <SessionsPage /> },
       { path: "sessions/:id", element: <SessionDetailPage /> },
-      { path: "stats", element: <StatsPage /> },
+      {
+        path: "stats",
+        element: (
+          <RequireRole roles={["manager", "root"]}>
+            <StatsPage />
+          </RequireRole>
+        ),
+      },
       {
         path: "config",
         element: (
-          <RequireRole roles={["admin"]}>
+          <RequireRole roles={["manager", "root"]}>
             <ConfigPage />
           </RequireRole>
         ),

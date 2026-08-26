@@ -10,10 +10,10 @@ function makeJwt(payload: object): string {
 beforeEach(() => localStorage.clear());
 
 test("stores and reads token + role", () => {
-  const t = makeJwt({ role: "admin", exp: Math.floor(Date.now() / 1000) + 3600 });
+  const t = makeJwt({ role: "manager", exp: Math.floor(Date.now() / 1000) + 3600 });
   saveToken(t);
   expect(getToken()).toBe(t);
-  expect(getRole()).toBe("admin");
+  expect(getRole()).toBe("manager");
   expect(isExpired()).toBe(false);
 });
 
@@ -31,6 +31,6 @@ test("clear removes token and role", () => {
 });
 
 test("unknown role returns null", () => {
-  saveToken(makeJwt({ role: "root", exp: Math.floor(Date.now() / 1000) + 100 }));
+  saveToken(makeJwt({ role: "admin", exp: Math.floor(Date.now() / 1000) + 100 }));
   expect(getRole()).toBeNull();
 });
