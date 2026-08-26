@@ -4,14 +4,16 @@ import { UsersTab } from "./users-tab";
 import { LanesTab } from "./lanes-tab";
 import { TogglesTab } from "./toggles-tab";
 import { SurfaceCard } from "@/components/surface-card";
+import { getRole } from "@/lib/auth";
 
 export function ConfigPage() {
+  const isRoot = getRole() === "root";
   return (
     <div className="space-y-4">
       <Tabs defaultValue="price">
         <TabsList>
           <TabsTrigger value="price">Bảng giá</TabsTrigger>
-          <TabsTrigger value="users">Tài khoản</TabsTrigger>
+          {isRoot && <TabsTrigger value="users">Tài khoản</TabsTrigger>}
           <TabsTrigger value="lanes">Lane</TabsTrigger>
           <TabsTrigger value="toggles">Feature toggle</TabsTrigger>
         </TabsList>
@@ -20,11 +22,13 @@ export function ConfigPage() {
             <PriceRulesTab />
           </SurfaceCard>
         </TabsContent>
-        <TabsContent value="users">
-          <SurfaceCard variant="white">
-            <UsersTab />
-          </SurfaceCard>
-        </TabsContent>
+        {isRoot && (
+          <TabsContent value="users">
+            <SurfaceCard variant="white">
+              <UsersTab />
+            </SurfaceCard>
+          </TabsContent>
+        )}
         <TabsContent value="lanes">
           <SurfaceCard variant="white">
             <LanesTab />
