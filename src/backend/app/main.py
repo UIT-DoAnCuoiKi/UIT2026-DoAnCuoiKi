@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRoute
 
 from app.config import settings
-from app.routers import auth, captures, config, devices, gate_ws, health, images, incidents, payments, readings, registry, sessions, shifts, spaces, stats, sync, users
+from app.routers import auth, captures, config, devices, gate_ws, health, images, incidents, payments, readings, registry, sessions, shifts, spaces, stats, sync, users, vehicle_groups
 
 
 def _operation_id(route: APIRoute) -> str:
@@ -34,6 +34,7 @@ def create_app() -> FastAPI:
     app.include_router(images.router)
     app.include_router(stats.router)
     app.include_router(config.router)
+    app.include_router(vehicle_groups.router)
     app.include_router(spaces.router)
     app.include_router(shifts.router)
     app.include_router(payments.router)
