@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { GateCapture } from "./use-gate-socket";
 import { fetchImageObjectUrl } from "@/lib/image-blob";
 import { SurfaceCard } from "@/components/surface-card";
+import { useVehicleGroupMap, groupLabel } from "@/lib/vehicle-groups";
 
 function Chip({ label, value }: { label: string; value?: string | null }) {
   if (!value) return null;
@@ -13,6 +14,7 @@ function Chip({ label, value }: { label: string; value?: string | null }) {
 }
 
 export function GateCaptureView({ capture }: { capture: GateCapture | null }) {
+  const groupMap = useVehicleGroupMap();
   const [imgUrl, setImgUrl] = useState<string | null>(null);
   useEffect(() => {
     let url: string | null = null;
@@ -42,7 +44,7 @@ export function GateCaptureView({ capture }: { capture: GateCapture | null }) {
       </div>
       <div className="flex flex-wrap gap-2">
         <Chip label="Loại xe" value={capture?.vehicle_type} />
-        <Chip label="Nhóm phí" value={capture?.vehicle_group} />
+        <Chip label="Nhóm phí" value={capture?.vehicle_group ? groupLabel(groupMap, capture.vehicle_group) : null} />
         <Chip label="Màu biển" value={capture?.color} />
       </div>
     </SurfaceCard>

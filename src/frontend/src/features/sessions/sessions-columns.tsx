@@ -3,6 +3,12 @@ import type { ColumnDef } from "@tanstack/react-table";
 import type { SessionOut } from "@/api/generated/model";
 import { StatusChip } from "@/components/status-chip";
 import { formatPlate, formatVnd, formatDateTime, formatDuration } from "@/lib/format";
+import { useVehicleGroupMap, groupLabel } from "@/lib/vehicle-groups";
+
+function GroupCell({ code }: { code?: string | null }) {
+  const map = useVehicleGroupMap();
+  return <>{groupLabel(map, code)}</>;
+}
 
 export const sessionColumns: ColumnDef<SessionOut, unknown>[] = [
   {
@@ -17,7 +23,7 @@ export const sessionColumns: ColumnDef<SessionOut, unknown>[] = [
   {
     header: "Nhóm xe",
     accessorKey: "vehicle_group",
-    cell: ({ row }) => row.original.vehicle_group ?? "—",
+    cell: ({ row }) => <GroupCell code={row.original.vehicle_group} />,
   },
   { header: "Giờ vào", cell: ({ row }) => formatDateTime(row.original.entry_time) },
   { header: "Giờ ra", cell: ({ row }) => formatDateTime(row.original.exit_time) },

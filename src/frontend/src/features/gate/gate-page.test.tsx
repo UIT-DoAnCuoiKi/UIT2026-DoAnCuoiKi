@@ -2,6 +2,11 @@ import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { GatePage } from "./gate-page";
 
+vi.mock("@/lib/vehicle-groups", () => ({
+  useVehicleGroupMap: () => ({ xe_may: "Xe máy" }),
+  groupLabel: (map: Record<string, string>, code?: string | null) => (code ? map[code] ?? code : "—"),
+}));
+
 vi.mock("./use-gate-socket", () => ({
   useGateSocket: () => ({ capture: null, events: [], degraded: false }),
 }));

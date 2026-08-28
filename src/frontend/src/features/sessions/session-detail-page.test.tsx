@@ -2,6 +2,11 @@ import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { SessionDetailPage } from "./session-detail-page";
 
+vi.mock("@/lib/vehicle-groups", () => ({
+  useVehicleGroupMap: () => ({ xe_may: "Xe máy" }),
+  groupLabel: (map: Record<string, string>, code?: string | null) => (code ? map[code] ?? code : "—"),
+}));
+
 vi.mock("@/api/generated/sessions/sessions", () => ({
   useSessionDetail: () => ({
     data: {

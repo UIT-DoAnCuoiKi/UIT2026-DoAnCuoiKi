@@ -8,6 +8,7 @@ import { DisputePanel } from "./dispute-panel";
 import { fetchImageObjectUrl } from "@/lib/image-blob";
 import { formatPlate, formatVnd, formatDateTime, formatDuration } from "@/lib/format";
 import { EmptyState } from "@/components/empty-state";
+import { useVehicleGroupMap, groupLabel } from "@/lib/vehicle-groups";
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -34,6 +35,7 @@ export function SessionDetailPage() {
   const { id } = useParams();
   const sessionId = Number(id);
   const { data, isLoading, refetch } = useSessionDetail(sessionId);
+  const groupMap = useVehicleGroupMap();
 
   if (isLoading) return <EmptyState title="Đang tải..." />;
   if (!data) return <EmptyState title="Không tìm thấy phiên" />;
@@ -46,7 +48,7 @@ export function SessionDetailPage() {
       </div>
       <SurfaceCard variant="white">
         <dl className="grid grid-cols-2 gap-4 md:grid-cols-3">
-          <Field label="Nhóm xe">{data.vehicle_group ?? "—"}</Field>
+          <Field label="Nhóm xe">{groupLabel(groupMap, data.vehicle_group)}</Field>
           <Field label="Loại xe">{data.vehicle_type ?? "—"}</Field>
           <Field label="Giờ vào">{formatDateTime(data.entry_time)}</Field>
           <Field label="Giờ ra">{formatDateTime(data.exit_time)}</Field>

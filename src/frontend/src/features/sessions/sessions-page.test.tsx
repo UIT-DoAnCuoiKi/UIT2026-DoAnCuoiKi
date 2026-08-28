@@ -2,6 +2,11 @@ import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { SessionsPage } from "./sessions-page";
 
+vi.mock("@/lib/vehicle-groups", () => ({
+  useVehicleGroupMap: () => ({ xe_may: "Xe máy" }),
+  groupLabel: (map: Record<string, string>, code?: string | null) => (code ? map[code] ?? code : "—"),
+}));
+
 vi.mock("@/api/generated/sessions/sessions", () => ({
   useListSessions: () => ({
     data: {
@@ -11,7 +16,7 @@ vi.mock("@/api/generated/sessions/sessions", () => ({
           id: 5,
           status: "completed",
           plate_text: "51F-123",
-          vehicle_group: "car",
+          vehicle_group: "xe_may",
           entry_time: "2026-08-23T08:00:00Z",
           exit_time: "2026-08-23T09:00:00Z",
           fee_amount: 15000,
@@ -31,4 +36,13 @@ test("renders a session row with plate and status", () => {
   );
   expect(screen.getByText("51F-123")).toBeInTheDocument();
   expect(screen.getByText("Hoàn tất")).toBeInTheDocument();
+});
+
+test("renders vehicle group display_name in sessions table", async () => {
+  render(
+    <MemoryRouter>
+      <SessionsPage />
+    </MemoryRouter>,
+  );
+  expect(await screen.findByText("Xe máy")).toBeInTheDocument();
 });
