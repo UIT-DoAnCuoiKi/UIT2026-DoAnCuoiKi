@@ -16,6 +16,7 @@ from app.models.plate_reading import PlateReading
 from app.models.price_rule import PriceRule
 from app.models.shift import Shift
 from app.models.user import User
+from app.models.vehicle_group import VehicleGroup
 from app.models.vehicle_owner import VehicleOwner
 from app.models.zone import Zone
 
@@ -23,5 +24,5 @@ __all__ = [
     "AuditLog", "BarrierEvent", "Device", "FeatureToggle", "Floor",
     "ImageAsset", "Incident", "Lane", "MonthlyPass", "Outbox", "ParkingLot",
     "ParkingSession", "Payment", "PlateBlacklist", "PlateReading",
-    "PlateWhitelist", "PriceRule", "Shift", "User", "VehicleOwner", "Zone",
+    "PlateWhitelist", "PriceRule", "Shift", "User", "VehicleGroup", "VehicleOwner", "Zone",
 ]
