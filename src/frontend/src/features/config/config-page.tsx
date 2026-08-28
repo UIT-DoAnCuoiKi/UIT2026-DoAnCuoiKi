@@ -1,5 +1,5 @@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { PriceRulesTab } from "./price-rules-tab";
+import { VehicleGroupsTab } from "./vehicle-groups-tab";
 import { UsersTab } from "./users-tab";
 import { LanesTab } from "./lanes-tab";
 import { TogglesTab } from "./toggles-tab";
@@ -13,14 +13,14 @@ export function ConfigPage() {
     <div className="space-y-4">
       <Tabs defaultValue="price">
         <TabsList>
-          <TabsTrigger value="price">Bảng giá</TabsTrigger>
+          <TabsTrigger value="price">Loại xe</TabsTrigger>
           {canManageUsers && <TabsTrigger value="users">Tài khoản</TabsTrigger>}
           <TabsTrigger value="lanes">Lane</TabsTrigger>
           <TabsTrigger value="toggles">Feature toggle</TabsTrigger>
         </TabsList>
         <TabsContent value="price">
           <SurfaceCard variant="white">
-            <PriceRulesTab />
+            <VehicleGroupsTab />
           </SurfaceCard>
         </TabsContent>
         {canManageUsers && (

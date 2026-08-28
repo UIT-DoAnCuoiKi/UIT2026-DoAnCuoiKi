@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { ConfigPage } from "./config-page";
 
-vi.mock("./price-rules-tab", () => ({ PriceRulesTab: () => <div>PRICE</div> }));
+vi.mock("./vehicle-groups-tab", () => ({ VehicleGroupsTab: () => <div>VEHICLE_GROUPS</div> }));
 vi.mock("./users-tab", () => ({ UsersTab: () => <div>USERS</div> }));
 vi.mock("./lanes-tab", () => ({ LanesTab: () => <div>LANES</div> }));
 vi.mock("./toggles-tab", () => ({ TogglesTab: () => <div>TOGGLES</div> }));
