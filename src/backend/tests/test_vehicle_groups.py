@@ -78,3 +78,33 @@ def test_patch_vehicle_group(client, make_user, db_session):
     assert r.status_code == 200
     assert r.json()["display_name"] == "Xe tải nhẹ"
     assert r.json()["active"] is False
+
+
+def test_delete_unreferenced_group_ok(client, make_user):
+    h = {"Authorization": f"Bearer {_token(client, make_user, 'root')}"}
+    created = client.post("/vehicle-groups", json={"code": "xe_dien", "display_name": "Xe điện"}, headers=h).json()
+    r = client.delete(f"/vehicle-groups/{created['id']}", headers=h)
+    assert r.status_code == 204
+
+
+def test_delete_referenced_group_conflict(client, make_user, db_session):
+    from app.services.vehicle_groups import seed_default_vehicle_groups
+    seed_default_vehicle_groups(db_session)
+    from app.models import PriceRule, VehicleGroup
+    from sqlalchemy import select
+    db_session.add(PriceRule(vehicle_group="xe_may", mode="flat", unit_price=3000))
+    db_session.commit()
+    gid = db_session.scalars(select(VehicleGroup).where(VehicleGroup.code == "xe_may")).one().id
+    h = {"Authorization": f"Bearer {_token(client, make_user, 'root')}"}
+    r = client.delete(f"/vehicle-groups/{gid}", headers=h)
+    assert r.status_code == 409
+
+
+def test_delete_group_staff_forbidden(client, make_user, db_session):
+    from app.services.vehicle_groups import seed_default_vehicle_groups
+    seed_default_vehicle_groups(db_session)
+    from app.models import VehicleGroup
+    from sqlalchemy import select
+    gid = db_session.scalars(select(VehicleGroup).where(VehicleGroup.code == "unknown")).one().id
+    h = {"Authorization": f"Bearer {_token(client, make_user, 'staff')}"}
+    assert client.delete(f"/vehicle-groups/{gid}", headers=h).status_code == 403

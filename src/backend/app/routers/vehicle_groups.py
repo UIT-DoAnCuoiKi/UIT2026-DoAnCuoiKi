@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.deps import get_current_user, require_role
-from app.models import User, VehicleGroup
+from app.models import MonthlyPass, ParkingSession, PriceRule, User, VehicleGroup
 from app.schemas.vehicle_group import VehicleGroupIn, VehicleGroupOut, VehicleGroupUpdate
 
 router = APIRouter(prefix="/vehicle-groups", tags=["vehicle-groups"])
@@ -34,3 +34,18 @@ def update_vehicle_group(group_id: int, body: VehicleGroupUpdate, db: Session = 
         setattr(group, field, value)
     db.commit(); db.refresh(group)
     return group
+
+
+@router.delete("/{group_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_vehicle_group(group_id: int, db: Session = Depends(get_db), admin: User = Depends(admin_only)):
+    group = db.get(VehicleGroup, group_id)
+    if group is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "không tìm thấy nhóm")
+    referenced = (
+        db.scalars(select(ParkingSession.id).where(ParkingSession.vehicle_group == group.code).limit(1)).first()
+        or db.scalars(select(PriceRule.id).where(PriceRule.vehicle_group == group.code).limit(1)).first()
+        or db.scalars(select(MonthlyPass.id).where(MonthlyPass.vehicle_group == group.code).limit(1)).first()
+    )
+    if referenced is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "nhóm đang được sử dụng")
+    db.delete(group); db.commit()
