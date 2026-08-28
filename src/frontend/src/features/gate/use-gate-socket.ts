@@ -27,6 +27,13 @@ export function ingestEvent(state: GateState, evt: GateCapture): GateState {
   return { capture: evt, events };
 }
 
+export function latestByDirection(events: GateCapture[]): { in: GateCapture | null; out: GateCapture | null } {
+  return {
+    in: events.find((e) => e.direction === "in") ?? null,
+    out: events.find((e) => e.direction === "out") ?? null,
+  };
+}
+
 function wsUrl(): string {
   const base =
     (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_API_BASE ??
@@ -37,6 +44,7 @@ function wsUrl(): string {
 export function useGateSocket(opts?: { lane?: string }): GateState & {
   connected: boolean;
   degraded: boolean;
+  capturesByDirection: { in: GateCapture | null; out: GateCapture | null };
 } {
   const [state, setState] = useState<GateState>({ capture: null, events: [] });
   const [connected, setConnected] = useState(false);
@@ -101,5 +109,5 @@ export function useGateSocket(opts?: { lane?: string }): GateState & {
     };
   }, [opts?.lane]);
 
-  return { ...state, connected, degraded };
+  return { ...state, capturesByDirection: latestByDirection(state.events), connected, degraded };
 }
