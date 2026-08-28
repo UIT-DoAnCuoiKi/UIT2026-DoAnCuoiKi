@@ -108,3 +108,19 @@ def test_delete_group_staff_forbidden(client, make_user, db_session):
     gid = db_session.scalars(select(VehicleGroup).where(VehicleGroup.code == "unknown")).one().id
     h = {"Authorization": f"Bearer {_token(client, make_user, 'staff')}"}
     assert client.delete(f"/vehicle-groups/{gid}", headers=h).status_code == 403
+
+
+def test_price_rule_rejects_unknown_group(client, make_user, db_session):
+    from app.services.vehicle_groups import seed_default_vehicle_groups
+    seed_default_vehicle_groups(db_session)
+    h = {"Authorization": f"Bearer {_token(client, make_user, 'root')}"}
+    r = client.post("/price-rules", json={"vehicle_group": "khong_ton_tai", "mode": "flat", "unit_price": 1000}, headers=h)
+    assert r.status_code == 422
+
+
+def test_price_rule_accepts_seeded_group(client, make_user, db_session):
+    from app.services.vehicle_groups import seed_default_vehicle_groups
+    seed_default_vehicle_groups(db_session)
+    h = {"Authorization": f"Bearer {_token(client, make_user, 'root')}"}
+    r = client.post("/price-rules", json={"vehicle_group": "xe_may", "mode": "flat", "unit_price": 3000}, headers=h)
+    assert r.status_code == 201

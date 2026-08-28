@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.deps import get_current_user, require_role
-from app.models import FeatureToggle, Lane, PriceRule, User
+from app.models import FeatureToggle, Lane, PriceRule, User, VehicleGroup
 from app.schemas.config import (
     LaneIn, LaneOut, LaneUpdate, PriceRuleIn, PriceRuleOut, PriceRuleUpdate, ToggleOut, ToggleUpdate,
 )
@@ -24,6 +24,8 @@ def create_price_rule(body: PriceRuleIn, db: Session = Depends(get_db), admin: U
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "mode phải là flat hoặc block")
     if body.mode == "block" and not body.block_minutes:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "mode block cần block_minutes > 0")
+    if not db.scalars(select(VehicleGroup).where(VehicleGroup.code == body.vehicle_group)).first():
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "vehicle_group không tồn tại")
     rule = PriceRule(**body.model_dump(), updated_by=admin.id)
     db.add(rule); db.commit(); db.refresh(rule)
     return rule

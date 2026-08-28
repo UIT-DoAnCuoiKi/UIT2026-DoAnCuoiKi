@@ -4,6 +4,9 @@ def _token(client, make_user, role):
 
 
 def test_price_rule_crud_root(client, make_user):
+    from app.services.vehicle_groups import seed_default_vehicle_groups
+    from app.deps import get_db
+    seed_default_vehicle_groups(next(client.app.dependency_overrides[get_db]()))
     h = {"Authorization": f"Bearer {_token(client, make_user, 'root')}"}
     r = client.post("/price-rules", json={"vehicle_group": "xe_may", "mode": "flat", "unit_price": 3000}, headers=h)
     assert r.status_code == 201
