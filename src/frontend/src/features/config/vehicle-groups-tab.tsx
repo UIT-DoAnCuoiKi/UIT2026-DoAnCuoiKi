@@ -52,7 +52,7 @@ export function VehicleGroupsTab() {
     {
       header: "Đặt giá",
       cell: ({ row }) => (
-        <PriceCell current={ruleFor(row.original.code)?.unit_price ?? null} onSave={(v) => setPrice(row.original.code, v)} />
+        <PriceCell key={ruleFor(row.original.code)?.unit_price ?? "new"} current={ruleFor(row.original.code)?.unit_price ?? null} onSave={(v) => setPrice(row.original.code, v)} />
       ),
     },
     {

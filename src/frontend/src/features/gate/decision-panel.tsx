@@ -8,6 +8,16 @@ import { PlateField } from "@/components/plate-field";
 import { StatusChip } from "@/components/status-chip";
 import { Button } from "@/components/ui/button";
 import { PaymentDialog } from "./payment-dialog";
+import { useVehicleGroupMap, groupLabel } from "@/lib/vehicle-groups";
+
+function RecognitionChip({ label, value }: { label: string; value?: string | null }) {
+  if (!value) return null;
+  return (
+    <span className="rounded-full border border-line bg-bg px-2.5 py-1 text-[13px] text-ink">
+      {label}: {value}
+    </span>
+  );
+}
 
 export function DecisionPanel({
   capture,
@@ -21,6 +31,7 @@ export function DecisionPanel({
   const { data: toggles } = useGetToggles();
   const forceManual = toggles ? !toggles.read_plate : false;
   const state = forceManual ? "manual" : capture.review_state;
+  const groupMap = useVehicleGroupMap();
 
   const [plate, setPlate] = useState(capture.plate_text ?? "");
   useEffect(() => setPlate(capture.plate_text ?? ""), [capture.reading_id, capture.plate_text]);
@@ -81,6 +92,17 @@ export function DecisionPanel({
           <span className="text-[13px] text-st-amber">Cảnh báo: biển trùng phiên trong bãi</span>
         )}
       </div>
+
+      {(capture.vehicle_type || capture.vehicle_group || capture.color) && (
+        <div className="flex flex-wrap gap-2">
+          <RecognitionChip label="Loại xe" value={capture.vehicle_type} />
+          <RecognitionChip
+            label="Nhóm phí"
+            value={capture.vehicle_group ? groupLabel(groupMap, capture.vehicle_group) : null}
+          />
+          <RecognitionChip label="Màu biển" value={capture.color} />
+        </div>
+      )}
 
       {capture.plate_valid === false && (
         <p className="text-[13px] text-st-amber">Cảnh báo: biển sai định dạng (vẫn cho xác nhận)</p>

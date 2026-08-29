@@ -7,6 +7,11 @@ vi.mock("./payment-dialog", () => ({
   PaymentDialog: ({ amount }: { amount: number }) => <div>DIALOG {amount}</div>,
 }));
 
+vi.mock("@/lib/vehicle-groups", () => ({
+  useVehicleGroupMap: () => ({ xe_may: "Xe máy" }),
+  groupLabel: (m: Record<string, string>, c?: string | null) => (c ? (m[c] ?? c) : "—"),
+}));
+
 const confirmEntry = vi.fn().mockResolvedValue({ id: 1, status: "in_lot" });
 const confirmExit = vi.fn();
 vi.mock("@/api/generated/sessions/sessions", () => ({
@@ -45,4 +50,15 @@ test("exit with positive fee opens payment dialog", async () => {
   render(<DecisionPanel capture={{ ...base, direction: "out", review_state: "confident" }} direction="out" onDone={() => {}} />);
   await userEvent.click(screen.getByRole("button", { name: /Xác nhận RA/i }));
   expect(await screen.findByText(/DIALOG 5000/)).toBeInTheDocument();
+});
+
+test("vehicle_group display_name chip is rendered via groupLabel", () => {
+  render(
+    <DecisionPanel
+      capture={{ ...base, vehicle_group: "xe_may" }}
+      direction="in"
+      onDone={() => {}}
+    />,
+  );
+  expect(screen.getByText(/Xe máy/)).toBeInTheDocument();
 });
