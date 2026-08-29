@@ -78,6 +78,9 @@ def test_manager_can_query_central(client, make_user):
 
 
 def test_manager_can_configure(client, make_user):
+    from app.deps import get_db
+    from app.services.vehicle_groups import seed_default_vehicle_groups
+    seed_default_vehicle_groups(next(client.app.dependency_overrides[get_db]()))
     h = {"Authorization": f"Bearer {_token(client, make_user, 'mgr', 'manager')}"}
     r = client.post("/price-rules", json={"vehicle_group": "xe_may", "mode": "flat", "unit_price": 3000}, headers=h)
     assert r.status_code == 201

@@ -20,6 +20,9 @@ def test_price_rule_block_requires_block_minutes(client, admin_headers):
 
 
 def test_price_rule_block_with_block_minutes_ok(client, admin_headers):
+    from app.deps import get_db
+    from app.services.vehicle_groups import seed_default_vehicle_groups
+    seed_default_vehicle_groups(next(client.app.dependency_overrides[get_db]()))
     r = client.post(
         "/price-rules",
         json={"vehicle_group": "o_to_con", "mode": "block", "unit_price": 5000, "block_minutes": 60},
@@ -29,6 +32,9 @@ def test_price_rule_block_with_block_minutes_ok(client, admin_headers):
 
 
 def test_price_rule_patch_to_block_requires_block_minutes(client, admin_headers):
+    from app.deps import get_db
+    from app.services.vehicle_groups import seed_default_vehicle_groups
+    seed_default_vehicle_groups(next(client.app.dependency_overrides[get_db]()))
     rid = client.post(
         "/price-rules",
         json={"vehicle_group": "xe_may", "mode": "flat", "unit_price": 3000},

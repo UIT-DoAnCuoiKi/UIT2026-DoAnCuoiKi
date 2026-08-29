@@ -22,6 +22,9 @@ def test_push_requires_edge_key(client):
 
 
 def test_config_pull_returns_rules_and_toggles(client, admin_headers):
+    from app.deps import get_db
+    from app.services.vehicle_groups import seed_default_vehicle_groups
+    seed_default_vehicle_groups(next(client.app.dependency_overrides[get_db]()))
     client.post("/price-rules", json={"vehicle_group": "o_to_con", "mode": "flat", "unit_price": 10000}, headers=admin_headers)
     cfg = client.get("/sync/config", headers=EDGE).json()
     assert any(r["vehicle_group"] == "o_to_con" for r in cfg["price_rules"])
