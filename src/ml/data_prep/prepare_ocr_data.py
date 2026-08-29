@@ -48,8 +48,13 @@ FIELDS = ["image_path", "label_raw", "label_clean", "layout", "width", "height",
 
 
 def clean_label(raw: str) -> str:
-    """Chuẩn hoá nhãn về chuỗi ký tự thuần: chữ hoa, bỏ khoảng trắng/dấu nối."""
-    return re.sub(r"[^A-Z0-9]", "", raw.upper())
+    """Chuẩn hoá nhãn về chuỗi ký tự thuần: chữ hoa, bỏ khoảng trắng/dấu nối.
+
+    Giữ lại "Đ" (không nằm trong A-Z) vì đây là ký tự thật trong seri MĐ/TĐ
+    của biển xe máy điện; xoá đi làm sai nhãn (vd "28TĐ 00067" -> "28T00067",
+    mất 1 ký tự) thay vì chỉ đơn giản là thiếu ký tự.
+    """
+    return re.sub(r"[^A-Z0-9Đ]", "", raw.upper())
 
 
 def layout_from_aspect(width: int, height: int) -> str:
