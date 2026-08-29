@@ -3,10 +3,15 @@ import userEvent from "@testing-library/user-event";
 import { DecisionPanel } from "./decision-panel";
 import type { GateCapture } from "./use-gate-socket";
 
+vi.mock("./payment-dialog", () => ({
+  PaymentDialog: ({ amount }: { amount: number }) => <div>DIALOG {amount}</div>,
+}));
+
 const confirmEntry = vi.fn().mockResolvedValue({ id: 1, status: "in_lot" });
+const confirmExit = vi.fn();
 vi.mock("@/api/generated/sessions/sessions", () => ({
   useConfirmEntry: () => ({ mutateAsync: confirmEntry, isPending: false }),
-  useConfirmExit: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useConfirmExit: () => ({ mutateAsync: confirmExit, isPending: false }),
   useManualSession: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 vi.mock("@/api/generated/readings/readings", () => ({
@@ -33,4 +38,11 @@ test("confident IN shows confirm entry and calls API", async () => {
 test("manual state always shows full manual entry button", () => {
   render(<DecisionPanel capture={{ ...base, review_state: "manual" }} direction="in" onDone={() => {}} />);
   expect(screen.getByRole("button", { name: /Nhập tay hoàn toàn/i })).toBeInTheDocument();
+});
+
+test("exit with positive fee opens payment dialog", async () => {
+  confirmExit.mockResolvedValueOnce({ outcome: "completed", session: { id: 9, fee_amount: 5000, plate_text: "51F1" } });
+  render(<DecisionPanel capture={{ ...base, direction: "out", review_state: "confident" }} direction="out" onDone={() => {}} />);
+  await userEvent.click(screen.getByRole("button", { name: /Xác nhận RA/i }));
+  expect(await screen.findByText(/DIALOG 5000/)).toBeInTheDocument();
 });

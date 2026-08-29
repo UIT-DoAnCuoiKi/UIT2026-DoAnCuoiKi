@@ -7,7 +7,7 @@ import type { GateCapture } from "./use-gate-socket";
 import { PlateField } from "@/components/plate-field";
 import { StatusChip } from "@/components/status-chip";
 import { Button } from "@/components/ui/button";
-import { formatVnd } from "@/lib/format";
+import { PaymentDialog } from "./payment-dialog";
 
 export function DecisionPanel({
   capture,
@@ -30,6 +30,7 @@ export function DecisionPanel({
   const manual = useManualSession();
   const patchPlate = usePatchPlate();
   const [candidates, setCandidates] = useState<{ id: number; plate_text?: string | null }[]>([]);
+  const [payFor, setPayFor] = useState<{ sessionId: number; amount: number; plate?: string | null } | null>(null);
 
   const savePlate = async () => {
     if (!plate.trim()) return;
@@ -51,8 +52,12 @@ export function DecisionPanel({
       setCandidates(res.candidates);
       return;
     }
-    const fee = res.session?.fee_amount;
-    toast.success(fee != null ? `Ra: phí ${formatVnd(fee)}` : "Đã xác nhận RA");
+    const s = res.session;
+    if (s && (s.fee_amount ?? 0) > 0) {
+      setPayFor({ sessionId: s.id, amount: s.fee_amount as number, plate: s.plate_text });
+      return;
+    }
+    toast.success("Đã xác nhận RA (miễn phí)");
     onDone();
   };
 
@@ -123,6 +128,18 @@ export function DecisionPanel({
           Nhập tay hoàn toàn
         </Button>
       </div>
+
+      {payFor && (
+        <PaymentDialog
+          sessionId={payFor.sessionId}
+          plate={payFor.plate}
+          amount={payFor.amount}
+          onClose={() => {
+            setPayFor(null);
+            onDone();
+          }}
+        />
+      )}
     </div>
   );
 }
