@@ -16,7 +16,8 @@ export function StatsPage() {
   const [to, setTo] = useState("");
   const { data, isLoading } = useGetStats(from || to ? { from: from || null, to: to || null } : undefined);
   const s = (data ?? {}) as { in_lot?: number; entries?: number; exits?: number; revenue?: number };
-  const isAdmin = getRole() === "admin";
+  const role = getRole();
+  const isAdmin = role === "manager" || role === "root";
   const [rows, setRows] = useState<DailyRow[]>([]);
 
   useEffect(() => {
