@@ -1,22 +1,32 @@
 import { render, screen } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import userEvent from "@testing-library/user-event";
 import { GatePage } from "./gate-page";
 
-vi.mock("@/lib/vehicle-groups", () => ({
-  useVehicleGroupMap: () => ({ xe_may: "Xe máy" }),
-  groupLabel: (map: Record<string, string>, code?: string | null) => (code ? map[code] ?? code : "—"),
-}));
-
 vi.mock("./use-gate-socket", () => ({
-  useGateSocket: () => ({ capture: null, events: [], degraded: false }),
+  useGateSocket: () => ({
+    capturesByDirection: { in: null, out: null },
+    events: [],
+    connected: true,
+    degraded: false,
+  }),
+}));
+vi.mock("./gate-panel", () => ({
+  GatePanel: ({ direction, active }: { direction: string; active: boolean }) => (
+    <div data-testid={`panel-${direction}`}>{active ? "ACTIVE" : "idle"}</div>
+  ),
 }));
 
-test("gate page shows no statistics KPI", () => {
-  render(
-    <MemoryRouter>
-      <GatePage />
-    </MemoryRouter>,
-  );
-  expect(screen.queryByText("Đang trong bãi")).toBeNull();
-  expect(screen.queryByText("Doanh thu")).toBeNull();
+beforeEach(() => localStorage.clear());
+
+test("split layout renders both panels by default", () => {
+  render(<GatePage />);
+  expect(screen.getByTestId("panel-in")).toBeInTheDocument();
+  expect(screen.getByTestId("panel-out")).toBeInTheDocument();
+});
+
+test("in-only layout renders one panel", async () => {
+  render(<GatePage />);
+  await userEvent.click(screen.getByRole("button", { name: /Chỉ VÀO/i }));
+  expect(screen.getByTestId("panel-in")).toBeInTheDocument();
+  expect(screen.queryByTestId("panel-out")).not.toBeInTheDocument();
 });
