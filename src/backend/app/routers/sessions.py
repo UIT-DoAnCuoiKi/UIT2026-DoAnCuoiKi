@@ -1,7 +1,7 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.clock import now_utc
@@ -295,6 +295,10 @@ def overstay(hours: int = Query(24, ge=1), db: Session = Depends(get_db), user: 
 def list_sessions(
     plate: str | None = Query(None),
     status_filter: str | None = Query(None, alias="status"),
+    vehicle_group: str | None = Query(None),
+    entry_from: datetime | None = Query(None),
+    entry_to: datetime | None = Query(None),
+    match_flag: str | None = Query(None),
     limit: int = Query(20, ge=1, le=200),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
@@ -305,7 +309,15 @@ def list_sessions(
         stmt = stmt.where(ParkingSession.plate_hash == plate_hash(plate))
     if status_filter:
         stmt = stmt.where(ParkingSession.status == status_filter)
-    total = len(list(db.scalars(stmt).all()))
+    if vehicle_group:
+        stmt = stmt.where(ParkingSession.vehicle_group == vehicle_group)
+    if entry_from is not None:
+        stmt = stmt.where(ParkingSession.entry_time >= entry_from)
+    if entry_to is not None:
+        stmt = stmt.where(ParkingSession.entry_time < entry_to)
+    if match_flag:
+        stmt = stmt.where(ParkingSession.match_flag == match_flag)
+    total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
     rows = db.scalars(stmt.order_by(ParkingSession.id.desc()).limit(limit).offset(offset)).all()
     return SessionListResponse(total=total, items=[_session_out(s) for s in rows])
 
