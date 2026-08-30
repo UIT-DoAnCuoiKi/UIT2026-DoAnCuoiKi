@@ -8,9 +8,9 @@ from app.clock import now_utc
 from app.config import settings
 from app.db import get_db
 from app.deps import get_current_user
-from app.models import ImageAsset, ParkingSession, Payment, PlateReading, User, Zone
+from app.models import ImageAsset, ParkingLot, ParkingSession, Payment, PlateReading, User, Zone
 from app.schemas.session import (
-    EntryRequest, ExitRequest, ExitResult, LostTicketRequest, ManualRequest, ReadingBrief, ResolveRequest,
+    EntryRequest, ExitRequest, ExitResult, LostTicketRequest, ManualRequest, PaymentBrief, ReadingBrief, ResolveRequest,
     SessionBrief, SessionDetail, SessionListItem, SessionListResponse, SessionOut,
 )
 from app.security import crypto
@@ -368,9 +368,40 @@ def session_detail(session_id: int, db: Session = Depends(get_db), user: User = 
     if s is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "không tìm thấy session")
     base = _session_out(s)
+    pay_rows = list(db.scalars(
+        select(Payment).where(Payment.session_id == s.id).order_by(Payment.paid_at)
+    ).all())
+    staff_ids = {p.staff_id for p in pay_rows}
+    for uid in (s.created_by, s.closed_by):
+        if uid:
+            staff_ids.add(uid)
+    names: dict[int, str] = {}
+    if staff_ids:
+        names = dict(db.execute(select(User.id, User.username).where(User.id.in_(staff_ids))).all())
+    payments = [
+        PaymentBrief(
+            id=p.id, amount=p.amount, method=p.method, kind=p.kind, note=p.note,
+            staff_name=names.get(p.staff_id), paid_at=p.paid_at,
+        )
+        for p in pay_rows
+    ]
+    lot_name = None
+    if s.lot_id:
+        lot = db.get(ParkingLot, s.lot_id)
+        lot_name = lot.name if lot else None
+    zone_name = None
+    if s.zone_id:
+        zone = db.get(Zone, s.zone_id)
+        zone_name = zone.name if zone else None
     return SessionDetail(
         **base.model_dump(),
         vehicle_type=s.vehicle_type,
         entry_reading=_reading_brief(db, s.entry_reading_id),
         exit_reading=_reading_brief(db, s.exit_reading_id),
+        created_by_name=names.get(s.created_by),
+        closed_by_name=names.get(s.closed_by),
+        lot_name=lot_name,
+        zone_name=zone_name,
+        fee_rule_snapshot=s.fee_rule_snapshot,
+        payments=payments,
     )

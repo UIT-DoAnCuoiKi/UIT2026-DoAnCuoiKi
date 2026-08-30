@@ -98,3 +98,29 @@ def test_list_item_has_type_staff_method(client, db_session, staff_headers, make
     assert item["vehicle_type"] == "o_to_con"
     assert item["closed_by_name"] == "closer"
     assert item["payment_method"] == "cash"
+
+
+def test_detail_returns_payments_names_snapshot(client, db_session, staff_headers, make_user):
+    from app.clock import now_utc
+    from app.models import Payment
+    creator = make_user(username="creator", role="staff")
+    closer = make_user(username="closer2", role="staff")
+    s = ParkingSession(
+        plate_hash=plate.plate_hash("51F-700.00"),
+        plate_ciphertext=crypto.encrypt_text("51F-700.00"),
+        vehicle_group="o_to_con", status="completed",
+        created_by=creator.id, closed_by=closer.id,
+        fee_rule_snapshot={"mode": "flat", "unit_price": 5000},
+    )
+    db_session.add(s); db_session.commit(); db_session.refresh(s)
+    db_session.add(Payment(session_id=s.id, amount=5000, method="qr", kind="payment",
+                           staff_id=closer.id, paid_at=now_utc()))
+    db_session.commit()
+    r = client.get(f"/sessions/{s.id}", headers=staff_headers)
+    body = r.json()
+    assert body["created_by_name"] == "creator"
+    assert body["closed_by_name"] == "closer2"
+    assert body["fee_rule_snapshot"]["unit_price"] == 5000
+    assert len(body["payments"]) == 1
+    assert body["payments"][0]["method"] == "qr"
+    assert body["payments"][0]["staff_name"] == "closer2"

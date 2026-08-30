@@ -68,10 +68,26 @@ class ReadingBrief(BaseModel):
     image_asset_id: int | None = None
 
 
+class PaymentBrief(BaseModel):
+    id: int
+    amount: int
+    method: str
+    kind: str
+    note: str | None = None
+    staff_name: str | None = None
+    paid_at: datetime
+
+
 class SessionDetail(SessionOut):
     vehicle_type: str | None = None
     entry_reading: ReadingBrief | None = None
     exit_reading: ReadingBrief | None = None
+    created_by_name: str | None = None
+    closed_by_name: str | None = None
+    lot_name: str | None = None
+    zone_name: str | None = None
+    fee_rule_snapshot: dict | None = None
+    payments: list[PaymentBrief] = []
 
 
 class SessionListItem(SessionOut):
