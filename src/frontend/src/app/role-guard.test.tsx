@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { RequireRole } from "./role-guard";
-import { saveToken, clearToken } from "@/lib/auth";
+import { saveToken, clearToken, getToken } from "@/lib/auth";
 
 function jwt(role: string) {
   const b64 = (o: object) =>
@@ -50,4 +50,12 @@ test("root allowed", () => {
   saveToken(jwt("root"));
   render(tree("/config"));
   expect(screen.getByText("CONFIG")).toBeInTheDocument();
+});
+
+test("invalid role clears token and redirects to login", () => {
+  clearToken();
+  saveToken(jwt("admin")); // role cũ không hợp lệ
+  render(tree("/config"));
+  expect(screen.getByText("LOGIN")).toBeInTheDocument();
+  expect(getToken()).toBeNull();
 });
