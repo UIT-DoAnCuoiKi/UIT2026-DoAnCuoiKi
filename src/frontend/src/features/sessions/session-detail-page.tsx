@@ -56,6 +56,10 @@ export function SessionDetailPage() {
           <Field label="Phí">{formatVnd(data.fee_amount)}</Field>
           <Field label="Khớp">{data.match_flag ?? "—"}</Field>
           <Field label="Cảnh báo">{data.warning ?? "—"}</Field>
+          <Field label="Nhân viên vào">{data.created_by_name ?? "—"}</Field>
+          <Field label="Nhân viên ra">{data.closed_by_name ?? "—"}</Field>
+          <Field label="Bãi">{data.lot_name ?? "—"}</Field>
+          <Field label="Khu">{data.zone_name ?? "—"}</Field>
         </dl>
       </SurfaceCard>
 
@@ -75,6 +79,50 @@ export function SessionDetailPage() {
           <Evidence imageId={data.exit_reading?.image_asset_id} />
         </SurfaceCard>
       </div>
+
+      <SurfaceCard variant="white" className="space-y-2">
+        <p className="text-sm font-semibold">Thanh toán</p>
+        {data.payments && data.payments.length > 0 ? (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-muted">
+                <th className="py-1">Số tiền</th>
+                <th>Phương thức</th>
+                <th>Loại</th>
+                <th>Nhân viên</th>
+                <th>Giờ</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.payments.map((p) => (
+                <tr key={p.id} className="tnum">
+                  <td className="py-1">{formatVnd(p.amount)}</td>
+                  <td>{p.method}</td>
+                  <td>{p.kind}</td>
+                  <td>{p.staff_name ?? "—"}</td>
+                  <td>{formatDateTime(p.paid_at)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="text-sm text-muted">Chưa có thanh toán</p>
+        )}
+      </SurfaceCard>
+
+      {data.fee_rule_snapshot && (
+        <SurfaceCard variant="white" className="space-y-1">
+          <p className="text-sm font-semibold">Cách tính phí</p>
+          <dl className="grid grid-cols-2 gap-2 text-sm md:grid-cols-3">
+            {Object.entries(data.fee_rule_snapshot).map(([k, v]) => (
+              <div key={k}>
+                <dt className="text-[13px] text-muted">{k}</dt>
+                <dd className="tnum">{String(v)}</dd>
+              </div>
+            ))}
+          </dl>
+        </SurfaceCard>
+      )}
 
       <p className="text-[13px] text-muted">
         Việc truy cập ảnh bằng chứng được hệ thống ghi lại (audit). Dữ liệu tự xóa sau 30 ngày kể từ khi
