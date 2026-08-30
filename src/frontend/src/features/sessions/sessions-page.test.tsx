@@ -25,6 +25,9 @@ vi.mock("@/api/generated/sessions/sessions", () => ({
             exit_time: "2026-08-23T09:00:00Z",
             fee_amount: 15000,
             match_flag: "exact",
+            vehicle_type: "o_to_con",
+            closed_by_name: "closer",
+            payment_method: "cash",
           },
         ],
       },
@@ -75,4 +78,15 @@ test("same-day entry range produces a non-empty window", () => {
   expect(lastParams.entry_from).not.toBeNull();
   expect(lastParams.entry_to).not.toBeNull();
   expect(new Date(lastParams.entry_from).getTime()).toBeLessThan(new Date(lastParams.entry_to).getTime());
+});
+
+test("renders vehicle_type, staff, payment method columns", () => {
+  render(
+    <MemoryRouter>
+      <SessionsPage />
+    </MemoryRouter>,
+  );
+  expect(screen.getByText("o_to_con")).toBeInTheDocument();
+  expect(screen.getByText("closer")).toBeInTheDocument();
+  expect(screen.getByText("cash")).toBeInTheDocument();
 });

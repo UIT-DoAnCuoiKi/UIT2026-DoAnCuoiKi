@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import type { ColumnDef } from "@tanstack/react-table";
-import type { SessionOut } from "@/api/generated/model";
+import type { SessionListItem } from "@/api/generated/model";
 import { StatusChip } from "@/components/status-chip";
 import { formatPlate, formatVnd, formatDateTime, formatDuration } from "@/lib/format";
 import { useVehicleGroupMap, groupLabel } from "@/lib/vehicle-groups";
@@ -10,7 +10,7 @@ function GroupCell({ code }: { code?: string | null }) {
   return <>{groupLabel(map, code)}</>;
 }
 
-export const sessionColumns: ColumnDef<SessionOut, unknown>[] = [
+export const sessionColumns: ColumnDef<SessionListItem, unknown>[] = [
   {
     header: "Biển số",
     accessorKey: "plate_text",
@@ -35,6 +35,9 @@ export const sessionColumns: ColumnDef<SessionOut, unknown>[] = [
     header: "Phí",
     cell: ({ row }) => <span className="tnum">{formatVnd(row.original.fee_amount)}</span>,
   },
+  { header: "Loại xe", cell: ({ row }) => row.original.vehicle_type ?? "—" },
+  { header: "Nhân viên", cell: ({ row }) => row.original.closed_by_name ?? "—" },
+  { header: "Phương thức", cell: ({ row }) => row.original.payment_method ?? "—" },
   {
     header: "Trạng thái",
     cell: ({ row }) => <StatusChip kind="session" value={row.original.status} />,
