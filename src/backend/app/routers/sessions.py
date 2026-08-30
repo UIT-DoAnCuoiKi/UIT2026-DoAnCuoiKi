@@ -8,10 +8,10 @@ from app.clock import now_utc
 from app.config import settings
 from app.db import get_db
 from app.deps import get_current_user
-from app.models import ImageAsset, ParkingSession, PlateReading, User, Zone
+from app.models import ImageAsset, ParkingSession, Payment, PlateReading, User, Zone
 from app.schemas.session import (
     EntryRequest, ExitRequest, ExitResult, LostTicketRequest, ManualRequest, ReadingBrief, ResolveRequest,
-    SessionBrief, SessionDetail, SessionListResponse, SessionOut,
+    SessionBrief, SessionDetail, SessionListItem, SessionListResponse, SessionOut,
 )
 from app.security import crypto
 from app.security.plate import normalize_plate, plate_hash
@@ -291,6 +291,33 @@ def overstay(hours: int = Query(24, ge=1), db: Session = Depends(get_db), user: 
     return [_session_out(s) for s in rows]
 
 
+def _list_items(db: Session, rows: list[ParkingSession]) -> list[SessionListItem]:
+    staff_ids = {s.closed_by for s in rows if s.closed_by}
+    names: dict[int, str] = {}
+    if staff_ids:
+        names = dict(db.execute(select(User.id, User.username).where(User.id.in_(staff_ids))).all())
+    session_ids = [s.id for s in rows]
+    methods: dict[int, str] = {}
+    if session_ids:
+        pay_rows = db.execute(
+            select(Payment.session_id, Payment.method)
+            .where(Payment.session_id.in_(session_ids), Payment.kind == "payment")
+            .order_by(Payment.paid_at)
+        ).all()
+        for sid, method in pay_rows:
+            methods[sid] = method  # order_by paid_at asc: bản ghi cuối = mới nhất
+    items: list[SessionListItem] = []
+    for s in rows:
+        base = _session_out(s)
+        items.append(SessionListItem(
+            **base.model_dump(),
+            vehicle_type=s.vehicle_type,
+            closed_by_name=names.get(s.closed_by),
+            payment_method=methods.get(s.id),
+        ))
+    return items
+
+
 @router.get("", response_model=SessionListResponse)
 def list_sessions(
     plate: str | None = Query(None),
@@ -318,8 +345,8 @@ def list_sessions(
     if match_flag:
         stmt = stmt.where(ParkingSession.match_flag == match_flag)
     total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
-    rows = db.scalars(stmt.order_by(ParkingSession.id.desc()).limit(limit).offset(offset)).all()
-    return SessionListResponse(total=total, items=[_session_out(s) for s in rows])
+    rows = list(db.scalars(stmt.order_by(ParkingSession.id.desc()).limit(limit).offset(offset)).all())
+    return SessionListResponse(total=total, items=_list_items(db, rows))
 
 
 def _reading_brief(db: Session, reading_id: int | None) -> ReadingBrief | None:

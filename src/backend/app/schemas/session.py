@@ -74,6 +74,12 @@ class SessionDetail(SessionOut):
     exit_reading: ReadingBrief | None = None
 
 
+class SessionListItem(SessionOut):
+    vehicle_type: str | None = None
+    closed_by_name: str | None = None
+    payment_method: str | None = None
+
+
 class SessionListResponse(BaseModel):
     total: int
-    items: list[SessionOut]
+    items: list[SessionListItem]

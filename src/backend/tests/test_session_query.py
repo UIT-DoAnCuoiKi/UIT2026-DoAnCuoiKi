@@ -77,3 +77,24 @@ def test_list_filters_by_match_flag(client, db_session, staff_headers):
     body = r.json()
     assert body["total"] == 1
     assert body["items"][0]["match_flag"] == "manual"
+
+
+def test_list_item_has_type_staff_method(client, db_session, staff_headers, make_user):
+    from app.clock import now_utc
+    from app.models import Payment
+    closer = make_user(username="closer", role="staff")
+    s = ParkingSession(
+        plate_hash=plate.plate_hash("51F-900.00"),
+        plate_ciphertext=crypto.encrypt_text("51F-900.00"),
+        vehicle_group="o_to_con", vehicle_type="o_to_con",
+        status="completed", closed_by=closer.id,
+    )
+    db_session.add(s); db_session.commit(); db_session.refresh(s)
+    db_session.add(Payment(session_id=s.id, amount=5000, method="cash", kind="payment",
+                           staff_id=closer.id, paid_at=now_utc()))
+    db_session.commit()
+    r = client.get("/sessions", headers=staff_headers)
+    item = next(i for i in r.json()["items"] if i["id"] == s.id)
+    assert item["vehicle_type"] == "o_to_con"
+    assert item["closed_by_name"] == "closer"
+    assert item["payment_method"] == "cash"
