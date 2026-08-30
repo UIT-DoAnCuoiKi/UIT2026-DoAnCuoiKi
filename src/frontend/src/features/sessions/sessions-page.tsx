@@ -6,21 +6,41 @@ import { sessionColumns } from "./sessions-columns";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { SurfaceCard } from "@/components/surface-card";
+import { useVehicleGroupMap } from "@/lib/vehicle-groups";
 
 const PAGE = 20;
 const STATUSES = ["", "in_lot", "completed", "disputed", "pending_manual"];
+const MATCH_FLAGS = ["", "exact", "auto_corrected", "manual", "lost_ticket"];
+const SELECT_CLASS =
+  "h-9 rounded-[var(--radius-control)] border border-line bg-bg px-2 text-sm";
 
 export function SessionsPage() {
   const [plate, setPlate] = useState("");
   const [status, setStatus] = useState("");
+  const [group, setGroup] = useState("");
+  const [matchFlag, setMatchFlag] = useState("");
+  const [entryFrom, setEntryFrom] = useState("");
+  const [entryTo, setEntryTo] = useState("");
   const [offset, setOffset] = useState(0);
+  const groupMap = useVehicleGroupMap();
 
   const params: ListSessionsParams = useMemo(
-    () => ({ plate: plate || null, status: status || null, limit: PAGE, offset }),
-    [plate, status, offset],
+    () => ({
+      plate: plate || null,
+      status: status || null,
+      vehicle_group: group || null,
+      match_flag: matchFlag || null,
+      entry_from: entryFrom ? new Date(entryFrom).toISOString() : null,
+      entry_to: entryTo ? new Date(entryTo).toISOString() : null,
+      limit: PAGE,
+      offset,
+    }),
+    [plate, status, group, matchFlag, entryFrom, entryTo, offset],
   );
   const { data, isLoading } = useListSessions(params);
   const total = data?.total ?? 0;
+
+  const reset = () => setOffset(0);
 
   return (
     <div className="space-y-4">
@@ -31,16 +51,16 @@ export function SessionsPage() {
           value={plate}
           onChange={(e) => {
             setPlate(e.target.value);
-            setOffset(0);
+            reset();
           }}
           aria-label="Tra biển số"
         />
         <select
-          className="h-9 rounded-[var(--radius-control)] border border-line bg-bg px-2 text-sm"
+          className={SELECT_CLASS}
           value={status}
           onChange={(e) => {
             setStatus(e.target.value);
-            setOffset(0);
+            reset();
           }}
           aria-label="Lọc trạng thái"
         >
@@ -50,6 +70,57 @@ export function SessionsPage() {
             </option>
           ))}
         </select>
+        <select
+          className={SELECT_CLASS}
+          value={group}
+          onChange={(e) => {
+            setGroup(e.target.value);
+            reset();
+          }}
+          aria-label="Lọc nhóm xe"
+        >
+          <option value="">Tất cả nhóm xe</option>
+          {Object.entries(groupMap).map(([code, name]) => (
+            <option key={code} value={code}>
+              {name}
+            </option>
+          ))}
+        </select>
+        <select
+          className={SELECT_CLASS}
+          value={matchFlag}
+          onChange={(e) => {
+            setMatchFlag(e.target.value);
+            reset();
+          }}
+          aria-label="Lọc cách khớp"
+        >
+          {MATCH_FLAGS.map((m) => (
+            <option key={m} value={m}>
+              {m || "Tất cả cách khớp"}
+            </option>
+          ))}
+        </select>
+        <input
+          type="date"
+          className={SELECT_CLASS}
+          value={entryFrom}
+          onChange={(e) => {
+            setEntryFrom(e.target.value);
+            reset();
+          }}
+          aria-label="Giờ vào từ"
+        />
+        <input
+          type="date"
+          className={SELECT_CLASS}
+          value={entryTo}
+          onChange={(e) => {
+            setEntryTo(e.target.value);
+            reset();
+          }}
+          aria-label="Giờ vào đến"
+        />
       </div>
       <SurfaceCard variant="white">
         <DataTable
