@@ -1,11 +1,28 @@
+# Edge worker chạy model thật. Build context = repo root (compose.yaml đặt sẵn:
+# context ., dockerfile src/edge/Containerfile) để copy được cả src/ml lẫn src/edge.
 FROM python:3.11-slim
 
 WORKDIR /app
 
-RUN pip install --no-cache-dir httpx
+# libGL + glib: opencv-python (ultralytics kéo theo) cần khi runtime.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libgl1 libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY src/backend/scripts/simulate_edge.py ./simulate_edge.py
+# Phụ thuộc suy luận (ultralytics->torch/torchvision/opencv/numpy, onnxruntime,
+# scikit-learn, pandas) + httpx cho POST.
+COPY src/backend/requirements-ml.txt ./requirements-ml.txt
+RUN pip install --no-cache-dir -r requirements-ml.txt httpx
 
-# MVP dùng simulator. Trên Pi với pipeline thật: cài thêm requirements src/ml,
-# copy src/ml cộng worker thật, và đổi CMD sang worker đó.
-CMD ["python", "simulate_edge.py", "--images", "/images", "--backend", "http://backend:8000", "--direction", "in", "--edge-key", "edge-dev-key"]
+# Runner dùng chung (src/ml) + worker. src/ml chứa cả code lẫn weights (.pt/.onnx).
+COPY src/ml ./src/ml
+COPY src/edge/worker.py ./src/edge/worker.py
+
+# Cấu hình qua env (.env / compose): EDGE_BACKEND, EDGE_API_KEY, EDGE_DIRECTION,
+# EDGE_LANE, EDGE_CAMERA, EDGE_TRIGGER, EDGE_GPIO_PIN. Mặc định --trigger key,
+# --camera 0; trên Pi truyền --device /dev/video0 và EDGE_TRIGGER=gpio.
+CMD ["python", "src/edge/worker.py"]
+
+# Ghi chú lùi: Pi arm64 nạp torch/ultralytics nặng. Nếu container quá tải, chạy
+# worker trực tiếp trên host Pi (python3 src/edge/worker.py ...), backend/db vẫn
+# để trong container. Simulator không model vẫn ở src/backend/scripts/simulate_edge.py.
