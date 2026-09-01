@@ -196,12 +196,21 @@ def manual_session(body: ManualRequest, db: Session = Depends(get_db), user: Use
     if body.action == "entry":
         if not body.plate_text or not body.vehicle_group:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "nhập tay cần plate_text và vehicle_group")
+        # Bắt buộc phải có ảnh đã nhận dạng biển số mới cho vào bãi: entry nhập tay
+        # phải gắn với một reading có plate_hash (biển detect được từ ảnh).
+        if body.reading_id is None:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "nhập tay VÀO cần ảnh đã nhận dạng biển số")
+        reading = db.get(PlateReading, body.reading_id)
+        if reading is None or not reading.plate_hash:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "nhập tay VÀO cần ảnh đã nhận dạng biển số")
         session = ParkingSession(
             plate_hash=plate_hash(body.plate_text),
             plate_ciphertext=crypto.encrypt_text(body.plate_text),
             vehicle_group=body.vehicle_group,
+            vehicle_type=reading.vehicle_type,
             status="in_lot",
             entry_time=now_utc(),
+            entry_reading_id=reading.id,
             match_flag="manual",
             created_by=user.id,
         )

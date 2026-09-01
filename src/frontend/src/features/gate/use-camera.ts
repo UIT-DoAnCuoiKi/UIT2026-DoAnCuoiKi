@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export type CameraDevice = { deviceId: string; label: string };
+export type CameraStatus = "idle" | "requesting" | "streaming" | "denied" | "no-device" | "error";
 
 export function useCamera() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -8,6 +9,7 @@ export function useCamera() {
   const [devices, setDevices] = useState<CameraDevice[]>([]);
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<CameraStatus>("idle");
 
   const listDevices = useCallback(async () => {
     try {
@@ -17,12 +19,15 @@ export function useCamera() {
         .map((d) => ({ deviceId: d.deviceId, label: d.label || "Camera" }));
       setDevices(cams);
       setDeviceId((prev) => prev ?? (cams[0]?.deviceId ?? null));
+      setStatus((prev) => (cams.length === 0 ? "no-device" : prev === "streaming" ? prev : "idle"));
     } catch {
       setError("Không liệt kê được camera");
+      setStatus("error");
     }
   }, []);
 
-  const start = useCallback(async (id?: string) => {
+  const start = useCallback(async (id?: string): Promise<boolean> => {
+    setStatus("requesting");
     try {
       const constraints: MediaStreamConstraints = {
         video: id ? { deviceId: { exact: id } } : true,
@@ -32,10 +37,21 @@ export function useCamera() {
       streamRef.current = stream;
       if (videoRef.current) videoRef.current.srcObject = stream;
       setError(null);
-    } catch {
+      setStatus("streaming");
+      return true;
+    } catch (e) {
+      const name = (e as { name?: string })?.name;
+      const denied = name === "NotAllowedError" || name === "SecurityError";
       setError("Không mở được camera (kiểm tra quyền hoặc thiết bị)");
+      setStatus(denied ? "denied" : "error");
+      return false;
     }
   }, []);
+
+  const requestPermission = useCallback(async () => {
+    const ok = await start();
+    if (ok) await listDevices();
+  }, [start, listDevices]);
 
   const capture = useCallback(async (): Promise<Blob | null> => {
     const video = videoRef.current;
@@ -55,5 +71,5 @@ export function useCamera() {
     };
   }, []);
 
-  return { videoRef, devices, deviceId, setDeviceId, listDevices, start, capture, error };
+  return { videoRef, devices, deviceId, setDeviceId, listDevices, start, requestPermission, capture, error, status };
 }

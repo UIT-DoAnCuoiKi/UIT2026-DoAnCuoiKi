@@ -18,6 +18,7 @@ class ManualRequest(BaseModel):
     plate_text: str | None = None
     vehicle_group: str | None = None
     session_id: int | None = None
+    reading_id: int | None = None  # entry: bắt buộc, phải là reading có biển đã nhận dạng từ ảnh
 
 
 class ResolveRequest(BaseModel):

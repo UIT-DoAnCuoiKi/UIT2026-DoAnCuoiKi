@@ -7,9 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { SurfaceCard } from "@/components/surface-card";
 import { useVehicleGroupMap } from "@/lib/vehicle-groups";
+import { matchFlagLabel } from "@/lib/labels";
 
 const PAGE = 20;
 const STATUSES = ["", "in_lot", "completed", "disputed", "pending_manual"];
+const STATUS_LABEL: Record<string, string> = {
+  in_lot: "Trong bãi",
+  completed: "Hoàn tất",
+  disputed: "Tranh chấp",
+  pending_manual: "Chờ xử lý tay",
+};
 const MATCH_FLAGS = ["", "exact", "auto_corrected", "manual", "lost_ticket"];
 const SELECT_CLASS =
   "h-9 rounded-[var(--radius-control)] border border-line bg-bg px-2 text-sm";
@@ -66,7 +73,7 @@ export function SessionsPage() {
         >
           {STATUSES.map((s) => (
             <option key={s} value={s}>
-              {s || "Tất cả trạng thái"}
+              {s ? STATUS_LABEL[s] ?? s : "Tất cả trạng thái"}
             </option>
           ))}
         </select>
@@ -97,7 +104,7 @@ export function SessionsPage() {
         >
           {MATCH_FLAGS.map((m) => (
             <option key={m} value={m}>
-              {m || "Tất cả cách khớp"}
+              {m ? matchFlagLabel(m) : "Tất cả cách khớp"}
             </option>
           ))}
         </select>

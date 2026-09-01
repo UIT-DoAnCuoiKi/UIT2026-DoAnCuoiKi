@@ -20,7 +20,7 @@ class PlateReading(Base):
 
     det_conf: Mapped[float | None] = mapped_column(Float, nullable=True)
     ocr_conf: Mapped[float | None] = mapped_column(Float, nullable=True)
-    layout: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    layout: Mapped[str | None] = mapped_column(String(16), nullable=True)
     color: Mapped[str | None] = mapped_column(String(16), nullable=True)
     color_conf: Mapped[float | None] = mapped_column(Float, nullable=True)
     vehicle_type: Mapped[str | None] = mapped_column(String(16), nullable=True)

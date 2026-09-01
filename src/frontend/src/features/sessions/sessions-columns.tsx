@@ -4,6 +4,7 @@ import type { SessionListItem } from "@/api/generated/model";
 import { StatusChip } from "@/components/status-chip";
 import { formatPlate, formatVnd, formatDateTime, formatDuration } from "@/lib/format";
 import { useVehicleGroupMap, groupLabel } from "@/lib/vehicle-groups";
+import { vehicleTypeLabel, matchFlagLabel, paymentMethodLabel } from "@/lib/labels";
 
 function GroupCell({ code }: { code?: string | null }) {
   const map = useVehicleGroupMap();
@@ -35,12 +36,12 @@ export const sessionColumns: ColumnDef<SessionListItem, unknown>[] = [
     header: "Phí",
     cell: ({ row }) => <span className="tnum">{formatVnd(row.original.fee_amount)}</span>,
   },
-  { header: "Loại xe", cell: ({ row }) => row.original.vehicle_type ?? "—" },
+  { header: "Loại xe", cell: ({ row }) => vehicleTypeLabel(row.original.vehicle_type) },
   { header: "Nhân viên", cell: ({ row }) => row.original.closed_by_name ?? "—" },
-  { header: "Phương thức", cell: ({ row }) => row.original.payment_method ?? "—" },
+  { header: "Phương thức", cell: ({ row }) => paymentMethodLabel(row.original.payment_method) },
   {
     header: "Trạng thái",
     cell: ({ row }) => <StatusChip kind="session" value={row.original.status} />,
   },
-  { header: "Khớp", cell: ({ row }) => row.original.match_flag ?? "—" },
+  { header: "Khớp", cell: ({ row }) => matchFlagLabel(row.original.match_flag) },
 ];

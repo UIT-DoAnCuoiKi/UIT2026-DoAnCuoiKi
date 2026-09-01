@@ -9,9 +9,27 @@ def _seed_price(db):
     db.commit()
 
 
+def _seed_reading(db, capture_id, *, plate_text="59X1-234.56", detected=True):
+    reading = PlateReading(
+        capture_id=capture_id,
+        direction="in",
+        plate_text_ciphertext=crypto.encrypt_text(plate_text) if detected else None,
+        plate_hash=plate.plate_hash(plate_text) if detected else None,
+        review_state="manual",
+        vehicle_type="motorbike",
+    )
+    db.add(reading); db.commit(); db.refresh(reading)
+    return reading
+
+
 def test_manual_entry_then_exit(client, db_session, staff_headers):
     _seed_price(db_session)
-    r = client.post("/sessions/manual", json={"action": "entry", "plate_text": "59X1-234.56", "vehicle_group": "xe_may"}, headers=staff_headers)
+    reading = _seed_reading(db_session, "manual-in-1")
+    r = client.post(
+        "/sessions/manual",
+        json={"action": "entry", "plate_text": "59X1-234.56", "vehicle_group": "xe_may", "reading_id": reading.id},
+        headers=staff_headers,
+    )
     assert r.status_code == 200
     sid = r.json()["id"]
     assert r.json()["status"] == "in_lot"
@@ -20,6 +38,25 @@ def test_manual_entry_then_exit(client, db_session, staff_headers):
     r2 = client.post("/sessions/manual", json={"action": "exit", "session_id": sid}, headers=staff_headers)
     assert r2.json()["status"] == "completed"
     assert r2.json()["fee_amount"] == 3000
+
+
+def test_manual_entry_requires_reading_id(client, db_session, staff_headers):
+    r = client.post(
+        "/sessions/manual",
+        json={"action": "entry", "plate_text": "59X1-234.56", "vehicle_group": "xe_may"},
+        headers=staff_headers,
+    )
+    assert r.status_code == 422
+
+
+def test_manual_entry_rejects_reading_without_detected_plate(client, db_session, staff_headers):
+    reading = _seed_reading(db_session, "manual-in-2", detected=False)
+    r = client.post(
+        "/sessions/manual",
+        json={"action": "entry", "plate_text": "59X1-234.56", "vehicle_group": "xe_may", "reading_id": reading.id},
+        headers=staff_headers,
+    )
+    assert r.status_code == 422
 
 
 def test_patch_plate_updates_and_audits(client, db_session, staff_headers):

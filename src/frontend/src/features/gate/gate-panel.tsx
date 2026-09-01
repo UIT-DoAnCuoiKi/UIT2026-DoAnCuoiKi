@@ -1,26 +1,39 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CameraView } from "./camera-view";
-import { DecisionPanel } from "./decision-panel";
+import { DecisionPanel, type DecisionPanelHandle } from "./decision-panel";
 import { useCamera } from "./use-camera";
 import { postInfer } from "./infer-capture";
 import type { GateCapture } from "./use-gate-socket";
 import { SurfaceCard } from "@/components/surface-card";
 import { EmptyState } from "@/components/empty-state";
 
-export type GatePanelHandle = { capture: () => void; focusPlate: () => void };
+export type GatePanelHandle = {
+  capture: () => void;
+  focusPlate: () => void;
+  confirm: () => void;
+  manual: () => void;
+  cancel: () => void;
+  payMethod: (n: number) => void;
+};
 
 export const GatePanel = forwardRef<
   GatePanelHandle,
-  { direction: "in" | "out"; wsCapture: GateCapture | null; active: boolean; onActivate: () => void }
->(function GatePanel({ direction, wsCapture, active, onActivate }, ref) {
+  {
+    direction: "in" | "out";
+    wsCapture: GateCapture | null;
+    active: boolean;
+    onActivate: () => void;
+    onPayOpenChange?: (open: boolean) => void;
+  }
+>(function GatePanel({ direction, wsCapture, active, onActivate, onPayOpenChange }, ref) {
   const cam = useCamera();
   const [capture, setCapture] = useState<GateCapture | null>(null);
   const [busy, setBusy] = useState(false);
-  const plateAnchor = useRef<HTMLDivElement | null>(null);
+  const decisionRef = useRef<DecisionPanelHandle | null>(null);
 
   useEffect(() => {
-    cam.listDevices();
+    cam.requestPermission();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => {
@@ -51,24 +64,41 @@ export const GatePanel = forwardRef<
 
   useImperativeHandle(ref, () => ({
     capture: doCapture,
-    focusPlate: () => plateAnchor.current?.querySelector("input")?.focus(),
+    focusPlate: () => decisionRef.current?.focusPlate(),
+    confirm: () => decisionRef.current?.confirm(),
+    manual: () => decisionRef.current?.manual(),
+    cancel: () => decisionRef.current?.cancel(),
+    payMethod: (n) => decisionRef.current?.payMethod(n),
   }));
 
   return (
-    <div onClick={onActivate} className={active ? "rounded-[var(--radius-card)] ring-2 ring-ink" : ""}>
-      <SurfaceCard variant="white">
+    <div
+      onClick={onActivate}
+      className={active ? "h-full rounded-[var(--radius-card)] ring-2 ring-ink" : "h-full"}
+    >
+      <SurfaceCard variant="white" className="flex h-full flex-col">
         <h2 className="mb-2 text-sm font-semibold">{direction === "in" ? "Hướng VÀO" : "Hướng RA"}</h2>
         <CameraView
           videoRef={cam.videoRef}
           devices={cam.devices}
           deviceId={cam.deviceId}
+          status={cam.status}
           onSelectDevice={cam.setDeviceId}
           onCapture={doCapture}
+          onRequestPermission={cam.requestPermission}
+          onManual={() => decisionRef.current?.manual()}
           error={cam.error}
         />
-        <div ref={plateAnchor} className="mt-3">
+        <div className="mt-3 min-h-0 flex-1 overflow-auto">
           {capture ? (
-            <DecisionPanel capture={capture} direction={direction} onDone={() => setCapture(null)} />
+            <DecisionPanel
+              ref={decisionRef}
+              capture={capture}
+              direction={direction}
+              onDone={() => setCapture(null)}
+              onRecapture={doCapture}
+              onPayOpenChange={onPayOpenChange}
+            />
           ) : (
             <EmptyState title="Chưa có lượt chụp" hint="Bấm Chụp hoặc chờ sự kiện cổng" />
           )}

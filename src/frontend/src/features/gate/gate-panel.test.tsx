@@ -9,9 +9,11 @@ vi.mock("./use-camera", () => ({
     videoRef: { current: null },
     devices: [{ deviceId: "cam-a", label: "Cam A" }],
     deviceId: "cam-a",
+    status: "streaming",
     setDeviceId: vi.fn(),
     listDevices: vi.fn(),
     start: vi.fn(),
+    requestPermission: vi.fn(),
     capture: vi.fn().mockResolvedValue(new Blob(["x"], { type: "image/jpeg" })),
     error: null,
   }),
@@ -22,7 +24,9 @@ vi.mock("@/api/generated/sessions/sessions", () => ({
   useManualSession: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 vi.mock("@/api/generated/readings/readings", () => ({ usePatchPlate: () => ({ mutateAsync: vi.fn(), isPending: false }) }));
+vi.mock("@/api/generated/payments/payments", () => ({ useCreatePayment: () => ({ mutateAsync: vi.fn(), isPending: false }) }));
 vi.mock("@/api/generated/config/config", () => ({ useGetToggles: () => ({ data: { read_plate: true, plate_color: true, vehicle_class: true } }) }));
+vi.mock("@/api/generated/vehicle-groups/vehicle-groups", () => ({ useListVehicleGroups: () => ({ data: [] }) }));
 vi.mock("@/lib/vehicle-groups", () => ({ useVehicleGroupMap: () => ({}), groupLabel: (_m: unknown, c?: string | null) => c ?? "—" }));
 
 test("capturing runs infer then shows decision for the plate", async () => {

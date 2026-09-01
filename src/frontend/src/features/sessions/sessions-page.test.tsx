@@ -25,7 +25,7 @@ vi.mock("@/api/generated/sessions/sessions", () => ({
             exit_time: "2026-08-23T09:00:00Z",
             fee_amount: 15000,
             match_flag: "exact",
-            vehicle_type: "o_to_con",
+            vehicle_type: "car",
             closed_by_name: "closer",
             payment_method: "cash",
           },
@@ -43,7 +43,8 @@ test("renders a session row with plate and status", () => {
     </MemoryRouter>,
   );
   expect(screen.getByText("51F-123")).toBeInTheDocument();
-  expect(screen.getByText("Hoàn tất")).toBeInTheDocument();
+  // "Hoàn tất" xuất hiện cả ở chip trạng thái và mục lọc, nên khớp nhiều phần tử.
+  expect(screen.getAllByText("Hoàn tất").length).toBeGreaterThan(0);
 });
 
 test("renders vehicle group display_name in sessions table", () => {
@@ -86,7 +87,7 @@ test("renders vehicle_type, staff, payment method columns", () => {
       <SessionsPage />
     </MemoryRouter>,
   );
-  expect(screen.getByText("o_to_con")).toBeInTheDocument();
+  expect(screen.getByText("Ô tô")).toBeInTheDocument();
   expect(screen.getByText("closer")).toBeInTheDocument();
-  expect(screen.getByText("cash")).toBeInTheDocument();
+  expect(screen.getByText("Tiền mặt")).toBeInTheDocument();
 });

@@ -9,6 +9,7 @@ import { fetchImageObjectUrl } from "@/lib/image-blob";
 import { formatPlate, formatVnd, formatDateTime, formatDuration } from "@/lib/format";
 import { EmptyState } from "@/components/empty-state";
 import { useVehicleGroupMap, groupLabel } from "@/lib/vehicle-groups";
+import { vehicleTypeLabel, matchFlagLabel } from "@/lib/labels";
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -49,12 +50,12 @@ export function SessionDetailPage() {
       <SurfaceCard variant="white">
         <dl className="grid grid-cols-2 gap-4 md:grid-cols-3">
           <Field label="Nhóm xe">{groupLabel(groupMap, data.vehicle_group)}</Field>
-          <Field label="Loại xe">{data.vehicle_type ?? "—"}</Field>
+          <Field label="Loại xe">{vehicleTypeLabel(data.vehicle_type)}</Field>
           <Field label="Giờ vào">{formatDateTime(data.entry_time)}</Field>
           <Field label="Giờ ra">{formatDateTime(data.exit_time)}</Field>
           <Field label="Thời lượng">{formatDuration(data.entry_time, data.exit_time)}</Field>
           <Field label="Phí">{formatVnd(data.fee_amount)}</Field>
-          <Field label="Khớp">{data.match_flag ?? "—"}</Field>
+          <Field label="Khớp">{matchFlagLabel(data.match_flag)}</Field>
           <Field label="Cảnh báo">{data.warning ?? "—"}</Field>
           <Field label="Nhân viên vào">{data.created_by_name ?? "—"}</Field>
           <Field label="Nhân viên ra">{data.closed_by_name ?? "—"}</Field>

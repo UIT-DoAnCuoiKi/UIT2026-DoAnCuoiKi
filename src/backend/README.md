@@ -59,6 +59,21 @@ uvicorn app.main:app --port 8000
 
 Lưu ý: chạy `python -m scripts.seed_admin` (dạng module) từ `src/backend` để `import app` thấy package; không chạy `python scripts/seed_admin.py`.
 
+## Nhận diện thật bằng model đã train (INFERENCE_ENGINE=ml)
+
+Mặc định `INFERENCE_ENGINE=fake`: `POST /captures/infer` trả biển cứng `51F12345`, không cần model. Để chạy model thật ở `src/ml` (detector YOLO `.pt`, OCR CRNN `.onnx`, classifier kiểu dáng `.onnx` qua `app/services/ml_inference.py`):
+
+```sh
+# trong cùng venv chạy uvicorn, cài chồng phụ thuộc ML (kéo torch, ~torchvision, opencv)
+pip install -r requirements.txt -r requirements-ml.txt
+export INFERENCE_ENGINE=ml
+uvicorn app.main:app --port 8000
+```
+
+Đường dẫn model mặc định trỏ vào repo (`src/ml/weights`, output detector), suy ra từ vị trí `ml_inference.py`; ghi đè bằng `ML_PLATE_WEIGHTS`, `ML_OCR_ONNX`, `ML_STYLE_ONNX`, `ML_STYLE_CLASSES` nếu cần. Model nạp một lần lúc capture đầu (lười), lần đầu chậm vài giây.
+
+Giới hạn: chỉ dùng được ở đường chạy cục bộ (Cách 2). Đường Podman KHÔNG chạy được ML vì image backend (`Containerfile`) chỉ cài `requirements.txt` và không copy `src/ml` vào image. Muốn chạy ML trong container phải thêm `requirements-ml.txt`, copy `src/ml` cộng weights, và mở rộng build context.
+
 ## Biến môi trường
 
 | Biến | Mặc định | Ý nghĩa |
@@ -73,6 +88,7 @@ Lưu ý: chạy `python -m scripts.seed_admin` (dạng module) từ `src/backend
 | `EDGE_API_KEY` | edge-dev-key | khóa header `X-Edge-Key` cho `POST /captures` |
 | `ADMIN_USERNAME` | admin | tài khoản admin seed |
 | `ADMIN_PASSWORD` | rỗng | mật khẩu admin seed; rỗng thì bỏ qua seed |
+| `INFERENCE_ENGINE` | fake | `fake` trả biển cứng 51F12345; `ml` chạy model thật (xem mục trên) |
 
 Khóa nạp từ môi trường, không commit vào repo. `.env` bị gitignore.
 

@@ -10,10 +10,11 @@ const LS_KEY = "gate-layout-mode";
 const SHORTCUTS: { key: string; desc: string }[] = [
   { key: "1 / 2", desc: "Focus panel VÀO / RA" },
   { key: "Space", desc: "Chụp khung hình" },
-  { key: "Enter", desc: "Xác nhận VÀO/RA" },
+  { key: "Enter", desc: "Xác nhận VÀO/RA hoặc thu tiền" },
   { key: "E", desc: "Sửa biển" },
-  { key: "M", desc: "Nhập tay hoàn toàn" },
+  { key: "M", desc: "Nhập tay" },
   { key: "Esc", desc: "Hủy kết quả panel" },
+  { key: "1/2/3", desc: "Chọn phương thức khi thu tiền" },
   { key: "?", desc: "Bật/tắt bảng phím tắt" },
 ];
 
@@ -22,6 +23,7 @@ export function GatePage() {
   const [layout, setLayout] = useState<LayoutMode>(() => (localStorage.getItem(LS_KEY) as LayoutMode) || "split");
   const [active, setActive] = useState<"in" | "out">("in");
   const [showHelp, setShowHelp] = useState(false);
+  const [payOpen, setPayOpen] = useState<{ in: boolean; out: boolean }>({ in: false, out: false });
 
   const inRef = useRef<GatePanelHandle | null>(null);
   const outRef = useRef<GatePanelHandle | null>(null);
@@ -49,11 +51,29 @@ export function GatePage() {
         case "edit-plate":
           activeRef()?.focusPlate();
           break;
+        case "confirm":
+        case "dialog-confirm":
+          activeRef()?.confirm();
+          break;
+        case "manual":
+          activeRef()?.manual();
+          break;
+        case "cancel":
+        case "dialog-close":
+          activeRef()?.cancel();
+          break;
+        case "method-1":
+          activeRef()?.payMethod(1);
+          break;
+        case "method-2":
+          activeRef()?.payMethod(2);
+          break;
+        case "method-3":
+          activeRef()?.payMethod(3);
+          break;
         case "toggle-help":
           setShowHelp((v) => !v);
           break;
-        // confirm/manual/cancel: DecisionPanel trong panel tự nhận qua nút; phím
-        // Enter/M/Esc chuyển tới nút tương ứng nếu panel active đang focus.
         default:
           break;
       }
@@ -62,13 +82,13 @@ export function GatePage() {
     [active, layout],
   );
 
-  useGateShortcuts({ dialogOpen: false, onAction });
+  useGateShortcuts({ dialogOpen: payOpen[active], onAction });
 
   const showIn = layout === "split" || layout === "in";
   const showOut = layout === "split" || layout === "out";
 
   return (
-    <div className="space-y-[18px]">
+    <div className="flex h-full flex-col gap-[14px]">
       {degraded && (
         <div role="status" className="rounded-[var(--radius-control)] bg-tile-peri px-4 py-2 text-[13px] text-[#1c1c1c]">
           Mất kết nối realtime. Đang dùng chế độ dự phòng (polling).
@@ -90,7 +110,13 @@ export function GatePage() {
         </Button>
       </div>
 
-      <div className={layout === "split" ? "grid grid-cols-1 gap-[18px] lg:grid-cols-2" : "grid grid-cols-1 gap-[18px]"}>
+      <div
+        className={
+          layout === "split"
+            ? "grid min-h-0 flex-1 grid-cols-1 gap-[14px] lg:grid-cols-2"
+            : "grid min-h-0 flex-1 grid-cols-1 gap-[14px]"
+        }
+      >
         {showIn && (
           <GatePanel
             ref={inRef}
@@ -98,6 +124,7 @@ export function GatePage() {
             wsCapture={capturesByDirection.in}
             active={active === "in"}
             onActivate={() => setActive("in")}
+            onPayOpenChange={(open) => setPayOpen((p) => ({ ...p, in: open }))}
           />
         )}
         {showOut && (
@@ -107,6 +134,7 @@ export function GatePage() {
             wsCapture={capturesByDirection.out}
             active={active === "out"}
             onActivate={() => setActive("out")}
+            onPayOpenChange={(open) => setPayOpen((p) => ({ ...p, out: open }))}
           />
         )}
       </div>
