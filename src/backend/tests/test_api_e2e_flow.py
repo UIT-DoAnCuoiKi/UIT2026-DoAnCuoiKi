@@ -85,6 +85,32 @@ def test_gate_full_flow_edit_then_exit_and_pay(client, db_session, staff_headers
     assert d["payments"][0]["method"] == "cash"
 
 
+def test_patch_session_updates_type_and_color(client, staff_headers):
+    r_in = client.post(
+        "/captures/infer",
+        data={"capture_id": "e2e-patch", "direction": "in"},
+        files={"image": IMG},
+        headers=staff_headers,
+    )
+    assert r_in.status_code == 200, r_in.text
+    entry = client.post("/sessions/entry", json={"reading_id": r_in.json()["reading_id"]}, headers=staff_headers)
+    assert entry.status_code == 200, entry.text
+    sid = entry.json()["id"]
+
+    patch = client.patch(f"/sessions/{sid}", json={"vehicle_type": "bus", "color": "blue"}, headers=staff_headers)
+    assert patch.status_code == 200, patch.text
+    assert patch.json()["color"] == "blue"
+
+    d = client.get(f"/sessions/{sid}", headers=staff_headers).json()
+    assert d["vehicle_type"] == "bus"
+    assert d["color"] == "blue"
+
+
+def test_patch_session_not_found(client, staff_headers):
+    r = client.patch("/sessions/999999", json={"color": "blue"}, headers=staff_headers)
+    assert r.status_code == 404
+
+
 def test_gate_entry_manual_group_override_via_api(client, db_session, staff_headers):
     # Sửa tay nhóm phí ở màn VÀO: ghi đè suy luận từ loại xe.
     r_in = client.post(

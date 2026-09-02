@@ -54,6 +54,15 @@ test("resets a user's password inline", async () => {
   expect(updateUser).toHaveBeenCalledWith({ userId: 1, data: { password: "newpass1" } });
 });
 
+test("active user shows a status switch that can disable the account", async () => {
+  render(<UsersTab />);
+  // Tài khoản đang bật (không phải account đang đăng nhập trong test): hiện "Đang bật".
+  expect(screen.getByText("Đang bật")).toBeInTheDocument();
+  const sw = screen.getByRole("switch", { name: /Trạng thái tài khoản an/i });
+  await userEvent.click(sw);
+  expect(updateUser).toHaveBeenCalledWith({ userId: 1, data: { active: false } });
+});
+
 test("password show/hide toggles input type", async () => {
   render(<UsersTab />);
   const pw = screen.getByLabelText("Mật khẩu mới");

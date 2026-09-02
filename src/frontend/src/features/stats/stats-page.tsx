@@ -11,9 +11,32 @@ import { TrafficLineChart } from "@/components/charts/line-chart";
 import { RevenueBarChart } from "@/components/charts/bar-chart";
 import { GroupDonutChart } from "@/components/charts/donut-chart";
 
+// Ngày địa phương dạng YYYY-MM-DD cho input type=date (tránh lệch múi giờ của toISOString).
+function localDate(d: Date): string {
+  const off = d.getTimezoneOffset() * 60000;
+  return new Date(d.getTime() - off).toISOString().slice(0, 10);
+}
+
+type QuickRange = "1d" | "1w" | "1m";
+const QUICK_RANGES: { key: QuickRange; label: string; days: number }[] = [
+  { key: "1d", label: "1 ngày", days: 1 },
+  { key: "1w", label: "1 tuần", days: 7 },
+  { key: "1m", label: "1 tháng", days: 30 },
+];
+
 export function StatsPage() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [range, setRange] = useState<QuickRange | null>(null);
+
+  const applyQuickRange = (r: QuickRange, days: number) => {
+    const today = new Date();
+    const start = new Date();
+    start.setDate(today.getDate() - (days - 1));
+    setFrom(localDate(start));
+    setTo(localDate(today));
+    setRange(r);
+  };
   const { data, isLoading } = useGetStats(from || to ? { from: from || null, to: to || null } : undefined);
   const s = (data ?? {}) as { in_lot?: number; entries?: number; exits?: number; revenue?: number };
   const role = getRole();
@@ -29,13 +52,41 @@ export function StatsPage() {
   return (
     <div className="space-y-[18px]">
       <div className="flex flex-wrap items-end gap-2">
+        <div className="flex items-center gap-1.5" role="group" aria-label="Lọc nhanh theo khoảng thời gian">
+          {QUICK_RANGES.map((q) => (
+            <Button
+              key={q.key}
+              variant={range === q.key ? "default" : "outline"}
+              size="sm"
+              className="h-9"
+              aria-pressed={range === q.key}
+              onClick={() => applyQuickRange(q.key, q.days)}
+            >
+              {q.label}
+            </Button>
+          ))}
+        </div>
         <label className="text-[13px] text-muted">
           Từ
-          <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+          <Input
+            type="date"
+            value={from}
+            onChange={(e) => {
+              setFrom(e.target.value);
+              setRange(null);
+            }}
+          />
         </label>
         <label className="text-[13px] text-muted">
           Đến
-          <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+          <Input
+            type="date"
+            value={to}
+            onChange={(e) => {
+              setTo(e.target.value);
+              setRange(null);
+            }}
+          />
         </label>
         {isAdmin && (
           <Button className="ml-auto" onClick={() => downloadStatsCsv(from, to)}>

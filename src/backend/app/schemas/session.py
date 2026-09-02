@@ -39,6 +39,12 @@ class PlatePatch(BaseModel):
     color: str | None = None
 
 
+class SessionPatch(BaseModel):
+    """Nhân viên chỉnh loại xe / màu biển của một phiên đã ghi nhận."""
+    vehicle_type: str | None = None
+    color: str | None = None
+
+
 class SessionOut(BaseModel):
     id: int
     status: str

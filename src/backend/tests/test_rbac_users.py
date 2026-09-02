@@ -30,3 +30,14 @@ def test_admin_crud_and_lock(client, make_user):
     assert r.status_code == 200 and r.json()["active"] is False
 
     assert client.post("/auth/login", json={"username": "newstaff", "password": "pw2"}).status_code == 401
+
+
+def test_admin_cannot_self_disable(client, make_user):
+    make_user(username="admin1", password="pw", role="root")
+    h = {"Authorization": f"Bearer {_token(client, 'admin1', 'pw')}"}
+    me = next(u for u in client.get("/users", headers=h).json() if u["username"] == "admin1")
+
+    r = client.patch(f"/users/{me['id']}", json={"active": False}, headers=h)
+    assert r.status_code == 403
+    # Không bị tắt: vẫn đăng nhập được.
+    assert client.post("/auth/login", json={"username": "admin1", "password": "pw"}).status_code == 200

@@ -53,6 +53,8 @@ def update_user(user_id: int, body: UserUpdate, db: Session = Depends(get_db), a
     if user is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "không tìm thấy user")
     _assert_can_modify(admin, user)
+    if body.active is False and user.id == admin.id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "không thể tự vô hiệu hóa tài khoản đang đăng nhập")
     changed: list[str] = []
     if body.active is not None:
         user.active = body.active

@@ -7,6 +7,9 @@ vi.mock("@/lib/vehicle-groups", () => ({
   groupLabel: (map: Record<string, string>, code?: string | null) => (code ? map[code] ?? code : "—"),
 }));
 
+// Ảnh bằng chứng tự tải khi mở phiên: mock để không gọi mạng thật trong test.
+vi.mock("@/lib/image-blob", () => ({ fetchImageObjectUrl: vi.fn().mockResolvedValue("blob:mock") }));
+
 vi.mock("@/api/generated/sessions/sessions", () => ({
   useSessionDetail: () => ({
     data: {
@@ -32,6 +35,7 @@ vi.mock("@/api/generated/sessions/sessions", () => ({
     isLoading: false,
     refetch: vi.fn(),
   }),
+  useUpdateSession: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDisputeSession: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useResolveSession: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
@@ -44,7 +48,8 @@ test("shows staff, payments and vehicle group display_name", () => {
       </Routes>
     </MemoryRouter>,
   );
-  expect(screen.getByText("Xe máy")).toBeInTheDocument();
+  // "Xe máy" xuất hiện ở Field nhóm xe và trong option của select loại xe.
+  expect(screen.getAllByText("Xe máy").length).toBeGreaterThan(0);
   expect(screen.getByText("creator")).toBeInTheDocument();
   expect(screen.getByText("qr")).toBeInTheDocument();
 });

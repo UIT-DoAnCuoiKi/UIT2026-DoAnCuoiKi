@@ -1,6 +1,6 @@
 import { jwtDecode } from "jwt-decode";
 
-type Claims = { role?: string; exp?: number };
+type Claims = { sub?: string; role?: string; exp?: number };
 export type Role = "root" | "manager" | "staff";
 const KEY = "token";
 
@@ -29,6 +29,14 @@ function claims(): Claims | null {
 export function getRole(): Role | null {
   const r = claims()?.role;
   return r === "root" || r === "manager" || r === "staff" ? r : null;
+}
+
+// Id tài khoản đang đăng nhập (claim `sub`), dùng để khóa thao tác tự vô hiệu hóa.
+export function getUserId(): number | null {
+  const sub = claims()?.sub;
+  if (sub == null) return null;
+  const n = Number(sub);
+  return Number.isInteger(n) ? n : null;
 }
 
 export function isExpired(): boolean {

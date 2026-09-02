@@ -7,6 +7,7 @@ export type ShortcutAction =
   | "confirm"
   | "edit-plate"
   | "manual"
+  | "reset"
   | "cancel"
   | "toggle-help"
   | "method-1"
@@ -48,6 +49,9 @@ export function resolveShortcut(key: string, dialogOpen: boolean): ShortcutActio
     case "m":
     case "M":
       return "manual";
+    case "r":
+    case "R":
+      return "reset";
     case "Escape":
       return "cancel";
     case "?":

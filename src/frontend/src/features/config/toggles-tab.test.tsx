@@ -9,6 +9,11 @@ vi.mock("@/api/generated/config/config", () => ({
     isLoading: false,
   }),
   useUpdateToggles: () => ({ mutateAsync, isPending: false }),
+  getGetTogglesQueryKey: () => ["/feature-toggles"],
+}));
+vi.mock("@tanstack/react-query", async (orig) => ({
+  ...(await orig<typeof import("@tanstack/react-query")>()),
+  useQueryClient: () => ({ setQueryData: vi.fn(), getQueryData: vi.fn() }),
 }));
 
 test("toggling read_plate calls update with new value", async () => {

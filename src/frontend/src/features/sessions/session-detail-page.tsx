@@ -1,16 +1,18 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useParams } from "react-router-dom";
-import { useSessionDetail } from "@/api/generated/sessions/sessions";
+import { toast } from "sonner";
+import { useSessionDetail, useUpdateSession } from "@/api/generated/sessions/sessions";
 import { StatusChip } from "@/components/status-chip";
 import { SurfaceCard } from "@/components/surface-card";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { DisputePanel } from "./dispute-panel";
 import { fetchImageObjectUrl } from "@/lib/image-blob";
 import { formatPlate, formatVnd, formatDateTime, formatDuration } from "@/lib/format";
 import { EmptyState } from "@/components/empty-state";
 import { useVehicleGroupMap, groupLabel } from "@/lib/vehicle-groups";
-import { vehicleTypeLabel, matchFlagLabel } from "@/lib/labels";
-import { plateColor } from "@/features/gate/plate-color";
+import { vehicleTypeLabel, matchFlagLabel, VEHICLE_TYPE_OPTIONS } from "@/lib/labels";
+import { plateColor, PLATE_COLOR_OPTIONS } from "@/features/gate/plate-color";
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -21,16 +23,126 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
+// Ảnh bằng chứng hiện luôn khi mở phiên (không cần bấm). Mỗi lần tải vẫn được
+// backend ghi audit. Giữ chỗ bằng skeleton để tránh nhảy layout (CLS).
 function Evidence({ imageId }: { imageId?: number | null }) {
   const [url, setUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    if (!imageId) return;
+    let alive = true;
+    let objUrl: string | null = null;
+    setUrl(null);
+    setFailed(false);
+    fetchImageObjectUrl(imageId)
+      .then((u) => {
+        objUrl = u;
+        if (alive) setUrl(u);
+        else URL.revokeObjectURL(u);
+      })
+      .catch(() => {
+        if (alive) setFailed(true);
+      });
+    return () => {
+      alive = false;
+      if (objUrl) URL.revokeObjectURL(objUrl);
+    };
+  }, [imageId]);
+
   if (!imageId) return <span className="text-muted">Không có ảnh</span>;
-  if (!url)
+  if (failed)
     return (
-      <Button variant="outline" size="sm" onClick={async () => setUrl(await fetchImageObjectUrl(imageId))}>
-        Xem ảnh bằng chứng
-      </Button>
+      <div className="flex h-48 w-full items-center justify-center rounded-[var(--radius-control)] bg-faint text-[13px] text-muted">
+        Không tải được ảnh
+      </div>
     );
+  if (!url) return <Skeleton className="h-48 w-full" />;
   return <img src={url} alt="Ảnh bằng chứng" className="max-h-48 rounded-[var(--radius-control)]" />;
+}
+
+function EditClassification({
+  sessionId,
+  vehicleType,
+  color,
+  onSaved,
+}: {
+  sessionId: number;
+  vehicleType?: string | null;
+  color?: string | null;
+  onSaved: () => void;
+}) {
+  const update = useUpdateSession();
+  const [vType, setVType] = useState(vehicleType ?? "");
+  const [c, setC] = useState(color ?? "");
+  useEffect(() => setVType(vehicleType ?? ""), [vehicleType]);
+  useEffect(() => setC(color ?? ""), [color]);
+  const dirty = vType !== (vehicleType ?? "") || c !== (color ?? "");
+  const save = async () => {
+    if (!dirty || update.isPending) return;
+    try {
+      await update.mutateAsync({ sessionId, data: { vehicle_type: vType || null, color: c || null } });
+      toast.success("Đã cập nhật phân loại");
+      onSaved();
+    } catch {
+      toast.error("Cập nhật thất bại");
+    }
+  };
+  return (
+    <SurfaceCard variant="white" className="space-y-3">
+      <p className="text-sm font-semibold">Chỉnh phân loại</p>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div>
+          <label htmlFor="edit-vtype" className="mb-1 block text-[12px] text-muted">
+            Loại xe
+          </label>
+          <select
+            id="edit-vtype"
+            aria-label="Loại xe"
+            className="h-9 w-full rounded-[var(--radius-control)] border border-line bg-bg px-2 text-sm"
+            value={vType}
+            onChange={(e) => setVType(e.target.value)}
+          >
+            <option value="">—</option>
+            {VEHICLE_TYPE_OPTIONS.map((o) => (
+              <option key={o.code} value={o.code}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="edit-color" className="mb-1 block text-[12px] text-muted">
+            Màu biển
+          </label>
+          <div className="flex items-center gap-1.5">
+            <span
+              className="inline-block h-4 w-4 shrink-0 rounded-full border border-line"
+              style={{ background: plateColor(c)?.swatch ?? "transparent" }}
+            />
+            <select
+              id="edit-color"
+              aria-label="Màu biển"
+              className="h-9 w-full rounded-[var(--radius-control)] border border-line bg-bg px-2 text-sm"
+              value={c}
+              onChange={(e) => setC(e.target.value)}
+            >
+              <option value="">—</option>
+              {PLATE_COLOR_OPTIONS.map((o) => (
+                <option key={o.code} value={o.code}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+      <div className="flex justify-end">
+        <Button variant="outline" className="h-9" onClick={save} disabled={!dirty || update.isPending}>
+          {update.isPending ? "Đang lưu" : "Lưu phân loại"}
+        </Button>
+      </div>
+    </SurfaceCard>
+  );
 }
 
 export function SessionDetailPage() {
@@ -80,6 +192,13 @@ export function SessionDetailPage() {
           <Field label="Khu">{data.zone_name ?? "—"}</Field>
         </dl>
       </SurfaceCard>
+
+      <EditClassification
+        sessionId={sessionId}
+        vehicleType={data.vehicle_type}
+        color={data.color}
+        onSaved={() => refetch()}
+      />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <SurfaceCard variant="white" className="space-y-2">

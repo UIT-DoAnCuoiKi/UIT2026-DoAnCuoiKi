@@ -11,7 +11,7 @@ from app.deps import get_current_user
 from app.models import ImageAsset, ParkingLot, ParkingSession, Payment, PlateReading, User, Zone
 from app.schemas.session import (
     EntryRequest, ExitRequest, ExitResult, LostTicketRequest, ManualRequest, PaymentBrief, ReadingBrief, ResolveRequest,
-    SessionBrief, SessionDetail, SessionListItem, SessionListResponse, SessionOut,
+    SessionBrief, SessionDetail, SessionListItem, SessionListResponse, SessionOut, SessionPatch,
 )
 from app.security import crypto
 from app.security.plate import normalize_plate, plate_hash
@@ -426,3 +426,31 @@ def session_detail(session_id: int, db: Session = Depends(get_db), user: User = 
         fee_rule_snapshot=s.fee_rule_snapshot,
         payments=payments,
     )
+
+
+@router.patch("/{session_id}", response_model=SessionOut)
+def update_session(
+    session_id: int,
+    body: SessionPatch,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> SessionOut:
+    """Chỉnh loại xe / màu biển của phiên. Không tính lại phí."""
+    s = db.get(ParkingSession, session_id)
+    if s is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "không tìm thấy phiên")
+    changed: list[str] = []
+    if body.vehicle_type is not None:
+        s.vehicle_type = body.vehicle_type or None
+        changed.append("vehicle_type")
+    if body.color is not None:
+        s.color = body.color or None
+        changed.append("color")
+    if changed:
+        write_audit(
+            db, user_id=user.id, action="edit_session", entity_type="session",
+            entity_id=str(s.id), detail=",".join(changed),
+        )
+        db.commit()
+        db.refresh(s)
+    return _session_out(s)

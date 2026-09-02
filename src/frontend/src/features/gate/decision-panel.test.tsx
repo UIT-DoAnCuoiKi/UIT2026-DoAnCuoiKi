@@ -113,6 +113,28 @@ test("manual edit of vehicle type and plate color is saved via patch", async () 
   expect(patchFn).toHaveBeenCalledWith({ readingId: 7, data: { vehicle_type: "truck", color: "yellow" } });
 });
 
+test("reset button reverts manual edits to recognized values", async () => {
+  render(
+    <DecisionPanel
+      capture={{ ...base, vehicle_type: "car", color: "white" }}
+      direction="in"
+      onDone={noop}
+      onRecapture={noop}
+    />,
+  );
+  const plate = screen.getByLabelText("Biển số") as HTMLInputElement;
+  await userEvent.clear(plate);
+  await userEvent.type(plate, "51F-999");
+  await userEvent.selectOptions(screen.getByLabelText("Loại xe"), "truck");
+  const reset = screen.getByRole("button", { name: /Đặt lại/i });
+  expect(reset).toBeEnabled();
+  await userEvent.click(reset);
+  expect(plate.value).toBe("51F-123");
+  expect((screen.getByLabelText("Loại xe") as HTMLSelectElement).value).toBe("car");
+  expect(reset).toBeDisabled();
+  expect(patchFn).not.toHaveBeenCalled();
+});
+
 test("duplicate 409 offers override; retry sends override_duplicate", async () => {
   confirmEntry
     .mockRejectedValueOnce({ response: { status: 409 } })

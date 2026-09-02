@@ -13,6 +13,7 @@ const SHORTCUTS: { key: string; desc: string }[] = [
   { key: "Enter", desc: "Xác nhận VÀO/RA hoặc thu tiền" },
   { key: "E", desc: "Sửa biển" },
   { key: "M", desc: "Nhập tay" },
+  { key: "R", desc: "Đặt lại chỉnh sửa" },
   { key: "Esc", desc: "Hủy kết quả panel" },
   { key: "1/2/3", desc: "Chọn phương thức khi thu tiền" },
   { key: "?", desc: "Bật/tắt bảng phím tắt" },
@@ -57,6 +58,9 @@ export function GatePage() {
           break;
         case "manual":
           activeRef()?.manual();
+          break;
+        case "reset":
+          activeRef()?.reset();
           break;
         case "cancel":
         case "dialog-close":
@@ -121,6 +125,7 @@ export function GatePage() {
           <GatePanel
             ref={inRef}
             direction="in"
+            wide={layout !== "split"}
             wsCapture={capturesByDirection.in}
             active={active === "in"}
             onActivate={() => setActive("in")}
@@ -131,6 +136,7 @@ export function GatePage() {
           <GatePanel
             ref={outRef}
             direction="out"
+            wide={layout !== "split"}
             wsCapture={capturesByDirection.out}
             active={active === "out"}
             onActivate={() => setActive("out")}

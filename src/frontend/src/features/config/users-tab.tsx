@@ -7,6 +7,8 @@ import type { UserOut } from "@/api/generated/model";
 import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { getUserId } from "@/lib/auth";
 import { isAxiosError } from "axios";
 
 const ROLES = ["staff", "manager", "root"] as const;
@@ -21,10 +23,27 @@ export function UsersTab() {
   const create = useCreateUser();
   const update = useUpdateUser();
 
+  const selfId = getUserId();
+
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<string>("staff");
   const [showPw, setShowPw] = useState(false);
+
+  const setActive = async (id: number, active: boolean) => {
+    try {
+      await update.mutateAsync({ userId: id, data: { active } });
+      await refresh();
+      toast.success(active ? "Đã bật tài khoản" : "Đã tắt tài khoản");
+    } catch (e) {
+      if (isAxiosError(e) && e.response?.status === 403) {
+        toast.error("Không thể tự vô hiệu hóa tài khoản đang đăng nhập");
+        await refresh();
+      } else {
+        toast.error("Cập nhật trạng thái thất bại");
+      }
+    }
+  };
 
   const addUser = async () => {
     if (!username.trim() || password.length < MIN_PW) {
@@ -80,20 +99,25 @@ export function UsersTab() {
       ),
     },
     {
-      header: "Kích hoạt",
-      cell: ({ row }) => (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={async () => {
-            await update.mutateAsync({ userId: row.original.id, data: { active: !row.original.active } });
-            await refresh();
-            toast.success("Đã cập nhật");
-          }}
-        >
-          {row.original.active ? "Bật" : "Tắt"}
-        </Button>
-      ),
+      header: "Trạng thái",
+      cell: ({ row }) => {
+        const on = row.original.active;
+        // Tài khoản đang đăng nhập không được tự tắt (khóa cả FE lẫn BE).
+        const isSelf = selfId != null && row.original.id === selfId;
+        return (
+          <div className="flex items-center gap-2">
+            <Switch
+              checked={on}
+              disabled={isSelf || update.isPending}
+              aria-label={`Trạng thái tài khoản ${row.original.username}`}
+              onCheckedChange={(v) => setActive(row.original.id, v)}
+            />
+            <span className={on ? "text-[13px] font-medium text-ink" : "text-[13px] text-muted"}>
+              {isSelf ? "Đang bật (tài khoản của bạn)" : on ? "Đang bật" : "Đã tắt"}
+            </span>
+          </div>
+        );
+      },
     },
   ];
 

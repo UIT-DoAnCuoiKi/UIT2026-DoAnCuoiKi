@@ -14,6 +14,7 @@ export type GatePanelHandle = {
   focusPlate: () => void;
   confirm: () => void;
   manual: () => void;
+  reset: () => void;
   cancel: () => void;
   payMethod: (n: number) => void;
 };
@@ -26,8 +27,9 @@ export const GatePanel = forwardRef<
     active: boolean;
     onActivate: () => void;
     onPayOpenChange?: (open: boolean) => void;
+    wide?: boolean;
   }
->(function GatePanel({ direction, wsCapture, active, onActivate, onPayOpenChange }, ref) {
+>(function GatePanel({ direction, wsCapture, active, onActivate, onPayOpenChange, wide = false }, ref) {
   const cam = useCamera();
   const [capture, setCapture] = useState<GateCapture | null>(null);
   const [busy, setBusy] = useState(false);
@@ -84,9 +86,54 @@ export const GatePanel = forwardRef<
     focusPlate: () => decisionRef.current?.focusPlate(),
     confirm: () => decisionRef.current?.confirm(),
     manual: () => decisionRef.current?.manual(),
+    reset: () => decisionRef.current?.reset(),
     cancel: () => decisionRef.current?.cancel(),
     payMethod: (n) => decisionRef.current?.payMethod(n),
   }));
+
+  const figureClass = wide
+    ? "relative m-0 min-h-0 h-full overflow-hidden"
+    : "relative m-0 aspect-video max-h-[24dvh] overflow-hidden";
+
+  const cameraFigure = (
+    <figure className={figureClass}>
+      <CameraView
+        videoRef={cam.videoRef}
+        devices={cam.devices}
+        deviceId={cam.deviceId}
+        status={cam.status}
+        onSelectDevice={cam.setDeviceId}
+        onCapture={doCapture}
+        onRequestPermission={cam.requestPermission}
+        onManual={() => decisionRef.current?.manual()}
+        error={cam.error}
+      />
+    </figure>
+  );
+
+  const captureFigure = (
+    <figure className={figureClass}>
+      <CapturePreview localUrl={capture?.local_image_url} imageAssetId={capture?.image_asset_id} />
+      {capture && (
+        <figcaption className="absolute bottom-1.5 left-2 rounded bg-black/55 px-1.5 py-0.5 text-[11px] font-medium text-white">
+          Ảnh đã chụp
+        </figcaption>
+      )}
+    </figure>
+  );
+
+  const decisionArea = capture ? (
+    <DecisionPanel
+      ref={decisionRef}
+      capture={capture}
+      direction={direction}
+      onDone={() => setCaptureWithUrl(null)}
+      onRecapture={doCapture}
+      onPayOpenChange={onPayOpenChange}
+    />
+  ) : (
+    <EmptyState title="Chưa có lượt chụp" hint="Bấm Chụp hoặc chờ sự kiện cổng" />
+  );
 
   return (
     <div
@@ -96,45 +143,25 @@ export const GatePanel = forwardRef<
       <SurfaceCard variant="white" className="flex h-full flex-col gap-3 overflow-hidden">
         <h2 className="text-sm font-semibold">{direction === "in" ? "Hướng VÀO" : "Hướng RA"}</h2>
 
-        {/* Hàng media: camera trực tiếp (trái) và ảnh đã chụp để soát (phải), chia đôi. */}
-        <div className="grid shrink-0 grid-cols-2 gap-2">
-          <figure className="relative m-0 aspect-video max-h-[24dvh] overflow-hidden">
-            <CameraView
-              videoRef={cam.videoRef}
-              devices={cam.devices}
-              deviceId={cam.deviceId}
-              status={cam.status}
-              onSelectDevice={cam.setDeviceId}
-              onCapture={doCapture}
-              onRequestPermission={cam.requestPermission}
-              onManual={() => decisionRef.current?.manual()}
-              error={cam.error}
-            />
-          </figure>
-          <figure className="relative m-0 aspect-video max-h-[24dvh] overflow-hidden">
-            <CapturePreview localUrl={capture?.local_image_url} imageAssetId={capture?.image_asset_id} />
-            {capture && (
-              <figcaption className="absolute bottom-1.5 left-2 rounded bg-black/55 px-1.5 py-0.5 text-[11px] font-medium text-white">
-                Ảnh đã chụp
-              </figcaption>
-            )}
-          </figure>
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-auto">
-          {capture ? (
-            <DecisionPanel
-              ref={decisionRef}
-              capture={capture}
-              direction={direction}
-              onDone={() => setCaptureWithUrl(null)}
-              onRecapture={doCapture}
-              onPayOpenChange={onPayOpenChange}
-            />
-          ) : (
-            <EmptyState title="Chưa có lượt chụp" hint="Bấm Chụp hoặc chờ sự kiện cổng" />
-          )}
-        </div>
+        {wide ? (
+          // Một hướng: cột trái 50% chứa hai khung ảnh xếp dọc, cột phải là bảng điều khiển.
+          <div className="grid min-h-0 flex-1 grid-cols-2 gap-3">
+            <div className="grid min-h-0 grid-rows-2 gap-2">
+              {cameraFigure}
+              {captureFigure}
+            </div>
+            <div className="min-h-0 overflow-auto">{decisionArea}</div>
+          </div>
+        ) : (
+          // Chia đôi: hàng media (camera trái, ảnh chụp phải) ở trên, bảng điều khiển ở dưới.
+          <>
+            <div className="grid shrink-0 grid-cols-2 gap-2">
+              {cameraFigure}
+              {captureFigure}
+            </div>
+            <div className="min-h-0 flex-1 overflow-auto">{decisionArea}</div>
+          </>
+        )}
       </SurfaceCard>
     </div>
   );

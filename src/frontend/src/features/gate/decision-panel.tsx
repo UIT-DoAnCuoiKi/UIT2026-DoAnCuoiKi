@@ -18,6 +18,7 @@ import { PLATE_COLOR_OPTIONS, plateColor } from "./plate-color";
 export type DecisionPanelHandle = {
   confirm: () => void;
   manual: () => void;
+  reset: () => void;
   cancel: () => void;
   payMethod: (n: number) => void;
   focusPlate: () => void;
@@ -119,6 +120,16 @@ export const DecisionPanel = forwardRef<DecisionPanelHandle, Props>(function Dec
     if (!Object.keys(p).length || busy) return;
     await patchPlate.mutateAsync({ readingId: capture.reading_id, data: p });
     toast.success("Đã lưu chỉnh sửa");
+  };
+
+  // Trả các trường sửa tay về đúng giá trị model đã nhận dạng (dùng khi nhập nhầm).
+  const hasEdits = editsChanged || groupChanged;
+  const resetEdits = () => {
+    if (busy) return;
+    setPlate(capture.plate_text ?? "");
+    setVType(capture.vehicle_type ?? "");
+    setColor(capture.color ?? "");
+    setGroup(capture.vehicle_group ?? "");
   };
 
   const doEntry = async (allowPlateless = false, overrideDup = false) => {
@@ -230,6 +241,7 @@ export const DecisionPanel = forwardRef<DecisionPanelHandle, Props>(function Dec
       }
     },
     manual: () => setManualOpen(true),
+    reset: resetEdits,
     cancel: () => {
       if (payFor) {
         if (!paid) setPayFor(null);
@@ -346,9 +358,14 @@ export const DecisionPanel = forwardRef<DecisionPanelHandle, Props>(function Dec
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <RecognitionResult capture={capture} />
-        <Button variant="outline" className="h-9" onClick={saveEdits} disabled={!editsChanged || busy}>
-          Lưu chỉnh sửa
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" className="h-9" onClick={resetEdits} disabled={!hasEdits || busy}>
+            Đặt lại
+          </Button>
+          <Button variant="outline" className="h-9" onClick={saveEdits} disabled={!editsChanged || busy}>
+            Lưu chỉnh sửa
+          </Button>
+        </div>
       </div>
 
       {candidates.length > 0 ? (
