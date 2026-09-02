@@ -2,8 +2,8 @@ import { render, screen } from "@testing-library/react";
 import { RecognitionResult } from "./recognition-result";
 import type { GateCapture } from "./use-gate-socket";
 
-vi.mock("@/lib/vehicle-groups", () => ({
-  groupLabel: (_m: Record<string, string>, c?: string | null) => (c === "xe_may" ? "Xe máy" : c ?? "—"),
+vi.mock("@/lib/image-blob", () => ({
+  fetchImageObjectUrl: vi.fn().mockResolvedValue("blob:x"),
 }));
 
 const base: GateCapture = {
@@ -14,20 +14,25 @@ const base: GateCapture = {
   plate_text: "51F-123",
 };
 
-test("renders type, group label and color label", () => {
-  render(
-    <RecognitionResult
-      capture={{ ...base, vehicle_type: "Xe tay ga", vehicle_group: "xe_may", color: "white" }}
-      groupMap={{}}
-    />,
-  );
-  expect(screen.getByText("Xe tay ga")).toBeInTheDocument();
-  expect(screen.getByText("Xe máy")).toBeInTheDocument();
-  expect(screen.getByText("Trắng")).toBeInTheDocument();
+test("surfaces OCR and color confidence when present", () => {
+  render(<RecognitionResult capture={{ ...base, ocr_conf: 0.91, color_conf: 0.8 }} />);
+  expect(screen.getByText("91%")).toBeInTheDocument();
+  expect(screen.getByText("80%")).toBeInTheDocument();
 });
 
-test("shows invalid-format and duplicate warnings", () => {
-  render(<RecognitionResult capture={{ ...base, plate_valid: false, duplicate: true }} groupMap={{}} />);
+test("shows invalid-format warning", () => {
+  render(<RecognitionResult capture={{ ...base, plate_valid: false }} />);
   expect(screen.getByText(/sai định dạng/i)).toBeInTheDocument();
-  expect(screen.getByText(/trùng phiên/i)).toBeInTheDocument();
+});
+
+test("shows a second preview for the color-processed crop", () => {
+  render(
+    <RecognitionResult capture={{ ...base, image_asset_id: 11, plate_crop_asset_id: 12 }} />,
+  );
+  expect(screen.getByText(/biển đã xử lý màu/i)).toBeInTheDocument();
+});
+
+test("no crop preview when plate_crop_asset_id is absent", () => {
+  render(<RecognitionResult capture={{ ...base, image_asset_id: 11 }} />);
+  expect(screen.queryByText(/biển đã xử lý màu/i)).not.toBeInTheDocument();
 });

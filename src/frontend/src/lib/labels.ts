@@ -22,6 +22,9 @@ const PAYMENT_METHOD: Record<string, string> = {
   ewallet: "Ví điện tử",
 };
 
+// Danh sách chọn loại xe cho thao tác sửa tay ở trạm cổng.
+export const VEHICLE_TYPE_OPTIONS = Object.entries(VEHICLE_TYPE).map(([code, label]) => ({ code, label }));
+
 export function vehicleTypeLabel(code?: string | null): string {
   if (!code) return "—";
   return VEHICLE_TYPE[code.toLowerCase()] ?? code;

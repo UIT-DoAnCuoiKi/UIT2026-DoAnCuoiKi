@@ -91,9 +91,9 @@ def make_reading(db_session):
     from app.security import crypto
     from app.security.plate import plate_hash
 
-    def _make(plate: str = "51F12345", direction: str = "in", vehicle_type: str | None = None):
+    def _make(plate: str = "51F12345", direction: str = "in", vehicle_type: str | None = None, capture_id: str | None = None):
         reading = PlateReading(
-            capture_id=f"cap-{plate}-{direction}",
+            capture_id=capture_id or f"cap-{plate}-{direction}",
             direction=direction,
             plate_text_ciphertext=crypto.encrypt_text(plate),
             plate_hash=plate_hash(plate),

@@ -1,48 +1,39 @@
 import type { GateCapture } from "./use-gate-socket";
-import { groupLabel } from "@/lib/vehicle-groups";
-import { vehicleTypeLabel } from "@/lib/labels";
-import { plateColor } from "./plate-color";
+import { CapturePreview } from "./capture-preview";
 
-export function RecognitionResult({
-  capture,
-  groupMap,
-}: {
-  capture: GateCapture;
-  groupMap: Record<string, string>;
-}) {
-  const color = plateColor(capture.color);
+const pct = (v?: number | null) => (v == null ? null : `${Math.round(v * 100)}%`);
+
+// Dải thông tin độ tin cậy + cảnh báo định dạng cho kết quả nhận dạng.
+// Ảnh khung hình và các trường sửa tay (loại xe, màu biển, nhóm phí) nằm ở
+// DecisionPanel; component này chỉ tóm tắt độ tin và cảnh báo.
+export function RecognitionResult({ capture }: { capture: GateCapture }) {
+  const ocr = pct(capture.ocr_conf);
+  const color = pct(capture.color_conf);
   return (
-    <div className="space-y-2">
-      <dl className="grid grid-cols-3 gap-x-4 gap-y-1">
-        <div>
-          <dt className="text-[13px] text-muted">Loại xe</dt>
-          <dd className="text-[16px] font-medium text-ink">{vehicleTypeLabel(capture.vehicle_type)}</dd>
+    <>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-muted">
+        {ocr && (
+          <span>
+            Độ tin OCR: <span className="font-medium text-ink">{ocr}</span>
+          </span>
+        )}
+        {color && (
+          <span>
+            Độ tin màu: <span className="font-medium text-ink">{color}</span>
+          </span>
+        )}
+        {capture.plate_valid === false && (
+          <span className="text-st-amber">Cảnh báo: biển sai định dạng (vẫn cho xác nhận)</span>
+        )}
+      </div>
+      {capture.plate_crop_asset_id != null && (
+        <div className="space-y-1">
+          <p className="text-[13px] text-muted">Biển đã xử lý màu</p>
+          <div className="h-24 w-full max-w-sm overflow-hidden">
+            <CapturePreview imageAssetId={capture.plate_crop_asset_id} fit="contain" />
+          </div>
         </div>
-        <div>
-          <dt className="text-[13px] text-muted">Nhóm phí</dt>
-          <dd className="text-[16px] font-medium text-ink">
-            {capture.vehicle_group ? groupLabel(groupMap, capture.vehicle_group) : "—"}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-[13px] text-muted">Màu biển</dt>
-          <dd className="flex items-center gap-2 text-[16px] font-medium text-ink">
-            {color && (
-              <span
-                className="inline-block h-4 w-4 shrink-0 rounded-full border border-line"
-                style={{ background: color.swatch }}
-              />
-            )}
-            {color?.label ?? "—"}
-          </dd>
-        </div>
-      </dl>
-      {capture.plate_valid === false && (
-        <p className="text-[13px] text-st-amber">Cảnh báo: biển sai định dạng (vẫn cho xác nhận)</p>
       )}
-      {capture.duplicate && (
-        <p className="text-[13px] text-st-amber">Cảnh báo: biển trùng phiên trong bãi</p>
-      )}
-    </div>
+    </>
   );
 }

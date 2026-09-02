@@ -11,9 +11,15 @@ export type GateCapture = {
   vehicle_group?: string | null;
   vehicle_type?: string | null;
   color?: string | null;
+  ocr_conf?: number | null;
+  color_conf?: number | null;
   plate_valid?: boolean | null;
   image_asset_id?: number | null;
+  plate_crop_asset_id?: number | null;
   duplicate?: boolean;
+  // Frontend-only: object URL của khung hình vừa chụp ở máy trạm (không qua
+  // server), để hiện ngay ảnh đúng khung đã gửi model. Capture từ WS không có.
+  local_image_url?: string;
 };
 
 export type GateState = { capture: GateCapture | null; events: GateCapture[] };

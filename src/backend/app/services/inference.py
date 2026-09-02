@@ -28,7 +28,15 @@ class FakeInferenceEngine:
 
 
 def get_inference_engine() -> InferenceEngine:
-    if settings.inference_engine == "ml":
+    # Chỉ chấp nhận đúng hai engine. Giá trị lạ (gõ nhầm, hoa/thường, dư khoảng
+    # trắng) phải báo lỗi rõ, KHÔNG âm thầm rơi về biển giả 51F12345.
+    engine = (settings.inference_engine or "").strip().lower()
+    if engine == "ml":
         from app.services.ml_inference import get_ml_engine
         return get_ml_engine()
-    return FakeInferenceEngine()
+    if engine == "fake":
+        return FakeInferenceEngine()
+    raise RuntimeError(
+        f"INFERENCE_ENGINE không hợp lệ: {settings.inference_engine!r}. "
+        "Chỉ chấp nhận 'ml' (model thật) hoặc 'fake' (biển giả cho test)."
+    )

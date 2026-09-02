@@ -6,6 +6,7 @@ export type CameraStatus = "idle" | "requesting" | "streaming" | "denied" | "no-
 export function useCamera() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const [stream, setStream] = useState<MediaStream | null>(null);
   const [devices, setDevices] = useState<CameraDevice[]>([]);
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +36,7 @@ export function useCamera() {
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = stream;
-      if (videoRef.current) videoRef.current.srcObject = stream;
+      setStream(stream);
       setError(null);
       setStatus("streaming");
       return true;
@@ -64,6 +65,17 @@ export function useCamera() {
     ctx.drawImage(video, 0, 0);
     return new Promise((resolve) => canvas.toBlob((b) => resolve(b), "image/jpeg", 0.85));
   }, []);
+
+  // Gán stream vào <video> sau khi phần tử đã mount. start() không gán trực tiếp
+  // được vì <video> chỉ render khi status === "streaming", còn lúc start chạy
+  // status vẫn là "requesting" nên videoRef.current chưa tồn tại.
+  useEffect(() => {
+    const v = videoRef.current;
+    if (v && stream && v.srcObject !== stream) {
+      v.srcObject = stream;
+      void v.play?.().catch(() => {});
+    }
+  }, [stream, status]);
 
   useEffect(() => {
     return () => {

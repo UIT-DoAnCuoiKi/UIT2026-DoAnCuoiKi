@@ -17,9 +17,26 @@ def patch_plate(reading_id: int, body: PlatePatch, db: Session = Depends(get_db)
     reading = db.get(PlateReading, reading_id)
     if reading is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "không tìm thấy reading")
-    reading.plate_text_ciphertext = crypto.encrypt_text(body.plate_text)
-    reading.plate_hash = plate_hash(body.plate_text)
-    reading.review_state = "manual"
-    write_audit(db, user_id=user.id, action="edit_plate", entity_type="reading", entity_id=str(reading.id))
-    db.commit()
-    return {"reading_id": reading.id, "plate_text": body.plate_text, "review_state": "manual"}
+    changed = False
+    if body.plate_text is not None:
+        reading.plate_text_ciphertext = crypto.encrypt_text(body.plate_text)
+        reading.plate_hash = plate_hash(body.plate_text)
+        changed = True
+    if body.vehicle_type is not None:
+        reading.vehicle_type = body.vehicle_type
+        changed = True
+    if body.color is not None:
+        reading.color = body.color
+        changed = True
+    if changed:
+        # Nhân viên sửa tay bất kỳ trường nào -> đánh dấu manual và ghi audit.
+        reading.review_state = "manual"
+        write_audit(db, user_id=user.id, action="edit_plate", entity_type="reading", entity_id=str(reading.id))
+        db.commit()
+    return {
+        "reading_id": reading.id,
+        "plate_text": body.plate_text,
+        "vehicle_type": reading.vehicle_type,
+        "color": reading.color,
+        "review_state": reading.review_state,
+    }

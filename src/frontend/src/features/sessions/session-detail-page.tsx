@@ -10,6 +10,7 @@ import { formatPlate, formatVnd, formatDateTime, formatDuration } from "@/lib/fo
 import { EmptyState } from "@/components/empty-state";
 import { useVehicleGroupMap, groupLabel } from "@/lib/vehicle-groups";
 import { vehicleTypeLabel, matchFlagLabel } from "@/lib/labels";
+import { plateColor } from "@/features/gate/plate-color";
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -51,6 +52,22 @@ export function SessionDetailPage() {
         <dl className="grid grid-cols-2 gap-4 md:grid-cols-3">
           <Field label="Nhóm xe">{groupLabel(groupMap, data.vehicle_group)}</Field>
           <Field label="Loại xe">{vehicleTypeLabel(data.vehicle_type)}</Field>
+          <Field label="Màu biển">
+            {(() => {
+              const c = plateColor(data.color);
+              return c ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <span
+                    className="inline-block h-3.5 w-3.5 shrink-0 rounded-full border border-line"
+                    style={{ background: c.swatch }}
+                  />
+                  {c.label}
+                </span>
+              ) : (
+                "—"
+              );
+            })()}
+          </Field>
           <Field label="Giờ vào">{formatDateTime(data.entry_time)}</Field>
           <Field label="Giờ ra">{formatDateTime(data.exit_time)}</Field>
           <Field label="Thời lượng">{formatDuration(data.entry_time, data.exit_time)}</Field>
@@ -71,6 +88,12 @@ export function SessionDetailPage() {
             <StatusChip kind="review" value={data.entry_reading.review_state ?? "confident"} />
           )}
           <Evidence imageId={data.entry_reading?.image_asset_id} />
+          {data.entry_reading?.plate_crop_asset_id != null && (
+            <div className="space-y-1">
+              <p className="text-[13px] text-muted">Biển đã xử lý màu</p>
+              <Evidence imageId={data.entry_reading.plate_crop_asset_id} />
+            </div>
+          )}
         </SurfaceCard>
         <SurfaceCard variant="white" className="space-y-2">
           <p className="text-sm font-semibold">Ảnh ra</p>
@@ -78,6 +101,12 @@ export function SessionDetailPage() {
             <StatusChip kind="review" value={data.exit_reading.review_state ?? "confident"} />
           )}
           <Evidence imageId={data.exit_reading?.image_asset_id} />
+          {data.exit_reading?.plate_crop_asset_id != null && (
+            <div className="space-y-1">
+              <p className="text-[13px] text-muted">Biển đã xử lý màu</p>
+              <Evidence imageId={data.exit_reading.plate_crop_asset_id} />
+            </div>
+          )}
         </SurfaceCard>
       </div>
 

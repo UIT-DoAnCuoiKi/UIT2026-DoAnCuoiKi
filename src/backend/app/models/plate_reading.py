@@ -29,5 +29,6 @@ class PlateReading(Base):
 
     raw_pipeline_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     image_asset_id: Mapped[int | None] = mapped_column(ForeignKey("image_asset.id"), nullable=True)
+    plate_crop_asset_id: Mapped[int | None] = mapped_column(ForeignKey("image_asset.id"), nullable=True)
     review_state: Mapped[str] = mapped_column(String(16))  # confident | needs_review | disputed | manual
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

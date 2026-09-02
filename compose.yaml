@@ -14,9 +14,14 @@ services:
 
   backend:
     build:
-      context: ./src/backend
-      dockerfile: Containerfile
+      context: .
+      dockerfile: src/backend/Containerfile
     env_file: .env
+    environment:
+      ML_PLATE_WEIGHTS: /app/src/ml/weights/plate-detector.pt
+      ML_OCR_ONNX: /app/src/ml/weights/plate-ocr-crnn.onnx
+      ML_STYLE_ONNX: /app/src/ml/weights/vehicle-style-resnet18.onnx
+      ML_STYLE_CLASSES: /app/src/ml/data/vehicle-style-classes.json
     depends_on:
       db:
         condition: service_healthy
@@ -32,8 +37,8 @@ services:
 
   retention:
     build:
-      context: ./src/backend
-      dockerfile: Containerfile
+      context: .
+      dockerfile: src/backend/Containerfile
     env_file: .env
     depends_on:
       db:

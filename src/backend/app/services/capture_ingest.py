@@ -1,3 +1,6 @@
+import base64
+import binascii
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -23,7 +26,10 @@ def build_capture_response(reading: PlateReading, plate_text: str | None, duplic
         vehicle_type=reading.vehicle_type,
         vehicle_group=group_for(reading.vehicle_type),
         color=reading.color,
+        ocr_conf=reading.ocr_conf,
+        color_conf=reading.color_conf,
         image_asset_id=reading.image_asset_id,
+        plate_crop_asset_id=reading.plate_crop_asset_id,
         duplicate=duplicate,
     )
 
@@ -40,6 +46,24 @@ def ingest_reading(
     asset = store_encrypted_image(db, image_bytes, direction)
     rep = select_representative(payload.plates)
     plate_text = rep.plate_text if rep else None
+
+    crop_asset_id = None
+    if rep is not None and rep.crop_proc_b64:
+        # Producer (pipeline) always emits valid base64 PNG; guard so a malformed
+        # crop from an untrusted payload degrades to no-crop instead of aborting
+        # the whole capture (which would drop the origin frame and reading too).
+        try:
+            crop_bytes = base64.b64decode(rep.crop_proc_b64, validate=True)
+        except (binascii.Error, ValueError):
+            crop_bytes = None
+        if crop_bytes:
+            crop_asset = store_encrypted_image(db, crop_bytes, direction)
+            crop_asset_id = crop_asset.id
+
+    raw = payload.model_dump()
+    for p in raw.get("plates", []):
+        p.pop("crop_proc_b64", None)
+
     reading = PlateReading(
         capture_id=capture_id,
         direction=direction,
@@ -55,8 +79,9 @@ def ingest_reading(
         vehicle_type=payload.vehicle_type,
         vehicle_style=payload.vehicle_style,
         vehicle_style_conf=payload.vehicle_style_conf,
-        raw_pipeline_json=payload.model_dump(),
+        raw_pipeline_json=raw,
         image_asset_id=asset.id,
+        plate_crop_asset_id=crop_asset_id,
         review_state=compute_review_state(rep),
     )
     db.add(reading)
@@ -73,8 +98,11 @@ def ingest_reading(
         "vehicle_group": group_for(payload.vehicle_type),
         "vehicle_type": reading.vehicle_type,
         "color": reading.color,
+        "ocr_conf": reading.ocr_conf,
+        "color_conf": reading.color_conf,
         "plate_valid": reading.plate_valid,
         "image_asset_id": reading.image_asset_id,
+        "plate_crop_asset_id": reading.plate_crop_asset_id,
         "duplicate": False,
     })
     return reading, plate_text, False

@@ -6,6 +6,8 @@ from pydantic import BaseModel
 class EntryRequest(BaseModel):
     reading_id: int
     zone_id: int | None = None
+    override_duplicate: bool = False  # cho phép vào dù biển đang trong bãi
+    vehicle_group: str | None = None  # nhân viên chọn nhóm phí thủ công, ghi đè suy luận từ loại xe
 
 
 class ExitRequest(BaseModel):
@@ -32,13 +34,16 @@ class LostTicketRequest(BaseModel):
 
 
 class PlatePatch(BaseModel):
-    plate_text: str
+    plate_text: str | None = None
+    vehicle_type: str | None = None
+    color: str | None = None
 
 
 class SessionOut(BaseModel):
     id: int
     status: str
     vehicle_group: str | None = None
+    color: str | None = None
     plate_text: str | None = None
     entry_time: datetime | None = None
     exit_time: datetime | None = None
@@ -67,6 +72,7 @@ class ReadingBrief(BaseModel):
     plate_text: str | None = None
     review_state: str | None = None
     image_asset_id: int | None = None
+    plate_crop_asset_id: int | None = None
 
 
 class PaymentBrief(BaseModel):

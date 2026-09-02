@@ -40,6 +40,9 @@ src/ml/plate_detection_pipeline/output/plate_det_results_20260812_2212
 # training checkpoints/weights (large; keep only small exported onnx if needed)
 src/ml/checkpoints/
 src/ml/weights/*.pt
+# whitelist đúng 2 file inference nhỏ để teammate clone là có (build from source)
+!src/ml/weights/yolov8n.pt
+!src/ml/weights/plate-detector.pt
 # các bản onnx thí nghiệm (V0/V1/V2/seed...) giữ local để đối chiếu, không commit -
 # chỉ file chính thức không có hậu tố (vd plate-ocr-crnn.onnx) mới được track
 src/ml/weights/*-V*.onnx

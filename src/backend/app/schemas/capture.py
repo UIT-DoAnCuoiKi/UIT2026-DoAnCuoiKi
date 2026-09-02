@@ -10,6 +10,7 @@ class PlateItem(BaseModel):
     ocr_conf: float | None = None
     color: str | None = None
     color_conf: float | None = None
+    crop_proc_b64: str | None = None
 
 
 class PipelinePayload(BaseModel):
@@ -31,5 +32,8 @@ class CaptureResponse(BaseModel):
     vehicle_type: str | None = None
     vehicle_group: str | None = None
     color: str | None = None
+    ocr_conf: float | None = None
+    color_conf: float | None = None
     image_asset_id: int | None = None
+    plate_crop_asset_id: int | None = None
     duplicate: bool = False

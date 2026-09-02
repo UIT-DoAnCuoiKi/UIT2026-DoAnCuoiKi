@@ -42,6 +42,20 @@ _DEFAULTS = {
 }
 
 
+def encode_crop_b64(crop_bgr) -> str:
+    """PNG-encode a BGR crop to a base64 ascii string. Returns "" on failure."""
+    import base64
+
+    import cv2
+
+    if crop_bgr is None:
+        return ""
+    ok, buf = cv2.imencode(".png", crop_bgr)
+    if not ok:
+        return ""
+    return base64.b64encode(buf.tobytes()).decode("ascii")
+
+
 def _ensure_ml_path() -> None:
     """Đưa các gói con của src/ml lên sys.path (giống e2e_pipeline_test)."""
     for p in (
@@ -138,7 +152,7 @@ class OnnxAlprPipeline:
 
         Khoá cấp trên: vehicle_type, vehicle_box, vehicle_style,
         vehicle_style_conf, plates. Mỗi phần tử plates: bbox, layout, det_conf,
-        plate_text, plate_valid, ocr_conf, color, color_conf."""
+        plate_text, plate_valid, ocr_conf, color, color_conf, crop_proc_b64."""
         import cv2
         import numpy as np
         from PIL import Image
@@ -186,6 +200,7 @@ class OnnxAlprPipeline:
                 "ocr_conf": float(reading.confidence),
                 "color": appearance.color,
                 "color_conf": float(appearance.color_conf) if appearance.color_conf is not None else None,
+                "crop_proc_b64": encode_crop_b64(appearance.crop_for_ocr),
             })
 
         return result

@@ -8,6 +8,12 @@ vi.mock("@/lib/vehicle-groups", () => ({
   groupLabel: (m: Record<string, string>, c?: string | null) => (c ? (m[c] ?? c) : "—"),
 }));
 
+const toastWarning = vi.fn();
+const toastSuccess = vi.fn();
+vi.mock("sonner", () => ({
+  toast: { success: (m: string) => toastSuccess(m), error: () => {}, warning: (m: string) => toastWarning(m) },
+}));
+
 const confirmEntry = vi.fn().mockResolvedValue({ id: 1, status: "in_lot" });
 const confirmExit = vi.fn();
 const manualFn = vi.fn().mockResolvedValue({ id: 2 });
@@ -47,6 +53,8 @@ beforeEach(() => {
   manualFn.mockClear();
   patchFn.mockClear();
   payFn.mockClear();
+  toastWarning.mockClear();
+  toastSuccess.mockClear();
 });
 
 test("confident IN confirms entry", async () => {
@@ -85,6 +93,43 @@ test("manual entry requires a vehicle group before submit", async () => {
   expect(manualFn).toHaveBeenCalledWith({
     data: { action: "entry", plate_text: "51F-123", vehicle_group: "o_to", reading_id: 7 },
   });
+});
+
+test("manual edit of vehicle type and plate color is saved via patch", async () => {
+  render(
+    <DecisionPanel
+      capture={{ ...base, vehicle_type: "car", color: "white" }}
+      direction="in"
+      onDone={noop}
+      onRecapture={noop}
+    />,
+  );
+  const save = screen.getByRole("button", { name: /Lưu chỉnh sửa/i });
+  expect(save).toBeDisabled();
+  await userEvent.selectOptions(screen.getByLabelText("Loại xe"), "truck");
+  await userEvent.selectOptions(screen.getByLabelText("Màu biển"), "yellow");
+  expect(save).toBeEnabled();
+  await userEvent.click(save);
+  expect(patchFn).toHaveBeenCalledWith({ readingId: 7, data: { vehicle_type: "truck", color: "yellow" } });
+});
+
+test("duplicate 409 offers override; retry sends override_duplicate", async () => {
+  confirmEntry
+    .mockRejectedValueOnce({ response: { status: 409 } })
+    .mockResolvedValueOnce({ id: 1, status: "in_lot" });
+  render(<DecisionPanel capture={base} direction="in" onDone={noop} onRecapture={noop} />);
+  await userEvent.click(screen.getByRole("button", { name: /^Xác nhận VÀO$/i }));
+  const override = await screen.findByRole("button", { name: /ghi đè/i });
+  await userEvent.click(override);
+  expect(confirmEntry).toHaveBeenLastCalledWith({ data: { reading_id: 7, override_duplicate: true } });
+});
+
+test("entry warning from BE is surfaced instead of plain success", async () => {
+  confirmEntry.mockResolvedValueOnce({ id: 1, status: "in_lot", warning: "biển trong danh sách đen" });
+  render(<DecisionPanel capture={base} direction="in" onDone={noop} onRecapture={noop} />);
+  await userEvent.click(screen.getByRole("button", { name: /^Xác nhận VÀO$/i }));
+  expect(toastWarning).toHaveBeenCalledWith("biển trong danh sách đen");
+  expect(toastSuccess).not.toHaveBeenCalled();
 });
 
 test("re-recognize button calls onRecapture", async () => {

@@ -32,6 +32,7 @@ def _session_out(s: ParkingSession, warning: str | None = None) -> SessionOut:
         id=s.id,
         status=s.status,
         vehicle_group=s.vehicle_group or None,
+        color=s.color,
         plate_text=text,
         entry_time=s.entry_time,
         exit_time=s.exit_time,
@@ -56,7 +57,7 @@ def confirm_entry(body: EntryRequest, db: Session = Depends(get_db), user: User 
         if lot_is_full(db, lot_id):
             raise HTTPException(status.HTTP_409_CONFLICT, "bãi đã đầy")
 
-    group = group_for(reading.vehicle_type) or "unknown"
+    group = body.vehicle_group or group_for(reading.vehicle_type) or "unknown"
     has_plate = bool(reading.plate_hash)
     warnings: list[str] = []
     if has_plate:
@@ -67,6 +68,8 @@ def confirm_entry(body: EntryRequest, db: Session = Depends(get_db), user: User 
             )
         ).first()
         if dup is not None:
+            if not body.override_duplicate:
+                raise HTTPException(status.HTTP_409_CONFLICT, "biển đang trong bãi (xác nhận để ghi đè)")
             warnings.append("biển trùng một xe đang trong bãi")
         if is_blacklisted(db, reading.plate_hash):
             warnings.append("biển trong danh sách đen")
@@ -77,6 +80,7 @@ def confirm_entry(body: EntryRequest, db: Session = Depends(get_db), user: User 
         plate_ciphertext=reading.plate_text_ciphertext or "",
         vehicle_group=group,
         vehicle_type=reading.vehicle_type,
+        color=reading.color,
         status="in_lot" if has_plate else "pending_manual",
         entry_time=now_utc(),
         entry_reading_id=reading.id,
@@ -100,8 +104,12 @@ def _set_retention(db: Session, session: ParkingSession) -> None:
         if not rid:
             continue
         reading = db.get(PlateReading, rid)
-        if reading and reading.image_asset_id:
-            asset = db.get(ImageAsset, reading.image_asset_id)
+        if not reading:
+            continue
+        for aid in (reading.image_asset_id, reading.plate_crop_asset_id):
+            if not aid:
+                continue
+            asset = db.get(ImageAsset, aid)
             if asset:
                 asset.retention_delete_after = delete_after
 
@@ -180,6 +188,7 @@ def confirm_exit(body: ExitRequest, db: Session = Depends(get_db), user: User = 
         plate_ciphertext=reading.plate_text_ciphertext or "",
         vehicle_group=group,
         vehicle_type=reading.vehicle_type,
+        color=reading.color,
         status="disputed",
         exit_time=now_utc(),
         exit_reading_id=reading.id,
@@ -208,6 +217,7 @@ def manual_session(body: ManualRequest, db: Session = Depends(get_db), user: Use
             plate_ciphertext=crypto.encrypt_text(body.plate_text),
             vehicle_group=body.vehicle_group,
             vehicle_type=reading.vehicle_type,
+            color=reading.color,
             status="in_lot",
             entry_time=now_utc(),
             entry_reading_id=reading.id,
@@ -271,6 +281,7 @@ def lost_ticket(body: LostTicketRequest, db: Session = Depends(get_db), user: Us
         plate_ciphertext=reading.plate_text_ciphertext or "",
         vehicle_group=group,
         vehicle_type=reading.vehicle_type,
+        color=reading.color,
         status="completed",
         exit_time=now_utc(),
         exit_reading_id=reading.id,
@@ -368,6 +379,7 @@ def _reading_brief(db: Session, reading_id: int | None) -> ReadingBrief | None:
     return ReadingBrief(
         id=reading.id, direction=reading.direction, plate_text=text,
         review_state=reading.review_state, image_asset_id=reading.image_asset_id,
+        plate_crop_asset_id=reading.plate_crop_asset_id,
     )
 
 

@@ -96,7 +96,11 @@ def test_entry_warning_combines_blacklist_and_duplicate(client, admin_headers, s
     db_session.commit()
 
     reading = make_reading(plate=plate, direction="in")
-    warning = client.post("/sessions/entry", json={"reading_id": reading.id}, headers=staff_headers).json()["warning"]
+    warning = client.post(
+        "/sessions/entry",
+        json={"reading_id": reading.id, "override_duplicate": True},
+        headers=staff_headers,
+    ).json()["warning"]
     assert "đen" in warning
     assert "trùng" in warning
 

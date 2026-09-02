@@ -73,6 +73,22 @@ def test_patch_plate_updates_and_audits(client, db_session, staff_headers):
     assert len(logs) == 1
 
 
+def test_patch_reading_vehicle_type_and_color(client, db_session, staff_headers):
+    reading = PlateReading(capture_id="patch2", direction="in", plate_text_ciphertext=crypto.encrypt_text("51F-000.00"),
+                           plate_hash=plate.plate_hash("51F-000.00"), review_state="confident",
+                           vehicle_type="car", color="white")
+    db_session.add(reading); db_session.commit(); db_session.refresh(reading)
+
+    r = client.patch(f"/readings/{reading.id}/plate", json={"vehicle_type": "truck", "color": "yellow"}, headers=staff_headers)
+    assert r.status_code == 200
+    db_session.refresh(reading)
+    assert reading.vehicle_type == "truck"
+    assert reading.color == "yellow"
+    # Không gửi plate_text -> biển giữ nguyên; sửa tay vẫn đánh dấu manual.
+    assert reading.plate_hash == plate.plate_hash("51F-000.00")
+    assert reading.review_state == "manual"
+
+
 def test_dispute_then_resolve(client, db_session, staff_headers):
     session = ParkingSession(plate_hash="h", plate_ciphertext=crypto.encrypt_text("51F-123.45"),
                              vehicle_group="o_to_con", status="in_lot")

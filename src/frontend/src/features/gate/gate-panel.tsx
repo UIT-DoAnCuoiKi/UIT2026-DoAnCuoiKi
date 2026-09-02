@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CameraView } from "./camera-view";
+import { CapturePreview } from "./capture-preview";
 import { DecisionPanel, type DecisionPanelHandle } from "./decision-panel";
 import { useCamera } from "./use-camera";
 import { postInfer } from "./infer-capture";
@@ -32,6 +33,14 @@ export const GatePanel = forwardRef<
   const [busy, setBusy] = useState(false);
   const decisionRef = useRef<DecisionPanelHandle | null>(null);
 
+  // Giữ object URL của khung hình cục bộ; thu hồi khi thay/đóng để tránh rò bộ nhớ.
+  const localUrlRef = useRef<string | null>(null);
+  const setCaptureWithUrl = (next: GateCapture | null, localUrl?: string) => {
+    if (localUrlRef.current) URL.revokeObjectURL(localUrlRef.current);
+    localUrlRef.current = localUrl ?? null;
+    setCapture(next);
+  };
+
   useEffect(() => {
     cam.requestPermission();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -41,8 +50,15 @@ export const GatePanel = forwardRef<
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cam.deviceId]);
   useEffect(() => {
-    if (wsCapture) setCapture(wsCapture);
+    if (wsCapture) setCaptureWithUrl(wsCapture);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wsCapture]);
+  useEffect(
+    () => () => {
+      if (localUrlRef.current) URL.revokeObjectURL(localUrlRef.current);
+    },
+    [],
+  );
 
   const doCapture = async () => {
     if (busy) return;
@@ -53,8 +69,9 @@ export const GatePanel = forwardRef<
         toast.error("Chưa có khung hình từ camera");
         return;
       }
+      const localUrl = URL.createObjectURL(blob);
       const res = await postInfer(blob, direction, crypto.randomUUID());
-      setCapture(res as unknown as GateCapture);
+      setCaptureWithUrl({ ...(res as unknown as GateCapture), local_image_url: localUrl }, localUrl);
     } catch {
       toast.error("Nhận dạng thất bại");
     } finally {
@@ -76,26 +93,41 @@ export const GatePanel = forwardRef<
       onClick={onActivate}
       className={active ? "h-full rounded-[var(--radius-card)] ring-2 ring-ink" : "h-full"}
     >
-      <SurfaceCard variant="white" className="flex h-full flex-col">
-        <h2 className="mb-2 text-sm font-semibold">{direction === "in" ? "Hướng VÀO" : "Hướng RA"}</h2>
-        <CameraView
-          videoRef={cam.videoRef}
-          devices={cam.devices}
-          deviceId={cam.deviceId}
-          status={cam.status}
-          onSelectDevice={cam.setDeviceId}
-          onCapture={doCapture}
-          onRequestPermission={cam.requestPermission}
-          onManual={() => decisionRef.current?.manual()}
-          error={cam.error}
-        />
-        <div className="mt-3 min-h-0 flex-1 overflow-auto">
+      <SurfaceCard variant="white" className="flex h-full flex-col gap-3 overflow-hidden">
+        <h2 className="text-sm font-semibold">{direction === "in" ? "Hướng VÀO" : "Hướng RA"}</h2>
+
+        {/* Hàng media: camera trực tiếp (trái) và ảnh đã chụp để soát (phải), chia đôi. */}
+        <div className="grid shrink-0 grid-cols-2 gap-2">
+          <figure className="relative m-0 aspect-video max-h-[24dvh] overflow-hidden">
+            <CameraView
+              videoRef={cam.videoRef}
+              devices={cam.devices}
+              deviceId={cam.deviceId}
+              status={cam.status}
+              onSelectDevice={cam.setDeviceId}
+              onCapture={doCapture}
+              onRequestPermission={cam.requestPermission}
+              onManual={() => decisionRef.current?.manual()}
+              error={cam.error}
+            />
+          </figure>
+          <figure className="relative m-0 aspect-video max-h-[24dvh] overflow-hidden">
+            <CapturePreview localUrl={capture?.local_image_url} imageAssetId={capture?.image_asset_id} />
+            {capture && (
+              <figcaption className="absolute bottom-1.5 left-2 rounded bg-black/55 px-1.5 py-0.5 text-[11px] font-medium text-white">
+                Ảnh đã chụp
+              </figcaption>
+            )}
+          </figure>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-auto">
           {capture ? (
             <DecisionPanel
               ref={decisionRef}
               capture={capture}
               direction={direction}
-              onDone={() => setCapture(null)}
+              onDone={() => setCaptureWithUrl(null)}
               onRecapture={doCapture}
               onPayOpenChange={onPayOpenChange}
             />

@@ -16,6 +16,7 @@ class ParkingSession(Base):
     plate_ciphertext: Mapped[str] = mapped_column(String(512))
     vehicle_group: Mapped[str] = mapped_column(String(16))
     vehicle_type: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    color: Mapped[str | None] = mapped_column(String(16), nullable=True)
     status: Mapped[str] = mapped_column(String(16), index=True)  # in_lot | pending_manual | completed | disputed
     lot_id: Mapped[int | None] = mapped_column(ForeignKey("parking_lot.id"), nullable=True)
     zone_id: Mapped[int | None] = mapped_column(ForeignKey("zone.id"), nullable=True)

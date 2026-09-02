@@ -2,7 +2,7 @@ from app.models import ParkingSession, PlateReading
 from app.security import crypto, plate
 
 
-def _insert_reading(db, *, direction="in", plate_text="51F-123.45", vehicle_type="car", cid=None):
+def _insert_reading(db, *, direction="in", plate_text="51F-123.45", vehicle_type="car", color=None, cid=None):
     r = PlateReading(
         capture_id=cid or f"cap-{plate_text}-{direction}",
         direction=direction,
@@ -10,6 +10,7 @@ def _insert_reading(db, *, direction="in", plate_text="51F-123.45", vehicle_type
         plate_hash=plate.plate_hash(plate_text) if plate_text else None,
         plate_valid=True,
         vehicle_type=vehicle_type,
+        color=color,
         review_state="confident" if plate_text else "needs_review",
     )
     db.add(r)
@@ -28,17 +29,53 @@ def test_entry_creates_in_lot(client, db_session, staff_headers):
     assert body["plate_text"] == "51F-123.45"
 
 
+def test_entry_carries_color_to_session_and_detail(client, db_session, staff_headers):
+    reading = _insert_reading(db_session, color="yellow")
+    r = client.post("/sessions/entry", json={"reading_id": reading.id}, headers=staff_headers)
+    assert r.status_code == 200
+    sid = r.json()["id"]
+    assert r.json()["color"] == "yellow"
+    detail = client.get(f"/sessions/{sid}", headers=staff_headers)
+    assert detail.status_code == 200
+    assert detail.json()["color"] == "yellow"
+
+
+def test_entry_manual_group_override_wins(client, db_session, staff_headers):
+    # Loại xe suy ra o_to_con; nhân viên chọn tay xe_may -> phải theo lựa chọn tay.
+    reading = _insert_reading(db_session, vehicle_type="car")
+    r = client.post(
+        "/sessions/entry",
+        json={"reading_id": reading.id, "vehicle_group": "xe_may"},
+        headers=staff_headers,
+    )
+    assert r.status_code == 200
+    assert r.json()["vehicle_group"] == "xe_may"
+
+
 def test_entry_no_plate_pending_manual(client, db_session, staff_headers):
     reading = _insert_reading(db_session, plate_text=None)
     r = client.post("/sessions/entry", json={"reading_id": reading.id}, headers=staff_headers)
     assert r.json()["status"] == "pending_manual"
 
 
-def test_entry_duplicate_plate_warns_not_blocks(client, db_session, staff_headers):
+def test_entry_duplicate_plate_blocks_without_override(client, db_session, staff_headers):
     r1 = _insert_reading(db_session, cid="c1")
     client.post("/sessions/entry", json={"reading_id": r1.id}, headers=staff_headers)
     r2 = _insert_reading(db_session, cid="c2")
     resp = client.post("/sessions/entry", json={"reading_id": r2.id}, headers=staff_headers)
+    assert resp.status_code == 409
+    assert db_session.query(ParkingSession).count() == 1
+
+
+def test_entry_duplicate_plate_allowed_with_override(client, db_session, staff_headers):
+    r1 = _insert_reading(db_session, cid="c1")
+    client.post("/sessions/entry", json={"reading_id": r1.id}, headers=staff_headers)
+    r2 = _insert_reading(db_session, cid="c2")
+    resp = client.post(
+        "/sessions/entry",
+        json={"reading_id": r2.id, "override_duplicate": True},
+        headers=staff_headers,
+    )
     assert resp.status_code == 200
     assert resp.json()["warning"] is not None
     assert db_session.query(ParkingSession).count() == 2

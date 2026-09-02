@@ -18,7 +18,7 @@ vi.mock("@/api/generated/sessions/sessions", () => ({
       exit_time: "2026-08-23T09:00:00Z",
       fee_amount: 15000,
       match_flag: "exact",
-      entry_reading: { id: 1, review_state: "confident", plate_text: "51F-123", image_asset_id: 11 },
+      entry_reading: { id: 1, review_state: "confident", plate_text: "51F-123", image_asset_id: 11, plate_crop_asset_id: 21 },
       exit_reading: { id: 2, review_state: "confident", plate_text: "51F-123", image_asset_id: 12 },
       created_by_name: "creator",
       closed_by_name: "closer2",
@@ -47,6 +47,17 @@ test("shows staff, payments and vehicle group display_name", () => {
   expect(screen.getByText("Xe máy")).toBeInTheDocument();
   expect(screen.getByText("creator")).toBeInTheDocument();
   expect(screen.getByText("qr")).toBeInTheDocument();
+});
+
+test("shows the color-processed crop evidence", () => {
+  render(
+    <MemoryRouter initialEntries={["/sessions/9"]}>
+      <Routes>
+        <Route path="/sessions/:id" element={<SessionDetailPage />} />
+      </Routes>
+    </MemoryRouter>,
+  );
+  expect(screen.getByText(/biển đã xử lý màu/i)).toBeInTheDocument();
 });
 
 test("shows detail fields and retention notice", () => {
