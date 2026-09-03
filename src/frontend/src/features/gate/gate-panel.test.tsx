@@ -25,9 +25,17 @@ vi.mock("@/api/generated/sessions/sessions", () => ({
 }));
 vi.mock("@/api/generated/readings/readings", () => ({ usePatchPlate: () => ({ mutateAsync: vi.fn(), isPending: false }) }));
 vi.mock("@/api/generated/payments/payments", () => ({ useCreatePayment: () => ({ mutateAsync: vi.fn(), isPending: false }) }));
-vi.mock("@/api/generated/config/config", () => ({ useGetToggles: () => ({ data: { read_plate: true, plate_color: true, vehicle_class: true } }) }));
+vi.mock("@/api/generated/config/config", () => ({
+  useGetToggles: () => ({ data: { read_plate: true, plate_color: true, vehicle_class: true } }),
+  useListPriceRules: () => ({ data: [] }),
+}));
 vi.mock("@/api/generated/vehicle-groups/vehicle-groups", () => ({ useListVehicleGroups: () => ({ data: [] }) }));
-vi.mock("@/lib/vehicle-groups", () => ({ useVehicleGroupMap: () => ({}), groupLabel: (_m: unknown, c?: string | null) => c ?? "—" }));
+vi.mock("@/lib/vehicle-groups", () => ({
+  useVehicleGroupMap: () => ({}),
+  groupLabel: (_m: unknown, c?: string | null) => c ?? "—",
+  groupForVehicleType: (t?: string | null) =>
+    ({ car: "o_to_con", truck: "xe_tai", bus: "xe_khach", motorbike: "xe_may", bicycle: "xe_may" })[t ?? ""],
+}));
 
 test("capturing runs infer then shows decision for the plate", async () => {
   render(<GatePanel direction="in" wsCapture={null} active onActivate={() => {}} />);

@@ -3,8 +3,7 @@ import { toast } from "sonner";
 import { useConfirmEntry, useConfirmExit, useManualSession } from "@/api/generated/sessions/sessions";
 import { usePatchPlate } from "@/api/generated/readings/readings";
 import { useCreatePayment } from "@/api/generated/payments/payments";
-import { useGetToggles } from "@/api/generated/config/config";
-import { useListVehicleGroups } from "@/api/generated/vehicle-groups/vehicle-groups";
+import { useGetToggles, useListPriceRules } from "@/api/generated/config/config";
 import type { PlatePatch } from "@/api/generated/model";
 import type { GateCapture } from "./use-gate-socket";
 import { PlateField } from "@/components/plate-field";
@@ -12,7 +11,9 @@ import { StatusChip } from "@/components/status-chip";
 import { Button } from "@/components/ui/button";
 import { RecognitionResult } from "./recognition-result";
 import { PayRow, PAY_METHODS } from "./pay-row";
-import { VEHICLE_TYPE_OPTIONS } from "@/lib/labels";
+import { VEHICLE_TYPE_OPTIONS, vehicleTypeLabel } from "@/lib/labels";
+import { groupForVehicleType } from "@/lib/vehicle-groups";
+import { formatVnd } from "@/lib/format";
 import { PLATE_COLOR_OPTIONS, plateColor } from "./plate-color";
 
 export type DecisionPanelHandle = {
@@ -39,16 +40,23 @@ export const DecisionPanel = forwardRef<DecisionPanelHandle, Props>(function Dec
   const { data: toggles } = useGetToggles();
   const forceManual = toggles ? !toggles.read_plate : false;
   const state = forceManual ? "manual" : capture.review_state;
-  const { data: groups } = useListVehicleGroups();
+  const { data: priceRules } = useListPriceRules();
 
   const [plate, setPlate] = useState(capture.plate_text ?? "");
   useEffect(() => setPlate(capture.plate_text ?? ""), [capture.reading_id, capture.plate_text]);
 
-  const [group, setGroup] = useState(capture.vehicle_group ?? "");
-  useEffect(() => setGroup(capture.vehicle_group ?? ""), [capture.reading_id, capture.vehicle_group]);
-
   const [vType, setVType] = useState(capture.vehicle_type ?? "");
   useEffect(() => setVType(capture.vehicle_type ?? ""), [capture.reading_id, capture.vehicle_type]);
+
+  // Loại xe và nhóm phí map 1-1: nhóm phí suy ra từ loại xe, không cần chọn tay.
+  // Giá hiển thị theo bảng giá đang bật của nhóm tương ứng.
+  const group = groupForVehicleType(vType);
+  const activeRule = (priceRules ?? []).find((r) => r.vehicle_group === group && r.active);
+  const priceText = !activeRule
+    ? null
+    : activeRule.mode === "block" && activeRule.block_minutes
+      ? `${formatVnd(activeRule.unit_price)} / ${activeRule.block_minutes} phút`
+      : `${formatVnd(activeRule.unit_price)} / lượt`;
 
   const [color, setColor] = useState(capture.color ?? "");
   useEffect(() => setColor(capture.color ?? ""), [capture.reading_id, capture.color]);
@@ -96,7 +104,6 @@ export const DecisionPanel = forwardRef<DecisionPanelHandle, Props>(function Dec
   const typeChanged = vType !== (capture.vehicle_type ?? "");
   const colorChanged = color !== (capture.color ?? "");
   const editsChanged = plateChanged || typeChanged || colorChanged;
-  const groupChanged = group !== (capture.vehicle_group ?? "");
 
   // Gom các trường nhân viên đã sửa tay (biển, loại xe, màu biển) thành một
   // patch; chỉ gửi trường thực sự đổi để không ghi đè giá trị model đang đúng.
@@ -123,13 +130,12 @@ export const DecisionPanel = forwardRef<DecisionPanelHandle, Props>(function Dec
   };
 
   // Trả các trường sửa tay về đúng giá trị model đã nhận dạng (dùng khi nhập nhầm).
-  const hasEdits = editsChanged || groupChanged;
+  const hasEdits = editsChanged;
   const resetEdits = () => {
     if (busy) return;
     setPlate(capture.plate_text ?? "");
     setVType(capture.vehicle_type ?? "");
     setColor(capture.color ?? "");
-    setGroup(capture.vehicle_group ?? "");
   };
 
   const doEntry = async (allowPlateless = false, overrideDup = false) => {
@@ -138,11 +144,12 @@ export const DecisionPanel = forwardRef<DecisionPanelHandle, Props>(function Dec
     inFlight.current = true;
     try {
       await ensureEditsSaved();
+      // Không gửi vehicle_group: BE suy ra từ vehicle_type (đã lưu ở
+      // ensureEditsSaved), giữ map loại xe -> nhóm phí nhất quán một nguồn.
       const session = await confirmEntry.mutateAsync({
         data: {
           reading_id: capture.reading_id,
           ...(overrideDup ? { override_duplicate: true } : {}),
-          ...(group && groupChanged ? { vehicle_group: group } : {}),
         },
       });
       setDupBlocked(false);
@@ -196,7 +203,7 @@ export const DecisionPanel = forwardRef<DecisionPanelHandle, Props>(function Dec
   const doManualEntry = async () => {
     if (busy || inFlight.current) return;
     if (!plateTrim || !group) {
-      toast.error("Nhập tay cần biển số và nhóm phí");
+      toast.error("Nhập tay cần biển số và loại xe");
       return;
     }
     inFlight.current = true;
@@ -287,8 +294,8 @@ export const DecisionPanel = forwardRef<DecisionPanelHandle, Props>(function Dec
 
       <PlateField value={plate} onChange={setPlate} size="lg" highlight={state === "needs_review"} />
 
-      {/* Sửa tay: loại xe, màu biển, và nhóm phí (nhóm phí chỉ hiện khi VÀO). */}
-      <div className={direction === "in" ? "grid grid-cols-3 gap-2" : "grid grid-cols-2 gap-2"}>
+      {/* Sửa tay: loại xe và màu biển. Nhóm phí suy ra 1-1 từ loại xe, không chọn tay. */}
+      <div className="grid grid-cols-2 gap-2">
         <div>
           <label htmlFor="corr-vtype" className="mb-1 block text-[12px] text-muted">
             Loại xe
@@ -333,28 +340,17 @@ export const DecisionPanel = forwardRef<DecisionPanelHandle, Props>(function Dec
             </select>
           </div>
         </div>
-        {direction === "in" && (
-          <div>
-            <label htmlFor="corr-group" className="mb-1 block text-[12px] text-muted">
-              Nhóm phí
-            </label>
-            <select
-              id="corr-group"
-              aria-label="Nhóm phí"
-              className="h-9 w-full rounded-[var(--radius-control)] border border-line bg-bg px-2 text-sm"
-              value={group}
-              onChange={(e) => setGroup(e.target.value)}
-            >
-              <option value="">Chọn nhóm</option>
-              {(groups ?? []).map((g) => (
-                <option key={g.code} value={g.code}>
-                  {g.display_name}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
       </div>
+
+      {/* Giá theo loại xe (nhóm phí suy ra 1-1). Chỉ hiện khi VÀO. */}
+      {direction === "in" && (
+        <div className="flex items-center justify-between rounded-[var(--radius-control)] border border-line bg-panel px-3 py-2 text-sm">
+          <span className="text-muted">{vType ? `Giá ${vehicleTypeLabel(vType)}` : "Giá"}</span>
+          <span className="tnum font-medium" data-testid="entry-price">
+            {!vType ? "Chọn loại xe" : (priceText ?? "Chưa có bảng giá")}
+          </span>
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <RecognitionResult capture={capture} />
@@ -418,7 +414,7 @@ export const DecisionPanel = forwardRef<DecisionPanelHandle, Props>(function Dec
 
       {manualOpen && direction === "in" && (
         <div className="space-y-2 border-t border-line pt-3">
-          <p className="text-[13px] text-muted">Nhập tay hoàn toàn: cần biển số và nhóm phí đã chọn ở trên.</p>
+          <p className="text-[13px] text-muted">Nhập tay hoàn toàn: cần biển số và loại xe đã chọn ở trên.</p>
           <Button className="h-11" onClick={doManualEntry} disabled={busy || !plateTrim || !group}>
             Ghi nhận nhập tay
           </Button>

@@ -3,11 +3,6 @@ import userEvent from "@testing-library/user-event";
 import { DecisionPanel } from "./decision-panel";
 import type { GateCapture } from "./use-gate-socket";
 
-vi.mock("@/lib/vehicle-groups", () => ({
-  useVehicleGroupMap: () => ({ xe_may: "Xe máy" }),
-  groupLabel: (m: Record<string, string>, c?: string | null) => (c ? (m[c] ?? c) : "—"),
-}));
-
 const toastWarning = vi.fn();
 const toastSuccess = vi.fn();
 vi.mock("sonner", () => ({
@@ -32,9 +27,12 @@ vi.mock("@/api/generated/payments/payments", () => ({
 }));
 vi.mock("@/api/generated/config/config", () => ({
   useGetToggles: () => ({ data: { read_plate: true, plate_color: true, vehicle_class: true } }),
-}));
-vi.mock("@/api/generated/vehicle-groups/vehicle-groups", () => ({
-  useListVehicleGroups: () => ({ data: [{ code: "xe_may", display_name: "Xe máy" }, { code: "o_to", display_name: "Ô tô" }] }),
+  useListPriceRules: () => ({
+    data: [
+      { id: 1, vehicle_group: "o_to_con", mode: "flat", unit_price: 20000, active: true },
+      { id: 2, vehicle_group: "xe_tai", mode: "block", unit_price: 5000, block_minutes: 30, active: true },
+    ],
+  }),
 }));
 
 const base: GateCapture = {
@@ -82,17 +80,27 @@ test("empty plate disables primary confirm and offers plateless entry", async ()
   expect(patchFn).not.toHaveBeenCalled();
 });
 
-test("manual entry requires a vehicle group before submit", async () => {
-  render(<DecisionPanel capture={{ ...base, vehicle_group: null }} direction="in" onDone={noop} onRecapture={noop} />);
+test("manual entry derives fee group from vehicle type before submit", async () => {
+  render(<DecisionPanel capture={{ ...base, vehicle_type: null }} direction="in" onDone={noop} onRecapture={noop} />);
   await userEvent.click(screen.getByRole("button", { name: /Nhập tay/i }));
   const submit = screen.getByRole("button", { name: /Ghi nhận nhập tay/i });
   expect(submit).toBeDisabled();
-  await userEvent.selectOptions(screen.getByLabelText("Nhóm phí"), "o_to");
+  await userEvent.selectOptions(screen.getByLabelText("Loại xe"), "car");
   expect(submit).toBeEnabled();
   await userEvent.click(submit);
   expect(manualFn).toHaveBeenCalledWith({
-    data: { action: "entry", plate_text: "51F-123", vehicle_group: "o_to", reading_id: 7 },
+    data: { action: "entry", plate_text: "51F-123", vehicle_group: "o_to_con", reading_id: 7 },
   });
+});
+
+test("entry price follows the selected vehicle type", async () => {
+  render(<DecisionPanel capture={{ ...base, vehicle_type: null }} direction="in" onDone={noop} onRecapture={noop} />);
+  const price = screen.getByTestId("entry-price");
+  expect(price).toHaveTextContent("Chọn loại xe");
+  await userEvent.selectOptions(screen.getByLabelText("Loại xe"), "car");
+  expect(price).toHaveTextContent(/20.*lượt/);
+  await userEvent.selectOptions(screen.getByLabelText("Loại xe"), "truck");
+  expect(price).toHaveTextContent(/5.*30 phút/);
 });
 
 test("manual edit of vehicle type and plate color is saved via patch", async () => {

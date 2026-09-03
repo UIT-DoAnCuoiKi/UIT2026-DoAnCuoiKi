@@ -117,8 +117,8 @@ export function GatePage() {
       <div
         className={
           layout === "split"
-            ? "grid min-h-0 flex-1 grid-cols-1 gap-[14px] lg:grid-cols-2"
-            : "grid min-h-0 flex-1 grid-cols-1 gap-[14px]"
+            ? "grid min-h-0 flex-1 grid-rows-1 grid-cols-1 gap-[14px] lg:grid-cols-2"
+            : "grid min-h-0 flex-1 grid-rows-1 grid-cols-1 gap-[14px]"
         }
       >
         {showIn && (

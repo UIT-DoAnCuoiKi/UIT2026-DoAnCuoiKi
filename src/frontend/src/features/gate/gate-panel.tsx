@@ -145,7 +145,7 @@ export const GatePanel = forwardRef<
 
         {wide ? (
           // Một hướng: cột trái 50% chứa hai khung ảnh xếp dọc, cột phải là bảng điều khiển.
-          <div className="grid min-h-0 flex-1 grid-cols-2 gap-3">
+          <div className="grid min-h-0 flex-1 grid-rows-1 grid-cols-2 gap-3">
             <div className="grid min-h-0 grid-rows-2 gap-2">
               {cameraFigure}
               {captureFigure}
