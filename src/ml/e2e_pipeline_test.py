@@ -48,12 +48,19 @@ from pipeline.ocr import CRNNRecognizer, read_plate  # noqa: E402
 
 # --- Đường dẫn model — cùng cấu hình với notebook e2e-pipeline-test.ipynb ---
 VEHICLE_STYLE_MODEL = "resnet18"  # hoặc "mobilenet_v3_small"
-PLATE_DETECTOR_WEIGHTS = (
-    ML_DIR / "plate_detection_pipeline" / "output" / "runs" / "detect" / "runs"
-    / "yolov8n_s0_640" / "weights" / "best.pt"
-)  # bản tốt nhất theo src/ml/experiments.csv (mAP50 0.9892)
-PLATE_DETECTOR_BACKEND = "pt"  # chưa có bản .onnx export cho model biển số
-OCR_WEIGHTS = ML_DIR / "weights" / "plate-ocr-crnn.pt"  # bản chốt, seed 42
+# Bản .onnx, xuất từ bản tốt nhất theo src/ml/experiments.csv (mAP50 0.9892,
+# tốt hơn yolo26n_s0_640 0.9801). Đây là bản duy nhất được track trong git
+# (thư mục output/runs/ bị .gitignore chặn hoàn toàn, kể cả .pt lẫn .onnx đặt
+# trong đó), nên đồng bộ giữa các máy qua git, không phải chuyển tay. Đã kiểm
+# chứng khớp bản .pt trên 16/17 ảnh testimage/, 1 ca lệch là biển rất nhỏ/xa ở
+# rìa ngưỡng tin cậy (0.65 -> 0.09), không phải lỗi export.
+PLATE_DETECTOR_WEIGHTS = ML_DIR / "plate_detection_pipeline" / "weights" / "yolov8n_a1_640.onnx"
+PLATE_DETECTOR_BACKEND = "onnx"
+# Dùng bản .onnx: đây là bản duy nhất được track trong git (file .pt bị loại ở
+# .gitignore vì dung lượng), nên đồng bộ giữa các máy được qua git mà không
+# phải chuyển tay, và chạy suy luận không cần torch. Đổi sang .pt vẫn chạy
+# được, CRNNRecognizer tự nhận backend theo đuôi file.
+OCR_WEIGHTS = ML_DIR / "weights" / "plate-ocr-crnn.onnx"  # bản chốt, seed 42
 
 DEFAULT_TEST_DIR = REPO_ROOT / "testimage"
 DEFAULT_OUT_DIR = ML_DIR / "experiments" / "e2e_annotated"

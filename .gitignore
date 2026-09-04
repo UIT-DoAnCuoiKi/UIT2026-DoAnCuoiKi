@@ -23,9 +23,11 @@ __pycache__/
 # training results / large binaries (kept locally, not committed)
 runs/
 weights/
-# ...nhưng src/ml/weights/ có quy tắc riêng ở dưới (chỉ *.pt bị loại, *.onnx nhỏ được giữ)
-# nên phải gỡ ẩn cả thư mục này trước, không thì không "nhìn" được vào bên trong
+# ...nhưng src/ml/weights/ và src/ml/plate_detection_pipeline/weights/ có quy
+# tắc riêng ở dưới (chỉ *.pt bị loại, *.onnx nhỏ được giữ), nên phải gỡ ẩn cả
+# 2 thư mục này trước, không thì không "nhìn" được vào bên trong
 !src/ml/weights/
+!src/ml/plate_detection_pipeline/weights/
 
 # notebook run artifacts + kaggle log dumps
 src/ml/plate_detection_pipeline/notebooks/klog*/

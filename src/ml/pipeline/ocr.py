@@ -14,10 +14,37 @@ với nhau qua cùng một hàm `read_plate()`.
 from __future__ import annotations
 
 import re
+import string
 from dataclasses import dataclass
 
 import cv2
 import numpy as np
+
+# Charset và kích thước ảnh chuẩn của CRNN. Đặt ở module này (không phụ thuộc
+# torch) để backend ONNX dùng được mà không phải nạp torch; `ocr_model.py`
+# import lại từ đây thay vì tự khai báo, giữ một nguồn duy nhất. Điểm này quan
+# trọng: charset lệch nhau giữa lúc huấn luyện và lúc suy luận từng gây lỗi mất
+# hẳn ký tự "Đ" của biển xe máy điện.
+OCR_CHARSET = sorted(string.digits + string.ascii_uppercase + "Đ")  # 37 ký tự
+OCR_IDX_TO_CHAR = {i + 1: c for i, c in enumerate(OCR_CHARSET)}  # 0 dành cho blank CTC
+OCR_IMG_HEIGHT = 48
+OCR_IMG_WIDTH = 128
+
+
+def decode_greedy_numpy(logits: np.ndarray) -> str:
+    """Giải mã CTC kiểu greedy cho 1 mẫu, nhận logits numpy dạng (T, C).
+
+    Cùng quy tắc với `decode_greedy()` của `ocr_model.py` (argmax mỗi bước, gộp
+    ký tự lặp liên tiếp, bỏ blank) nhưng viết trên numpy để hai backend pt và
+    onnx dùng chung một đường giải mã, không phải hai bản dễ lệch nhau.
+    """
+    chars, prev = [], -1
+    for idx in logits.argmax(axis=1):
+        idx = int(idx)
+        if idx != prev and idx != 0:
+            chars.append(OCR_IDX_TO_CHAR.get(idx, ""))
+        prev = idx
+    return "".join(chars)
 
 # 20 chữ cái hợp lệ trong seri biển số VN (không dùng I, J, O, Q, R, W)
 VALID_SERIES_LETTERS = "ABCDEFGHKLMNPSTUVXYZ"
@@ -29,14 +56,15 @@ LETTER_POSITION_CONFUSION = {"0": "D", "1": "L"}  # O không xuất hiện trong
 
 # Seri biển số có thể gồm 1 chữ cái (biển thường, vd 51F) hoặc 2 chữ cái (biển
 # seri đặc biệt, vd 50LD-044.11, 80NG-123.45). Cố ý KHÔNG chốt danh sách cứng
-# các seri 2 chữ cái: ngoài LD, DA, NG, QT, NN còn nhiều ký hiệu khác đang lưu
-# hành, và với một bộ kiểm tra định dạng thì loại nhầm biển hợp lệ gây hại hơn
-# là chấp nhận một seri lạ.
-KNOWN_SPECIAL_SERIES = ("LD", "DA", "NG", "QT", "NN")  # chỉ để tham khảo, không lọc
+# các seri 2 chữ cái: ngoài LD, DA, NG, QT, NN, MĐ, TĐ còn nhiều ký hiệu khác
+# đang lưu hành, và với một bộ kiểm tra định dạng thì loại nhầm biển hợp lệ
+# gây hại hơn là chấp nhận một seri lạ.
+KNOWN_SPECIAL_SERIES = ("LD", "DA", "NG", "QT", "NN", "MĐ", "TĐ")  # chỉ để tham khảo, không lọc
 
-# Chuỗi ghép: mã tỉnh (2 số) + seri (1-2 chữ) + số thứ tự (4-6 số; biển 2 dòng
-# có thêm 1 số phụ sau chữ cái seri nên dài hơn khi nối 2 dòng lại).
-PLATE_PATTERN = re.compile(r"^\d{2}[A-Z]{1,2}\d{4,6}$")
+# Chuỗi ghép: mã tỉnh (2 số) + seri (1-2 chữ, gồm cả "Đ" cho seri MĐ/TĐ của xe
+# máy điện) + số thứ tự (4-6 số; biển 2 dòng có thêm 1 số phụ sau chữ cái seri
+# nên dài hơn khi nối 2 dòng lại).
+PLATE_PATTERN = re.compile(r"^\d{2}[A-ZĐ]{1,2}\d{4,6}$")
 
 
 def is_valid_plate(text: str) -> bool:
@@ -158,7 +186,7 @@ def normalize_plate_text(raw_chars: str) -> tuple[str, bool]:
     cả khi không hợp lệ, để nơi gọi tự quyết định (vd. vẫn hiển thị nhưng gắn
     cờ độ tin cậy thấp) thay vì mất trắng kết quả.
     """
-    chars = re.sub(r"[^A-Z0-9]", "", raw_chars.upper())
+    chars = re.sub(r"[^A-Z0-9Đ]", "", raw_chars.upper())
     if len(chars) < 3:
         return chars, False
 
@@ -188,7 +216,8 @@ def format_display(normalized: str, head_len: int | None = None) -> str:
     thể là biển 2 dòng: dòng trên chính là phần đầu nên không cần suy đoán.
     Truyền vào thì dùng luôn, vì với chuỗi 8 ký tự việc suy đoán là bất khả:
     `68P27299` vừa có thể là 68P-272.99 vừa có thể là 68P2-7299, cả hai đều
-    hợp lệ, chỉ bố cục ảnh gốc mới phân biệt được.
+    hợp lệ, chỉ bố cục ảnh gốc mới phân biệt được. Phần đầu dài nhất gặp được
+    là 5 ký tự (seri MĐ/TĐ kèm số lô, vd 60MĐ1), nên chấp nhận head_len tới 5.
 
     Khi không có `head_len`, suy đoán theo thứ tự:
       - Vị trí 3 là chữ cái -> seri 2 chữ cái (50LD, 60AA), phần đầu 4 ký tự.
@@ -196,12 +225,16 @@ def format_display(normalized: str, head_len: int | None = None) -> str:
                                vì số thứ tự biển VN nhiều nhất chỉ 5 chữ số.
       - Ngược lại           -> seri 1 chữ cái, phần đầu 3 ký tự.
 
+    Không suy đoán được phần đầu 5 ký tự (seri MĐ/TĐ) nếu thiếu `head_len` -
+    thực tế luôn có vì seri này chỉ xuất hiện ở biển 2 dòng, đã có head_len
+    thật từ dòng trên.
+
     Chuỗi không khớp định dạng được trả về nguyên văn, không đoán cách chia nhóm.
     """
     if not is_valid_plate(normalized):
         return normalized
 
-    if head_len is None or not (3 <= head_len <= 4 and 4 <= len(normalized) - head_len <= 5):
+    if head_len is None or not (3 <= head_len <= 5 and 4 <= len(normalized) - head_len <= 5):
         # Không có gợi ý tin cậy từ bố cục thì suy đoán
         head_len = 4 if (normalized[3].isalpha() or len(normalized) - 3 == 6) else 3
 
@@ -262,7 +295,7 @@ def read_plate(crop_bgr: np.ndarray, recognizer, layout: str | None = None,
         confidence = min(conf_top, conf_bottom)
         # Dòng trên của biển 2 dòng chính là mã tỉnh + seri, nên độ dài của nó
         # cho biết chỗ ngắt khi hiển thị mà không phải suy đoán
-        head_len = len(re.sub(r"[^A-Z0-9]", "", text_top.upper()))
+        head_len = len(re.sub(r"[^A-Z0-9Đ]", "", text_top.upper()))
     else:
         raw, confidence = recognizer.recognize(preprocess_for_ocr(crop))
 
@@ -312,36 +345,72 @@ class CRNNRecognizer:
     """OCR bằng CRNN nhỏ tự huấn luyện riêng cho charset biển số VN (xem
     `src/ml/training/ocr_model.py`, huấn luyện bởi `src/ml/train_ocr_crnn.py`).
     Chỉ đọc 1 dòng ký tự mỗi lần gọi; `read_plate()` tự tách dòng trước khi
-    gọi recognizer cho biển 2 dòng, giống 2 recognizer pretrained ở trên."""
+    gọi recognizer cho biển 2 dòng, giống 2 recognizer pretrained ở trên.
 
-    def __init__(self, checkpoint_path, device: str = "cpu"):
-        import sys
+    Hai backend, chọn tự động theo đuôi file (`.onnx` -> onnx, còn lại -> pt),
+    hoặc chỉ định thẳng qua tham số `backend`:
+
+    - `onnx`: chỉ cần onnxruntime, không cần torch. Đây là đường dùng cho thiết
+      bị biên, và cũng là bản model duy nhất được track trong git (file `.pt`
+      bị loại ở `.gitignore` vì dung lượng lớn) nên đồng bộ giữa các máy được
+      qua git, không phải chuyển tay.
+    - `pt`: nạp checkpoint PyTorch, dùng khi huấn luyện/đánh giá trên máy có
+      torch.
+
+    Cùng chung một đường tiền xử lý và một hàm giải mã CTC nên hai backend cho
+    ra cùng kết quả trên cùng một ảnh."""
+
+    def __init__(self, weights_path, device: str = "cpu", backend: str | None = None):
         from pathlib import Path as _Path
 
-        import torch
-
-        training_dir = str(_Path(__file__).resolve().parents[1] / "training")
-        if training_dir not in sys.path:
-            sys.path.insert(0, training_dir)
-        from ocr_model import CRNN, IMG_HEIGHT, IMG_WIDTH, decode_greedy
-
-        self._torch = torch
         self._device = device
-        self._img_height, self._img_width = IMG_HEIGHT, IMG_WIDTH
-        self._decode_greedy = decode_greedy
+        self._img_height, self._img_width = OCR_IMG_HEIGHT, OCR_IMG_WIDTH
+        self.backend = backend or ("onnx" if str(weights_path).lower().endswith(".onnx") else "pt")
 
-        ckpt = torch.load(checkpoint_path, map_location=device)
-        self._model = CRNN().to(device)
-        self._model.load_state_dict(ckpt["model_state"])
-        self._model.eval()
+        if self.backend == "onnx":
+            import onnxruntime as ort
+
+            self._session = ort.InferenceSession(str(weights_path),
+                                                 providers=["CPUExecutionProvider"])
+            self._input_name = self._session.get_inputs()[0].name
+        elif self.backend == "pt":
+            import sys
+
+            import torch
+
+            training_dir = str(_Path(__file__).resolve().parents[1] / "training")
+            if training_dir not in sys.path:
+                sys.path.insert(0, training_dir)
+            from ocr_model import CRNN
+
+            self._torch = torch
+            ckpt = torch.load(weights_path, map_location=device)
+            self._model = CRNN().to(device)
+            self._model.load_state_dict(ckpt["model_state"])
+            self._model.eval()
+        else:
+            raise ValueError(f"backend không hợp lệ: '{self.backend}' (chỉ nhận 'pt' hoặc 'onnx')")
+
+    def _preprocess(self, image_bgr: np.ndarray) -> np.ndarray:
+        """Đưa crop 1 dòng về đúng dạng đầu vào model: (1, 1, H, W), xám, [0,1]."""
+        img = cv2.resize(image_bgr, (self._img_width, self._img_height),
+                         interpolation=cv2.INTER_LINEAR)
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY).astype(np.float32) / 255.0
+        return gray[None, None, :, :]
 
     def recognize(self, image_bgr: np.ndarray) -> tuple[str, float]:
-        img = cv2.resize(image_bgr, (self._img_width, self._img_height), interpolation=cv2.INTER_LINEAR)
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY).astype(np.float32) / 255.0
-        tensor = self._torch.from_numpy(gray).unsqueeze(0).unsqueeze(0).to(self._device)  # (1,1,H,W)
-        with self._torch.no_grad():
-            logits = self._model(tensor)
-            probs = self._torch.softmax(logits, dim=2)
-            confidence = probs.max(dim=2).values.mean().item()
-            text = self._decode_greedy(logits)[0]
-        return text, float(confidence)
+        blob = self._preprocess(image_bgr)
+
+        if self.backend == "onnx":
+            logits = self._session.run(None, {self._input_name: blob})[0]  # (1, T, C)
+        else:
+            tensor = self._torch.from_numpy(blob).to(self._device)
+            with self._torch.no_grad():
+                logits = self._model(tensor).cpu().numpy()
+
+        logits = logits[0]  # (T, C)
+        # Softmax trên numpy, trừ max trước khi mũ để tránh tràn số
+        exp = np.exp(logits - logits.max(axis=1, keepdims=True))
+        probs = exp / exp.sum(axis=1, keepdims=True)
+        confidence = float(probs.max(axis=1).mean())
+        return decode_greedy_numpy(logits), confidence

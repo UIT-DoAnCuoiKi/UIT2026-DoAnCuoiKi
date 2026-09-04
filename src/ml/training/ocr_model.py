@@ -2,9 +2,9 @@
 dùng chung cho train/eval/export của `src/ml/train_ocr_crnn.py`.
 
 Khác với RapidOCR/EasyOCR (model tổng quát, charset rộng, vài chục triệu
-tham số), model này chỉ cần nhận diện 36 ký tự (0-9, A-Z) trên 1 dòng văn bản
-ngắn (3-9 ký tự) nên có thể rất nhỏ, phù hợp mục tiêu chạy trên thiết bị biên
-cấu hình thấp (Raspberry Pi 5).
+tham số), model này chỉ cần nhận diện 37 ký tự (0-9, A-Z, và "Đ" cho seri
+MĐ/TĐ của xe máy điện) trên 1 dòng văn bản ngắn (3-9 ký tự) nên có thể rất
+nhỏ, phù hợp mục tiêu chạy trên thiết bị biên cấu hình thấp (Raspberry Pi 5).
 
 Quy ước dữ liệu: mỗi mẫu huấn luyện là 1 DÒNG đơn (không phải cả biển số).
 Biển 2 dòng được `PlateRowDataset` tách thành 2 mẫu dòng riêng (trên/dưới)
@@ -15,7 +15,6 @@ ngay từ bước nạp dữ liệu, dùng đúng `split_rows()` của
 from __future__ import annotations
 
 import re
-import string
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -29,15 +28,21 @@ from torch.utils.data import DataLoader, Dataset
 
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from pipeline.ocr import deskew, preprocess_for_ocr, split_rows  # noqa: E402
+from pipeline.ocr import (  # noqa: E402
+    OCR_CHARSET, OCR_IDX_TO_CHAR, OCR_IMG_HEIGHT, OCR_IMG_WIDTH,
+    deskew, preprocess_for_ocr, split_rows,
+)
 
-CHARSET = sorted(string.digits + string.ascii_uppercase)  # 36 ký tự
+# Lấy lại từ `pipeline/ocr.py` thay vì khai báo riêng: charset và kích thước
+# ảnh phải giống hệt nhau giữa lúc huấn luyện và lúc suy luận, để hai nơi tự
+# khai báo là mở đường cho lỗi lệch âm thầm (đã từng làm mất hẳn ký tự "Đ").
+CHARSET = OCR_CHARSET  # 37 ký tự, gồm "Đ" cho seri MĐ/TĐ (xe máy điện)
 CHAR_TO_IDX = {c: i + 1 for i, c in enumerate(CHARSET)}  # 0 dành cho blank CTC
-IDX_TO_CHAR = {i + 1: c for i, c in enumerate(CHARSET)}
+IDX_TO_CHAR = OCR_IDX_TO_CHAR
 NUM_CLASSES = len(CHARSET) + 1  # +1 blank
 
-IMG_HEIGHT = 48
-IMG_WIDTH = 128
+IMG_HEIGHT = OCR_IMG_HEIGHT
+IMG_WIDTH = OCR_IMG_WIDTH
 
 # Phân phối thực nghiệm số pixel mỗi dòng ký tự của crop THẬT trong topkek
 # (đo trên data/processed/plate-ocr/train.csv). Dùng làm mục tiêu khi hạ cấp
@@ -67,8 +72,8 @@ def split_label_for_2row_from_raw(label_raw: str) -> tuple[str, str] | None:
     parts = str(label_raw).split(" ", 1)
     if len(parts) != 2:
         return None
-    top = re.sub(r"[^A-Z0-9]", "", parts[0].upper())
-    bottom = re.sub(r"[^A-Z0-9]", "", parts[1].upper())
+    top = re.sub(r"[^A-Z0-9Đ]", "", parts[0].upper())
+    bottom = re.sub(r"[^A-Z0-9Đ]", "", parts[1].upper())
     if not top or not bottom:
         return None
     return top, bottom
@@ -353,6 +358,15 @@ def train_crnn(
         "finished_at": datetime.now(timezone.utc).isoformat(),
         "train_seconds": train_seconds,
     }
+
+    # Nạp lại trọng số tốt nhất (theo val CER) vào `model` trước khi trả về.
+    # Vòng lặp trên chỉ ghi checkpoint tốt nhất ra đĩa, còn `model` vẫn giữ
+    # trọng số của epoch cuối. Thiếu bước này thì file .pt (chép từ checkpoint
+    # tốt nhất) và file .onnx (xuất từ `model`) là hai model khác nhau: đo trên
+    # 120 biển thật, hai bản cho ra kết quả lệch nhau ở 55 biển. Nghĩa là số
+    # liệu báo cáo đo trên .pt không mô tả đúng bản .onnx đem đi triển khai.
+    model.load_state_dict(torch.load(best_path, map_location=device)["model_state"])
+    model.eval()
     return model, best_path, history
 
 
