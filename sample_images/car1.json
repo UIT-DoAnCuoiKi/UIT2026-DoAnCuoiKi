@@ -1,0 +1,1 @@
+{"vehicle_type": "car", "vehicle_style": "sedan", "vehicle_style_conf": 0.8, "plates": [{"plate_text": "51F-123.45", "det_conf": 0.96, "ocr_conf": 0.9, "plate_valid": true, "layout": "1 hàng", "color": "trắng", "color_conf": 0.9}]}

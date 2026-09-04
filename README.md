@@ -59,6 +59,39 @@ Xây dựng một hệ thống quản lý bãi giữ xe thông minh có khả n�
 - **Triển khai**: chạy được trên PC và thiết bị biên (minh họa trên Raspberry Pi), xử lý từng lượt xe với độ trễ mục tiêu **< 2 giây/lượt** trên Raspberry Pi 5, kèm số liệu so sánh hiệu năng đa nền tảng.
 - **Tài liệu**: báo cáo đồ án tốt nghiệp hoàn chỉnh (viết song hành theo từng giai đoạn), mã nguồn, bộ dữ liệu tự thu thập, video demo.
 
+## Chạy full stack trên Podman (có AI thật)
+
+Backend chạy model đã huấn luyện ở `src/ml` (detector YOLO + OCR CRNN + phân loại kiểu dáng) qua `OnnxAlprPipeline`, đúng đường e2e của `src/ml/notebooks/e2e-pipeline-test.ipynb`. Camera do trình duyệt (host) truy cập rồi gửi ảnh về backend, nên không cần thiết bị camera trong container.
+
+Yêu cầu: podman + một provider compose (`podman-compose` hoặc `docker compose`). macOS chạy VM libkrun nên cần cấp đủ RAM và disk cho torch.
+
+1. Clone repo (weights inference `plate-detector.pt` và `yolov8n.pt` đã kèm sẵn trong git).
+2. macOS cấp tài nguyên cho VM (torch nặng, ~2GB):
+   ```
+   podman machine stop
+   podman machine set --memory 4096 --cpus 4 --disk-size 30
+   podman machine start
+   ```
+   Nếu phân vùng chưa nở theo disk mới: `podman machine ssh 'sudo growpart /dev/vda 4; sudo xfs_growfs /var'`.
+3. Tạo cấu hình: `cp .env.example .env` (giá trị dev đã chạy được ngay; đổi khóa thật khi lên production bằng `cd src/backend && python -m scripts.gen_secrets`).
+4. Dựng: `podman compose --profile frontend up --build -d` (hoặc `podman-compose ...`). Lần đầu build torch lâu (5 tới 15 phút).
+5. Mở `http://localhost:5173`, đăng nhập `admin` / `admin12345`, vào Trạm cổng, bấm Chụp từ webcam để thấy biển số nhận dạng thật.
+
+Kiểm nhanh backend đọc biển thật:
+```
+curl -X POST http://localhost:8000/captures/infer -H "Authorization: Bearer <token>" \
+  -F "capture_id=test-1" -F "direction=in" \
+  -F "image=@docs/research/assets/dataset-samples/1_bomaich_detect.png"
+```
+Kỳ vọng: JSON có `plate_text` là biển thật (ví dụ `81AA-048.92`), không phải hằng số `51F12345`.
+
+Sự cố thường gặp:
+- Build báo `No space left on device`: nới disk VM (bước 2) rồi build lại; dọn image cũ `podman system prune -af` (giữ volume `pgdata`).
+- Build treo không tiến triển hoặc `input/output error` overlay: `podman machine stop && podman machine start` rồi build lại.
+- Đừng pipe lệnh compose qua `tail` khi cần exit code thật.
+
+Đường edge (Raspberry Pi) tách riêng, dùng profile `edge` với camera GPIO trên Pi, không dựng trên máy dev.
+
 ## Tài liệu
 
 Đề cương chi tiết đầy đủ: [`docs/DCDATN_25410104_NguyenMinhNhat_25410034_LeQuangHoaiDuc.docx`](docs/DCDATN_25410104_NguyenMinhNhat_25410034_LeQuangHoaiDuc.docx)

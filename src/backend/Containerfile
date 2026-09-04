@@ -1,0 +1,25 @@
+# Build context = repo root (compose đặt context: .), giữ layout src/backend + src/ml
+# cạnh nhau trong image để path resolve đúng: ml_inference._ML_DIR = parents[3]/"ml"
+# = /app/src/ml; predict_vehicle REPO_ROOT = /app.
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# libpq5: psycopg2 runtime. libgl1 + glib: opencv (ultralytics kéo theo) runtime.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libpq5 libgl1 libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Cài deps backend + ML (torch/ultralytics/onnxruntime/scikit-learn/pandas).
+COPY src/backend/requirements.txt src/backend/requirements-ml.txt ./
+RUN pip install --no-cache-dir -r requirements.txt -r requirements-ml.txt
+
+# Giữ layout repo trong image.
+COPY src/backend ./src/backend
+COPY src/ml ./src/ml
+
+WORKDIR /app/src/backend
+RUN chmod +x entrypoint.sh
+
+EXPOSE 8000
+ENTRYPOINT ["./entrypoint.sh"]

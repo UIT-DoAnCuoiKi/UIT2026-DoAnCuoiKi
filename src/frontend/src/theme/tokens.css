@@ -1,0 +1,115 @@
+@import "tailwindcss";
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --bg: #ffffff;
+  --surface: #f7f9fb;
+  --ink: #1c1c1c;
+  --muted: rgba(28, 28, 28, 0.4);
+  --faint: rgba(28, 28, 28, 0.2);
+  --line: rgba(28, 28, 28, 0.1);
+  --primary: #1c1c1c;
+  --on-primary: #ffffff;
+
+  --tile-blue: #e3f5ff;
+  --tile-purple: #e5ecf6;
+  --tile-mint: #def8ee;
+  --tile-peri: #edf0ff;
+
+  --chart-1: #95a4fc;
+  --chart-2: #c6c7f8;
+  --chart-3: #a1e3cb;
+  --chart-4: #b1e3ff;
+  --chart-5: #a8c5da;
+  --chart-6: #1c1c1c;
+
+  --st-green: #1f9d63;
+  --st-purple: #7a7cd6;
+  --st-blue: #2e8bc0;
+  --st-amber: #b98900;
+  --st-red: #d24a3e;
+  --st-grey: rgba(28, 28, 28, 0.4);
+
+  --radius-card: 16px;
+  --radius-control: 8px;
+}
+
+.dark {
+  --bg: #1c1c1c;
+  --surface: rgba(255, 255, 255, 0.05);
+  --ink: #ffffff;
+  --muted: rgba(255, 255, 255, 0.4);
+  --faint: rgba(255, 255, 255, 0.2);
+  --line: rgba(255, 255, 255, 0.1);
+  --primary: #95a4fc;
+  --on-primary: #1c1c1c;
+
+  --tile-blue: rgba(255, 255, 255, 0.05);
+  --tile-purple: rgba(255, 255, 255, 0.05);
+  --tile-mint: #def8ee;
+  --tile-peri: #edf0ff;
+
+  --st-green: #3fbe82;
+  --st-purple: #95a4fc;
+  --st-blue: #59a8d4;
+  --st-amber: #e6a23c;
+  --st-red: #e4695e;
+  --st-grey: rgba(255, 255, 255, 0.4);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-line: var(--line);
+  --color-primary: var(--primary);
+  --color-on-primary: var(--on-primary);
+
+  --color-tile-blue: var(--tile-blue);
+  --color-tile-purple: var(--tile-purple);
+  --color-tile-mint: var(--tile-mint);
+  --color-tile-peri: var(--tile-peri);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-6: var(--chart-6);
+
+  --color-st-green: var(--st-green);
+  --color-st-purple: var(--st-purple);
+  --color-st-blue: var(--st-blue);
+  --color-st-amber: var(--st-amber);
+  --color-st-red: var(--st-red);
+  --color-st-grey: var(--st-grey);
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --radius: var(--radius-control);
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    background-color: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-sans);
+  }
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
