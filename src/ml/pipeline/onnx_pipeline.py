@@ -133,8 +133,12 @@ class OnnxAlprPipeline:
         style_onnx = str(style_onnx or _DEFAULTS["style_onnx"])
         style_classes_path = str(style_classes_path or _DEFAULTS["style_classes"])
 
+        # PlateDetector mặc định backend="pt"; suy theo đuôi file (giống
+        # CRNNRecognizer) để truyền .onnx thật sự chạy qua route onnxruntime,
+        # không lặng lẽ rơi về route "pt" (vẫn cần torch) chỉ vì thiếu backend=.
+        plate_backend = "onnx" if plate_weights.lower().endswith(".onnx") else "pt"
         det_kwargs = {} if conf is None else {"conf": conf}
-        self._plate_detector = PlateDetector(plate_weights, **det_kwargs)
+        self._plate_detector = PlateDetector(plate_weights, backend=plate_backend, **det_kwargs)
         self._ocr = _OnnxCRNNRecognizer(ocr_onnx)
 
         self._style_sess = None

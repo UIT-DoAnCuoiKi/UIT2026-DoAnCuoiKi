@@ -20,7 +20,8 @@ REPO_ROOT = Path(__file__).resolve().parents[4]  # tests -> pipeline -> ml -> sr
 SAMPLE = REPO_ROOT / "docs" / "research" / "assets" / "dataset-samples" / "10_duydieu_CLOSE_singlevehicle.png"
 
 TOP_KEYS = {"vehicle_type", "vehicle_box", "vehicle_style", "vehicle_style_conf", "plates"}
-PLATE_KEYS = {"bbox", "layout", "det_conf", "plate_text", "plate_valid", "ocr_conf", "color", "color_conf"}
+PLATE_KEYS = {"bbox", "layout", "det_conf", "plate_text", "plate_valid", "ocr_conf", "color", "color_conf",
+              "crop_proc_b64"}
 
 
 @pytest.mark.slow
