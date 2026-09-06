@@ -18,3 +18,14 @@ test("postInfer sends multipart with expected fields", async () => {
   expect(form.get("capture_id")).toBe("cap-1");
   expect(form.get("lane")).toBe("lane2");
 });
+
+test("postInfer sends extra camera images with matching roles", async () => {
+  const blob = new Blob(["front"], { type: "image/jpeg" });
+  const rear = new Blob(["rear"], { type: "image/jpeg" });
+  await postInfer(blob, "in", "cap-2", "lane1", [{ role: "rear", blob: rear }], "front");
+  const post = (AXIOS_INSTANCE as unknown as { post: ReturnType<typeof vi.fn> }).post;
+  const [, form] = post.mock.calls[post.mock.calls.length - 1];
+  expect(form.get("primary_role")).toBe("front");
+  expect(form.getAll("extra_roles")).toEqual(["rear"]);
+  expect(form.getAll("extra_images")).toHaveLength(1);
+});

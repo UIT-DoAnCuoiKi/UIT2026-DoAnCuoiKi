@@ -3,7 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.deps import get_current_user, require_role
+from app.deps import admin_only, get_current_user
 from app.models import MonthlyPass, PlateBlacklist, PlateWhitelist, User, VehicleOwner
 from app.schemas.registry import (
     MonthlyPassIn, MonthlyPassOut, OwnerIn, OwnerOut, PlateListIn, PlateListOut,
@@ -12,7 +12,6 @@ from app.security import crypto
 from app.security.plate import plate_hash
 
 router = APIRouter(tags=["registry"])
-admin_only = require_role("manager", "root")
 
 
 def _plate_fields(plate_text: str) -> dict:

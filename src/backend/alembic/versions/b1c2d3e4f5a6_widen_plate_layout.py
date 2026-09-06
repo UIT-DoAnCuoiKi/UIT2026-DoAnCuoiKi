@@ -17,18 +17,23 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.alter_column(
-        "plate_reading", "layout",
-        existing_type=sa.String(length=8),
-        type_=sa.String(length=16),
-        existing_nullable=True,
-    )
+    # batch_alter_table: SQLite không có ALTER COLUMN TYPE (dialect này vốn
+    # không cưỡng chế độ dài varchar nên đổi kiểu chỉ có ý nghĩa trên Postgres,
+    # nhưng vẫn cần batch mode thì lệnh mới chạy được trên SQLite).
+    with op.batch_alter_table("plate_reading") as batch:
+        batch.alter_column(
+            "layout",
+            existing_type=sa.String(length=8),
+            type_=sa.String(length=16),
+            existing_nullable=True,
+        )
 
 
 def downgrade() -> None:
-    op.alter_column(
-        "plate_reading", "layout",
-        existing_type=sa.String(length=16),
-        type_=sa.String(length=8),
-        existing_nullable=True,
-    )
+    with op.batch_alter_table("plate_reading") as batch:
+        batch.alter_column(
+            "layout",
+            existing_type=sa.String(length=16),
+            type_=sa.String(length=8),
+            existing_nullable=True,
+        )

@@ -3,7 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.deps import get_current_user, require_role
+from app.deps import admin_only, get_current_user
 from app.models import Floor, ParkingLot, User, Zone
 from app.schemas.space import (
     FloorIn, FloorOut, FloorUpdate, LotIn, LotOut, LotUpdate, ZoneIn, ZoneOut, ZoneUpdate,
@@ -11,7 +11,6 @@ from app.schemas.space import (
 from app.services.occupancy import occupancy_report
 
 router = APIRouter(tags=["spaces"])
-admin_only = require_role("manager", "root")
 
 
 @router.get("/lots", response_model=list[LotOut])

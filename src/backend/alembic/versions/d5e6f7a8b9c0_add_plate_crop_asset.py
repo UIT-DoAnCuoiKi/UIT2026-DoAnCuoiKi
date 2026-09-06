@@ -17,17 +17,19 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "plate_reading",
-        sa.Column("plate_crop_asset_id", sa.Integer(), nullable=True),
-    )
-    op.create_foreign_key(
-        "fk_plate_reading_plate_crop_asset",
-        "plate_reading", "image_asset",
-        ["plate_crop_asset_id"], ["id"],
-    )
+    # batch_alter_table: SQLite không ALTER được constraint (xem migration
+    # a1b2c3d4e5f6 cho cùng vấn đề). Trên PostgreSQL alembic vẫn phát ADD COLUMN
+    # / ADD CONSTRAINT thường, hành vi không đổi.
+    with op.batch_alter_table("plate_reading") as batch:
+        batch.add_column(sa.Column("plate_crop_asset_id", sa.Integer(), nullable=True))
+        batch.create_foreign_key(
+            "fk_plate_reading_plate_crop_asset",
+            "image_asset",
+            ["plate_crop_asset_id"], ["id"],
+        )
 
 
 def downgrade() -> None:
-    op.drop_constraint("fk_plate_reading_plate_crop_asset", "plate_reading", type_="foreignkey")
-    op.drop_column("plate_reading", "plate_crop_asset_id")
+    with op.batch_alter_table("plate_reading") as batch:
+        batch.drop_constraint("fk_plate_reading_plate_crop_asset", type_="foreignkey")
+        batch.drop_column("plate_crop_asset_id")

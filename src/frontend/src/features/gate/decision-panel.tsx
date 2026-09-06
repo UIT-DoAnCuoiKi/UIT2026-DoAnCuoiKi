@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { toast } from "sonner";
-import { useConfirmEntry, useConfirmExit, useManualSession } from "@/api/generated/sessions/sessions";
+import { useConfirmEntry, useConfirmExit, useManualSession, usePreviewExit } from "@/api/generated/sessions/sessions";
+import type { ExitPreview } from "@/api/generated/model";
 import { usePatchPlate } from "@/api/generated/readings/readings";
 import { useCreatePayment } from "@/api/generated/payments/payments";
 import { useGetToggles, useListPriceRules } from "@/api/generated/config/config";
@@ -10,6 +11,7 @@ import { PlateField } from "@/components/plate-field";
 import { StatusChip } from "@/components/status-chip";
 import { Button } from "@/components/ui/button";
 import { RecognitionResult } from "./recognition-result";
+import { ExitReview, feeExplanation } from "./exit-review";
 import { PayRow, PAY_METHODS } from "./pay-row";
 import { VEHICLE_TYPE_OPTIONS, vehicleTypeLabel } from "@/lib/labels";
 import { groupForVehicleType } from "@/lib/vehicle-groups";
@@ -37,6 +39,8 @@ export const DecisionPanel = forwardRef<DecisionPanelHandle, Props>(function Dec
   { capture, direction, onDone, onRecapture, onPayOpenChange },
   ref,
 ) {
+  // Mỗi hướng một id riêng: 2 panel cùng mount, id trùng thì focus nhảy nhầm panel.
+  const plateFieldId = `plate-${direction}`;
   const { data: toggles } = useGetToggles();
   const forceManual = toggles ? !toggles.read_plate : false;
   const state = forceManual ? "manual" : capture.review_state;
@@ -66,13 +70,24 @@ export const DecisionPanel = forwardRef<DecisionPanelHandle, Props>(function Dec
 
   const confirmEntry = useConfirmEntry();
   const confirmExit = useConfirmExit();
+  const previewExit = usePreviewExit();
   const manual = useManualSession();
   const patchPlate = usePatchPlate();
   const createPayment = useCreatePayment();
 
   const [candidates, setCandidates] = useState<{ id: number; plate_text?: string | null }[]>([]);
+  // Kết quả tính thử lượt RA: hiện đối chiếu ảnh vào/ra + phí dự tính, phiên chưa đóng.
+  const [exitPreview, setExitPreview] = useState<ExitPreview | null>(null);
   const [dupBlocked, setDupBlocked] = useState(false);
-  const [payFor, setPayFor] = useState<{ sessionId: number; amount: number; plate?: string | null } | null>(null);
+  const [payFor, setPayFor] = useState<{
+    sessionId: number;
+    amount: number;
+    plate?: string | null;
+    entryTime?: string | null;
+    exitTime?: string | null;
+    minutes?: number | null;
+    explanation?: string | null;
+  } | null>(null);
   const [method, setMethod] = useState("cash");
   const [paid, setPaid] = useState(false);
 
@@ -81,8 +96,10 @@ export const DecisionPanel = forwardRef<DecisionPanelHandle, Props>(function Dec
   // both pass the busy check. This prevents a duplicate entry/exit/payment.
   const inFlight = useRef(false);
 
+  // Lượt mới thì dọn sạch mọi trạng thái của lượt trước, không để sót gì trên màn.
   useEffect(() => {
     setCandidates([]);
+    setExitPreview(null);
     setDupBlocked(false);
     setPayFor(null);
     setPaid(false);
@@ -96,6 +113,7 @@ export const DecisionPanel = forwardRef<DecisionPanelHandle, Props>(function Dec
   const busy =
     confirmEntry.isPending ||
     confirmExit.isPending ||
+    previewExit.isPending ||
     manual.isPending ||
     patchPlate.isPending ||
     createPayment.isPending;
@@ -159,7 +177,14 @@ export const DecisionPanel = forwardRef<DecisionPanelHandle, Props>(function Dec
       else toast.success(plateTrim ? "Đã xác nhận VÀO" : "Đã tạo phiên chờ (vào không biển)");
       onDone();
     } catch (e) {
-      if ((e as { response?: { status?: number } })?.response?.status === 409) {
+      // BE trả 409 cho hai nguyên nhân khác nhau, phân biệt bằng error_code:
+      // đoán theo mỗi mã HTTP sẽ báo nhầm "biển trùng" khi thật ra là bãi đầy,
+      // kèm nút ghi đè vô nghĩa vì bấm lại cũng đầy y như cũ.
+      const err = e as { response?: { status?: number; data?: { detail?: { error_code?: string } } } };
+      const code = err?.response?.data?.detail?.error_code;
+      if (code === "lot_full") {
+        toast.error("Bãi đã đầy, không nhận thêm xe.");
+      } else if (err?.response?.status === 409) {
         setDupBlocked(true);
         toast.error("Biển đang trong bãi. Bấm ghi đè nếu chắc chắn cho vào.");
       } else {
@@ -170,6 +195,35 @@ export const DecisionPanel = forwardRef<DecisionPanelHandle, Props>(function Dec
     }
   };
 
+  /** Bước 1 khi cho xe RA: tính thử để nhân viên đối chiếu, KHÔNG đóng phiên. */
+  const doExitPreview = async (sessionId?: number) => {
+    if (busy || inFlight.current) return;
+    inFlight.current = true;
+    try {
+      await ensureEditsSaved();
+      const res = await previewExit.mutateAsync({
+        data: { reading_id: capture.reading_id, ...(sessionId ? { session_id: sessionId } : {}) },
+      });
+      if (res.outcome === "suggest" && res.candidates?.length) {
+        setCandidates(res.candidates);
+        return;
+      }
+      if (res.outcome === "no_match") {
+        // Không khớp xe nào: để nhân viên chọn phiên tay hoặc dùng Nhập tay.
+        // Không tự tạo phiên tranh chấp ở bước xem trước.
+        toast.error("Không khớp xe nào trong bãi. Chọn phiên hoặc dùng Nhập tay.");
+        return;
+      }
+      setCandidates([]);
+      setExitPreview(res);
+    } catch {
+      toast.error("Không tính thử được lượt RA");
+    } finally {
+      inFlight.current = false;
+    }
+  };
+
+  /** Bước 2: chốt thật (đóng phiên, ghi phí) sau khi nhân viên đã đối chiếu. */
   const doExit = async (sessionId?: number) => {
     if (busy || inFlight.current) return;
     inFlight.current = true;
@@ -178,6 +232,7 @@ export const DecisionPanel = forwardRef<DecisionPanelHandle, Props>(function Dec
       const res = await confirmExit.mutateAsync({
         data: { reading_id: capture.reading_id, ...(sessionId ? { session_id: sessionId } : {}) },
       });
+      setExitPreview(null);
       if (res.candidates && res.candidates.length > 0 && !sessionId) {
         setCandidates(res.candidates);
         return;
@@ -187,8 +242,30 @@ export const DecisionPanel = forwardRef<DecisionPanelHandle, Props>(function Dec
         toast.error("Không tìm thấy phiên phù hợp. Chọn phiên hoặc dùng Nhập tay.");
         return;
       }
+      // BE không khớp được xe nào thì tạo phiên tranh chấp (chưa có phí). Phải
+      // báo đúng, nếu rơi xuống nhánh dưới sẽ hiện "RA miễn phí" và nhân viên
+      // không biết vừa phát sinh một phiên cần xử lý.
+      if (res.outcome === "disputed") {
+        toast.warning("Không khớp xe nào trong bãi. Đã tạo phiên tranh chấp, cần xử lý ở màn Phiên.");
+        onDone();
+        return;
+      }
       if ((s.fee_amount ?? 0) > 0) {
-        setPayFor({ sessionId: s.id, amount: s.fee_amount as number, plate: s.plate_text });
+        setPayFor({
+          sessionId: s.id,
+          amount: s.fee_amount as number,
+          plate: s.plate_text,
+          entryTime: s.entry_time,
+          exitTime: s.exit_time,
+          // Ưu tiên số liệu đã tính ở bước đối chiếu; nếu chốt thẳng (không qua
+          // xem trước) thì suy lại thời lượng từ giờ vào/ra của phiên đã đóng.
+          minutes:
+            exitPreview?.minutes ??
+            (s.entry_time && s.exit_time
+              ? (new Date(s.exit_time).getTime() - new Date(s.entry_time).getTime()) / 60000
+              : null),
+          explanation: feeExplanation(exitPreview?.fee_rule_snapshot as Record<string, unknown> | null),
+        });
         return;
       }
       toast.success("Đã xác nhận RA (miễn phí)");
@@ -236,7 +313,10 @@ export const DecisionPanel = forwardRef<DecisionPanelHandle, Props>(function Dec
     }
   };
 
-  const primaryConfirm = () => (direction === "in" ? doEntry(false) : doExit());
+  // RA đi 2 bước: xem trước để đối chiếu, rồi mới chốt. Nếu đang ở màn đối chiếu
+  // thì Enter nghĩa là chốt luôn, không phải tính thử lại.
+  const primaryConfirm = () =>
+    direction === "in" ? doEntry(false) : exitPreview ? doExit(exitPreview.session?.id) : doExitPreview();
 
   useImperativeHandle(ref, () => ({
     confirm: () => {
@@ -252,6 +332,8 @@ export const DecisionPanel = forwardRef<DecisionPanelHandle, Props>(function Dec
     cancel: () => {
       if (payFor) {
         if (!paid) setPayFor(null);
+      } else if (exitPreview) {
+        setExitPreview(null);
       } else if (candidates.length) {
         setCandidates([]);
       } else {
@@ -262,11 +344,24 @@ export const DecisionPanel = forwardRef<DecisionPanelHandle, Props>(function Dec
       const m = PAY_METHODS[n - 1];
       if (m) setMethod(m.key);
     },
-    focusPlate: () => document.getElementById("plate")?.focus(),
+    focusPlate: () => document.getElementById(plateFieldId)?.focus(),
   }));
 
   const entryDisabled = busy || !plateTrim;
   const exitDisabled = busy;
+
+  // Đối chiếu vào/ra trước khi chốt: chiếm trọn panel để ảnh đủ to mà nhìn.
+  if (exitPreview) {
+    return (
+      <ExitReview
+        preview={exitPreview}
+        exitLocalUrl={capture.local_image_url}
+        onConfirm={() => doExit(exitPreview.session?.id)}
+        onCancel={() => setExitPreview(null)}
+        busy={busy}
+      />
+    );
+  }
 
   if (payFor) {
     return (
@@ -274,6 +369,10 @@ export const DecisionPanel = forwardRef<DecisionPanelHandle, Props>(function Dec
         sessionId={payFor.sessionId}
         plate={payFor.plate}
         amount={payFor.amount}
+        entryTime={payFor.entryTime}
+        exitTime={payFor.exitTime}
+        minutes={payFor.minutes}
+        explanation={payFor.explanation}
         method={method}
         onMethod={setMethod}
         onConfirm={paid ? onDone : confirmPay}
@@ -283,157 +382,178 @@ export const DecisionPanel = forwardRef<DecisionPanelHandle, Props>(function Dec
     );
   }
 
+  // Bố cục: phần phụ (độ tin cậy, danh sách phiên, nhập tay) cuộn được ở trên;
+  // thanh thao tác chính ghim đáy nên biển số và nút xác nhận không bao giờ bị
+  // đẩy khỏi màn hình — trước đây nhân viên phải cuộn mới bấm được nút chính.
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <StatusChip kind="review" value={state} />
-        <Button variant="outline" className="h-9" onClick={onRecapture} disabled={busy}>
-          Nhận lại
-        </Button>
+    <div className="flex h-full min-h-0 flex-col gap-2">
+      <div className="min-h-0 flex-1 space-y-2 overflow-auto">
+        <div className="flex items-center justify-between gap-2">
+          <StatusChip kind="review" value={state} />
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" className="h-9" onClick={resetEdits} disabled={!hasEdits || busy}>
+              Hoàn tác sửa
+            </Button>
+            <Button variant="outline" className="h-9" onClick={saveEdits} disabled={!editsChanged || busy}>
+              Lưu chỉnh sửa
+            </Button>
+            <Button variant="outline" className="h-9" onClick={onRecapture} disabled={busy}>
+              Nhận lại
+            </Button>
+            {/* Khác với "Hoàn tác sửa" (chỉ trả biển/loại xe/màu về đúng giá trị
+                model đã nhận, luôn tắt khi chưa sửa gì) — nút này xoá hẳn cả ảnh
+                lẫn kết quả của lượt hiện tại, cho lượt chụp mới hoàn toàn. Trước
+                đây không có cách nào bỏ một lượt chụp hỏng ngoài phím tắt Esc. */}
+            <Button variant="ghost" className="h-9" onClick={onDone} disabled={busy}>
+              Xoá lượt
+            </Button>
+          </div>
+        </div>
+
+        <RecognitionResult capture={capture} />
+
+        {candidates.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Chọn phiên để nối</p>
+            {candidates.map((c) => (
+              <Button
+                key={c.id}
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => doExitPreview(c.id)}
+              >
+                #{c.id} — {c.plate_text ?? "?"}
+              </Button>
+            ))}
+          </div>
+        )}
+
+        {dupBlocked && (
+          <p className="text-[13px] text-st-amber">Biển đang có phiên trong bãi. Ghi đè chỉ khi chắc chắn.</p>
+        )}
+
+        {manualOpen && direction === "in" && (
+          <div className="space-y-2 border-t border-line pt-2">
+            <p className="text-[13px] text-muted">Nhập tay hoàn toàn: cần biển số và loại xe ở thanh dưới.</p>
+            <Button className="h-11" onClick={doManualEntry} disabled={busy || !plateTrim || !group}>
+              Ghi nhận nhập tay
+            </Button>
+          </div>
+        )}
+
+        {manualOpen && direction === "out" && (
+          <p className="border-t border-line pt-2 text-[13px] text-muted">
+            Nhập tay RA: chọn phiên trong danh sách để nối.
+          </p>
+        )}
       </div>
 
-      <PlateField value={plate} onChange={setPlate} size="lg" highlight={state === "needs_review"} />
+      {/* Thanh thao tác ghim đáy: luôn thấy, không nằm trong vùng cuộn. Biển số
+          + loại xe + màu biển + giá gộp chung 1 hàng để đọc liền mạch như một
+          dải "đối chiếu trước khi xác nhận", thay vì biển số chiếm hẳn 1 hàng
+          rộng lênh khênh rồi tách rời 2 dropdown ở hàng dưới. */}
+      <div className="shrink-0 space-y-2 border-t border-line pt-2">
+        <div className="flex flex-wrap items-end gap-3">
+          <PlateField
+            id={plateFieldId}
+            value={plate}
+            onChange={setPlate}
+            size="lg"
+            highlight={state === "needs_review"}
+          />
 
-      {/* Sửa tay: loại xe và màu biển. Nhóm phí suy ra 1-1 từ loại xe, không chọn tay. */}
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label htmlFor="corr-vtype" className="mb-1 block text-[12px] text-muted">
-            Loại xe
-          </label>
-          <select
-            id="corr-vtype"
-            aria-label="Loại xe"
-            className="h-9 w-full rounded-[var(--radius-control)] border border-line bg-bg px-2 text-sm"
-            value={vType}
-            onChange={(e) => setVType(e.target.value)}
-          >
-            <option value="">—</option>
-            {VEHICLE_TYPE_OPTIONS.map((o) => (
-              <option key={o.code} value={o.code}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="corr-color" className="mb-1 block text-[12px] text-muted">
-            Màu biển
-          </label>
-          <div className="flex items-center gap-1.5">
-            <span
-              className="inline-block h-4 w-4 shrink-0 rounded-full border border-line"
-              style={{ background: plateColor(color)?.swatch ?? "transparent" }}
-            />
+          <div className="w-[150px] shrink-0">
+            <label htmlFor={`${plateFieldId}-vtype`} className="mb-1 block text-[12px] text-muted">
+              Loại xe
+            </label>
             <select
-              id="corr-color"
-              aria-label="Màu biển"
+              id={`${plateFieldId}-vtype`}
+              aria-label="Loại xe"
               className="h-9 w-full rounded-[var(--radius-control)] border border-line bg-bg px-2 text-sm"
-              value={color}
-              onChange={(e) => setColor(e.target.value)}
+              value={vType}
+              onChange={(e) => setVType(e.target.value)}
             >
               <option value="">—</option>
-              {PLATE_COLOR_OPTIONS.map((o) => (
+              {VEHICLE_TYPE_OPTIONS.map((o) => (
                 <option key={o.code} value={o.code}>
                   {o.label}
                 </option>
               ))}
             </select>
           </div>
-        </div>
-      </div>
 
-      {/* Giá theo loại xe (nhóm phí suy ra 1-1). Chỉ hiện khi VÀO. */}
-      {direction === "in" && (
-        <div className="flex items-center justify-between rounded-[var(--radius-control)] border border-line bg-panel px-3 py-2 text-sm">
-          <span className="text-muted">{vType ? `Giá ${vehicleTypeLabel(vType)}` : "Giá"}</span>
-          <span className="tnum font-medium" data-testid="entry-price">
-            {!vType ? "Chọn loại xe" : (priceText ?? "Chưa có bảng giá")}
-          </span>
-        </div>
-      )}
+          <div className="w-[160px] shrink-0">
+            <label htmlFor={`${plateFieldId}-color`} className="mb-1 block text-[12px] text-muted">
+              Màu biển
+            </label>
+            <div className="flex items-center gap-1.5">
+              <span
+                className="inline-block h-4 w-4 shrink-0 rounded-full border border-line"
+                style={{ background: plateColor(color)?.swatch ?? "transparent" }}
+              />
+              <select
+                id={`${plateFieldId}-color`}
+                aria-label="Màu biển"
+                className="h-9 w-full rounded-[var(--radius-control)] border border-line bg-bg px-2 text-sm"
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
+              >
+                <option value="">—</option>
+                {PLATE_COLOR_OPTIONS.map((o) => (
+                  <option key={o.code} value={o.code}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <RecognitionResult capture={capture} />
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" className="h-9" onClick={resetEdits} disabled={!hasEdits || busy}>
-            Đặt lại
-          </Button>
-          <Button variant="outline" className="h-9" onClick={saveEdits} disabled={!editsChanged || busy}>
-            Lưu chỉnh sửa
-          </Button>
+          {direction === "in" && (
+            <div className="min-w-[130px] shrink-0">
+              <span className="mb-1 block text-[12px] text-muted">
+                {vType ? `Giá ${vehicleTypeLabel(vType)}` : "Giá"}
+              </span>
+              <span className="tnum block h-9 leading-9 text-sm font-medium" data-testid="entry-price">
+                {!vType ? "Chọn loại xe" : (priceText ?? "Chưa có bảng giá")}
+              </span>
+            </div>
+          )}
         </div>
-      </div>
 
-      {candidates.length > 0 ? (
-        <div className="space-y-2">
-          <p className="text-sm font-medium">Chọn phiên để nối</p>
-          {candidates.map((c) => (
-            <Button
-              key={c.id}
-              variant="outline"
-              className="w-full justify-start"
-              onClick={() => doExit(c.id)}
-            >
-              #{c.id} — {c.plate_text ?? "?"}
-            </Button>
-          ))}
-        </div>
-      ) : (
-        <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-2 border-t border-line pt-2">
           {direction === "in" ? (
             <>
-              <div className="flex flex-wrap gap-2">
-                <Button className="h-11 min-w-[44px]" onClick={() => doEntry(false)} disabled={entryDisabled}>
-                  Xác nhận VÀO
+              <Button className="h-11 min-w-[44px]" onClick={() => doEntry(false)} disabled={entryDisabled}>
+                Xác nhận VÀO
+              </Button>
+              {!plateTrim && (
+                <Button variant="outline" className="h-11" onClick={() => doEntry(true)} disabled={busy}>
+                  Vào không biển (phiên chờ)
                 </Button>
-                {!plateTrim && (
-                  <Button variant="outline" className="h-11" onClick={() => doEntry(true)} disabled={busy}>
-                    Vào không biển (phiên chờ)
-                  </Button>
-                )}
-                {dupBlocked && (
-                  <Button variant="outline" className="h-11" onClick={() => doEntry(false, true)} disabled={busy}>
-                    Vào (ghi đè trùng)
-                  </Button>
-                )}
-              </div>
+              )}
               {dupBlocked && (
-                <p className="text-[13px] text-st-amber">Biển đang có phiên trong bãi. Ghi đè chỉ khi chắc chắn.</p>
+                <Button variant="outline" className="h-11" onClick={() => doEntry(false, true)} disabled={busy}>
+                  Vào (ghi đè trùng)
+                </Button>
               )}
             </>
           ) : (
-            <Button className="h-11 min-w-[44px]" onClick={() => doExit()} disabled={exitDisabled}>
-              Xác nhận RA
+            <Button className="h-11 min-w-[44px]" onClick={() => doExitPreview()} disabled={exitDisabled}>
+              Đối chiếu &amp; cho RA
             </Button>
           )}
+
+          {!manualOpen && (
+            <Button variant="secondary" className="h-11" onClick={() => setManualOpen(true)}>
+              Nhập tay
+            </Button>
+          )}
+
           {!plateTrim && direction === "in" && (
-            <p className="text-[13px] text-muted">Cần biển số để xác nhận VÀO, hoặc dùng "Vào không biển".</p>
+            <span className="text-[13px] text-muted">Cần biển số, hoặc dùng "Vào không biển".</span>
           )}
         </div>
-      )}
-
-      {manualOpen && direction === "in" && (
-        <div className="space-y-2 border-t border-line pt-3">
-          <p className="text-[13px] text-muted">Nhập tay hoàn toàn: cần biển số và loại xe đã chọn ở trên.</p>
-          <Button className="h-11" onClick={doManualEntry} disabled={busy || !plateTrim || !group}>
-            Ghi nhận nhập tay
-          </Button>
-        </div>
-      )}
-
-      {manualOpen && direction === "out" && (
-        <p className="border-t border-line pt-3 text-[13px] text-muted">
-          Nhập tay RA: chọn phiên trong danh sách để nối.
-        </p>
-      )}
-
-      {!manualOpen && (
-        <div className="border-t border-line pt-3">
-          <Button variant="secondary" className="h-11" onClick={() => setManualOpen(true)}>
-            Nhập tay
-          </Button>
-        </div>
-      )}
+      </div>
     </div>
   );
 });

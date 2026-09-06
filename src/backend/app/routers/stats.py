@@ -7,7 +7,7 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.deps import require_role
+from app.deps import admin_only
 from app.models import User
 from app.services import stats as stats_service
 
@@ -19,7 +19,7 @@ def get_stats(
     from_: datetime | None = Query(None, alias="from"),
     to: datetime | None = Query(None),
     db: Session = Depends(get_db),
-    user: User = Depends(require_role("manager", "root")),
+    user: User = Depends(admin_only),
 ) -> dict:
     return stats_service.summary(db, from_, to)
 
@@ -29,7 +29,7 @@ def export_stats(
     from_: datetime | None = Query(None, alias="from"),
     to: datetime | None = Query(None),
     db: Session = Depends(get_db),
-    admin: User = Depends(require_role("manager", "root")),
+    admin: User = Depends(admin_only),
 ) -> Response:
     rows = stats_service.daily_rows(db, from_, to)
     buf = io.StringIO()

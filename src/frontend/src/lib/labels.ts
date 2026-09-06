@@ -22,6 +22,18 @@ const PAYMENT_METHOD: Record<string, string> = {
   ewallet: "Ví điện tử",
 };
 
+const ROLE: Record<string, string> = {
+  staff: "Nhân viên",
+  manager: "Quản lý",
+  root: "Quản trị",
+};
+
+const CAMERA_ROLE: Record<string, string> = {
+  front: "Trước",
+  rear: "Sau",
+  overview: "Toàn cảnh",
+};
+
 // Danh sách chọn loại xe cho thao tác sửa tay ở trạm cổng.
 export const VEHICLE_TYPE_OPTIONS = Object.entries(VEHICLE_TYPE).map(([code, label]) => ({ code, label }));
 
@@ -38,4 +50,14 @@ export function matchFlagLabel(code?: string | null): string {
 export function paymentMethodLabel(code?: string | null): string {
   if (!code) return "—";
   return PAYMENT_METHOD[code.toLowerCase()] ?? code;
+}
+
+export function roleLabel(code?: string | null): string {
+  if (!code) return "—";
+  return ROLE[code.toLowerCase()] ?? code;
+}
+
+export function cameraRoleLabel(code?: string | null): string {
+  if (!code) return "—";
+  return CAMERA_ROLE[code.toLowerCase()] ?? code;
 }

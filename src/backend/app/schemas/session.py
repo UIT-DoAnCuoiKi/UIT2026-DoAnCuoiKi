@@ -2,6 +2,8 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
+from app.schemas.capture import ReadingImageOut
+
 
 class EntryRequest(BaseModel):
     reading_id: int
@@ -79,6 +81,34 @@ class ReadingBrief(BaseModel):
     review_state: str | None = None
     image_asset_id: int | None = None
     plate_crop_asset_id: int | None = None
+    # Có sẵn trên model nhưng trước đây không lộ ra: màn đối chiếu vào/ra cần
+    # ghi rõ ảnh chụp lúc nào và ở làn nào, nếu không 2 ảnh cạnh nhau không có
+    # gì để phân biệt ngoài vị trí đặt.
+    created_at: datetime | None = None
+    lane: str | None = None
+    # Ảnh của mọi camera đã lưu cho lượt này (làn đa camera); rỗng nếu làn chỉ
+    # có 1 camera. `image_asset_id` ở trên vẫn luôn là ảnh camera chính.
+    images: list[ReadingImageOut] = []
+
+
+class ExitPreview(BaseModel):
+    """Kết quả tính thử khi xe RA, KHÔNG ghi gì vào DB.
+
+    Tách khỏi `ExitResult` vì mục đích khác hẳn: `ExitResult` là kết quả đã chốt
+    (phiên đã đóng, phí đã ghi), còn cái này để nhân viên đối chiếu ảnh vào/ra và
+    xem phí dự tính TRƯỚC khi quyết định thu tiền. `outcome` dùng lại đúng bộ giá
+    trị của `ExitResult` để frontend xử lý một kiểu.
+    """
+    outcome: str  # match | suggest | no_match
+    session: SessionOut | None = None
+    candidates: list[SessionBrief] = []
+    match_flag: str | None = None
+    entry_reading: ReadingBrief | None = None
+    exit_reading: ReadingBrief | None = None
+    minutes: float | None = None          # thời lượng gửi, phút
+    fee_amount: int | None = None         # phí dự tính, chưa ghi
+    fee_rule_snapshot: dict | None = None  # diễn giải cách tính
+    fee_error: str | None = None          # vd chưa có bảng giá cho nhóm xe này
 
 
 class PaymentBrief(BaseModel):

@@ -1,10 +1,13 @@
+import asyncio
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRoute
 
 from app.config import settings
+from app.services.gate_hub import gate_hub
 
 logger = logging.getLogger("uvicorn.error")
 from app.routers import auth, captures, config, devices, gate_ws, health, images, incidents, payments, readings, registry, sessions, shifts, spaces, stats, sync, users, vehicle_groups
@@ -16,11 +19,21 @@ def _operation_id(route: APIRoute) -> str:
     return route.name
 
 
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    # Bind ngay lúc khởi động thay vì đợi client WebSocket đầu tiên: edge worker
+    # bắt đầu POST /captures ngay khi chạy, nếu chưa bind thì những capture đầu
+    # tiên bị rớt khỏi feed realtime mà không báo lỗi.
+    gate_hub.bind_loop(asyncio.get_running_loop())
+    yield
+
+
 def create_app() -> FastAPI:
     app = FastAPI(
         title="Parking backend",
         version="0.1.0",
         generate_unique_id_function=_operation_id,
+        lifespan=_lifespan,
     )
     app.add_middleware(
         CORSMiddleware,

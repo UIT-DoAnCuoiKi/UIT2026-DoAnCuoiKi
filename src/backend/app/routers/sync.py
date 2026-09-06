@@ -3,7 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.deps import require_edge_key, require_role
+from app.deps import admin_only, require_edge_key
 from app.models import FeatureToggle, ParkingSession, PriceRule, User
 from app.schemas.sync import SyncPushIn, SyncPushOut
 from app.security.plate import plate_hash
@@ -40,16 +40,13 @@ def config(db: Session = Depends(get_db)) -> dict:
     }
 
 
-central_admin = require_role("manager", "root")
-
-
 @router.get("/central/sessions")
 def central_sessions(
     lot_id: int | None = Query(None),
     plate: str | None = Query(None),
     limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
-    admin: User = Depends(central_admin),
+    admin: User = Depends(admin_only),
 ) -> list[dict]:
     stmt = select(ParkingSession)
     if lot_id is not None:

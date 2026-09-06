@@ -16,6 +16,9 @@ export type GateCapture = {
   plate_valid?: boolean | null;
   image_asset_id?: number | null;
   plate_crop_asset_id?: number | null;
+  // Ảnh của mọi camera đã lưu cho lượt này (làn đa camera) — chỉ có khi capture
+  // đến từ postInfer của chính panel này (không có trên sự kiện WS/edge).
+  images?: { role: string; image_asset_id: number; is_primary: boolean }[];
   duplicate?: boolean;
   // Frontend-only: object URL của khung hình vừa chụp ở máy trạm (không qua
   // server), để hiện ngay ảnh đúng khung đã gửi model. Capture từ WS không có.
@@ -40,6 +43,16 @@ export function latestByDirection(events: GateCapture[]): { in: GateCapture | nu
   };
 }
 
+/** Bản có lọc theo làn: chạy nhiều làn thì mỗi panel chỉ nhận capture đúng làn
+ * đang trực, không bị làn khác đè lên (trước đây `latestByDirection` gộp mọi
+ * làn vào chung 1 "in"/1 "out", 2 làn cùng chiều tranh nhau 1 panel).
+ * `lane` rỗng/undefined thì không lọc — giữ đúng hành vi cũ khi chưa cấu hình làn. */
+export function latestForDirectionAndLane(
+  events: GateCapture[], direction: "in" | "out", lane?: string | null,
+): GateCapture | null {
+  return events.find((e) => e.direction === direction && (!lane || e.lane === lane)) ?? null;
+}
+
 function wsUrl(): string {
   const base =
     (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_API_BASE ??
@@ -60,6 +73,10 @@ export function useGateSocket(opts?: { lane?: string }): GateState & {
   useEffect(() => {
     let ws: WebSocket | null = null;
     let closed = false;
+    // Trước đây WS rớt là chuyển hẳn sang polling 3 giây vĩnh viễn, không bao giờ
+    // thử kết nối lại — mất realtime cho tới khi nhân viên tự tải lại trang.
+    let retry: ReturnType<typeof setTimeout> | null = null;
+    let attempt = 0;
 
     const startPolling = () => {
       if (pollRef.current) return;
@@ -82,35 +99,57 @@ export function useGateSocket(opts?: { lane?: string }): GateState & {
       }
     };
 
-    try {
-      ws = new WebSocket(wsUrl());
-      ws.onopen = () => {
-        setConnected(true);
-        setDegraded(false);
-        stopPolling();
-      };
-      ws.onmessage = (m) => {
-        try {
-          const evt = JSON.parse(m.data) as GateCapture;
-          setState((s) => ingestEvent(s, evt));
-        } catch {
-          /* ignore malformed */
-        }
-      };
-      ws.onerror = () => {
-        if (!closed) startPolling();
-      };
-      ws.onclose = () => {
-        setConnected(false);
-        if (!closed) startPolling();
-      };
-    } catch {
-      startPolling();
+    const scheduleReconnect = () => {
+      if (closed || retry) return;
+      // Giãn dần 1s → 30s để không đập liên tục vào server khi backend đang tắt.
+      const delay = Math.min(30000, 1000 * 2 ** attempt);
+      attempt += 1;
+      retry = setTimeout(() => {
+        retry = null;
+        connect();
+      }, delay);
+    };
+
+    function connect() {
+      if (closed) return;
+      try {
+        ws = new WebSocket(wsUrl());
+        ws.onopen = () => {
+          attempt = 0;
+          setConnected(true);
+          setDegraded(false);
+          stopPolling();
+        };
+        ws.onmessage = (m) => {
+          try {
+            const evt = JSON.parse(m.data) as GateCapture;
+            setState((s) => ingestEvent(s, evt));
+          } catch {
+            /* ignore malformed */
+          }
+        };
+        ws.onerror = () => {
+          if (!closed) startPolling();
+        };
+        ws.onclose = () => {
+          setConnected(false);
+          if (!closed) {
+            startPolling(); // vẫn có dữ liệu trong lúc chờ kết nối lại
+            scheduleReconnect();
+          }
+        };
+      } catch {
+        startPolling();
+        scheduleReconnect();
+      }
     }
+
+    connect();
 
     return () => {
       closed = true;
       stopPolling();
+      if (retry) clearTimeout(retry);
       ws?.close();
     };
   }, [opts?.lane]);

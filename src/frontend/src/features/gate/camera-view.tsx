@@ -1,4 +1,4 @@
-import type { RefObject } from "react";
+import { useRef, type RefObject } from "react";
 import type { CameraDevice, CameraStatus } from "./use-camera";
 import { Button } from "@/components/ui/button";
 
@@ -13,7 +13,12 @@ export function CameraView({
   onCapture,
   onRequestPermission,
   onManual,
+  onUpload,
   error,
+  // Tải ảnh thay camera thật chỉ dành cho test/demo (ảnh đi thẳng vào pipeline
+  // nhận dạng như ảnh chụp thật) — ẩn khỏi vận hành thật trừ khi bật dev_mode
+  // trong Cấu hình, tránh ai đó thay ảnh gốc bằng ảnh tuỳ ý.
+  allowUpload = false,
 }: {
   videoRef: RefObject<HTMLVideoElement | null>;
   devices: CameraDevice[];
@@ -23,12 +28,32 @@ export function CameraView({
   onCapture: () => void;
   onRequestPermission: () => void;
   onManual: () => void;
+  onUpload: (file: File) => void;
   error: string | null;
+  allowUpload?: boolean;
 }) {
   const streaming = status === "streaming";
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const pickFile = () => fileInputRef.current?.click();
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // cho chọn lại đúng file cũ lần sau vẫn bắn onChange
+    if (file) onUpload(file);
+  };
+  const fileInput = allowUpload && (
+    <input
+      ref={fileInputRef}
+      type="file"
+      accept="image/*"
+      hidden
+      onChange={handleFileChange}
+      aria-label="Tải ảnh lên"
+    />
+  );
 
   return (
     <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[var(--radius-control)] border border-line bg-surface">
+      {fileInput}
       {streaming ? (
         <>
           <video ref={videoRef} autoPlay muted playsInline className="h-full w-full object-cover" />
@@ -45,6 +70,11 @@ export function CameraView({
                 </option>
               ))}
             </select>
+            {allowUpload && (
+              <Button variant="outline" className="h-8 shrink-0 px-2 text-[12px]" onClick={pickFile}>
+                Tải ảnh
+              </Button>
+            )}
             <Button className="h-8 shrink-0 px-3" onClick={onCapture}>
               Chụp
             </Button>
@@ -65,6 +95,11 @@ export function CameraView({
             <Button className="h-9" onClick={onRequestPermission} disabled={status === "requesting"}>
               {status === "denied" ? "Cấp quyền camera" : "Kết nối lại"}
             </Button>
+            {allowUpload && (
+              <Button variant="outline" className="h-9" onClick={pickFile}>
+                Tải ảnh lên
+              </Button>
+            )}
             <Button variant="outline" className="h-9" onClick={onManual}>
               Nhập tay
             </Button>

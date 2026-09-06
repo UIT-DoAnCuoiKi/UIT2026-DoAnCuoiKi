@@ -4,8 +4,8 @@ import binascii
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import PlateReading
-from app.schemas.capture import CaptureResponse, PipelinePayload
+from app.models import PlateReading, ReadingImage
+from app.schemas.capture import CaptureResponse, PipelinePayload, ReadingImageOut
 from app.security import crypto
 from app.security.plate import plate_hash
 from app.services.capture import compute_review_state, select_representative
@@ -14,7 +14,15 @@ from app.services.image_store import store_encrypted_image
 from app.services.vehicle_groups import group_for
 
 
-def build_capture_response(reading: PlateReading, plate_text: str | None, duplicate: bool) -> CaptureResponse:
+def build_capture_response(
+    db: Session, reading: PlateReading, plate_text: str | None, duplicate: bool
+) -> CaptureResponse:
+    images = [
+        ReadingImageOut(role=ri.role, image_asset_id=ri.image_asset_id, is_primary=ri.is_primary)
+        for ri in db.scalars(
+            select(ReadingImage).where(ReadingImage.reading_id == reading.id).order_by(ReadingImage.id)
+        ).all()
+    ]
     return CaptureResponse(
         reading_id=reading.id,
         capture_id=reading.capture_id,
@@ -30,6 +38,7 @@ def build_capture_response(reading: PlateReading, plate_text: str | None, duplic
         color_conf=reading.color_conf,
         image_asset_id=reading.image_asset_id,
         plate_crop_asset_id=reading.plate_crop_asset_id,
+        images=images,
         duplicate=duplicate,
     )
 
@@ -37,7 +46,15 @@ def build_capture_response(reading: PlateReading, plate_text: str | None, duplic
 def ingest_reading(
     db: Session, *, capture_id: str, direction: str, lane: str | None,
     payload: PipelinePayload, image_bytes: bytes,
+    primary_role: str = "front",
+    extra_images: list[tuple[bytes, str]] | None = None,
 ) -> tuple[PlateReading, str | None, bool]:
+    """`image_bytes` là ảnh của camera CHÍNH — luôn đi qua nhận dạng, luôn ghi vào
+    `PlateReading.image_asset_id` để mọi code cũ (chỉ biết 1 ảnh/reading) không
+    phải đổi gì. `extra_images` là ảnh của camera phụ (vd camera sau xe khi camera
+    chính là trước xe) — chỉ lưu lại làm bằng chứng, không chạy nhận dạng lại.
+    Mỗi ảnh (chính lẫn phụ) đều có 1 dòng `ReadingImage` để truy vấn thống nhất.
+    """
     existing = db.scalars(select(PlateReading).where(PlateReading.capture_id == capture_id)).first()
     if existing is not None:
         text = crypto.decrypt_text(existing.plate_text_ciphertext) if existing.plate_text_ciphertext else None
@@ -87,6 +104,12 @@ def ingest_reading(
     db.add(reading)
     db.commit()
     db.refresh(reading)
+
+    db.add(ReadingImage(reading_id=reading.id, role=primary_role, image_asset_id=asset.id, is_primary=True))
+    for extra_bytes, role in (extra_images or []):
+        extra_asset = store_encrypted_image(db, extra_bytes, direction)
+        db.add(ReadingImage(reading_id=reading.id, role=role, image_asset_id=extra_asset.id, is_primary=False))
+    db.commit()
 
     gate_hub.publish({
         "reading_id": reading.id,

@@ -6,8 +6,8 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { SurfaceCard } from "@/components/surface-card";
 
-type ToggleKey = "read_plate" | "plate_color" | "vehicle_class";
-const DEFAULTS: ToggleOut = { read_plate: true, plate_color: true, vehicle_class: true };
+type ToggleKey = "read_plate" | "plate_color" | "vehicle_class" | "dev_mode";
+const DEFAULTS: ToggleOut = { read_plate: true, plate_color: true, vehicle_class: true, dev_mode: false };
 
 export function TogglesTab() {
   const qc = useQueryClient();
@@ -56,6 +56,12 @@ export function TogglesTab() {
       <Row id="read_plate" label="Đọc biển số (read_plate)" checked={t.read_plate} hint="Tắt thì màn cổng ép nhập tay" />
       <Row id="plate_color" label="Nhận màu biển (plate_color)" checked={t.plate_color} />
       <Row id="vehicle_class" label="Phân loại xe (vehicle_class)" checked={t.vehicle_class} />
+      <Row
+        id="dev_mode"
+        label="Chế độ dev (dev_mode)"
+        checked={t.dev_mode}
+        hint="Bật thì màn Trạm cổng hiện thêm nút Tải ảnh thay camera thật — chỉ dùng khi test, tắt khi vận hành thật để không ai thay ảnh gốc bằng ảnh tuỳ ý."
+      />
     </SurfaceCard>
   );
 }

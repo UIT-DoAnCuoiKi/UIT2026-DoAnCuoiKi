@@ -3,6 +3,26 @@
 UI do người phụ trách tự dựng. Dịch vụ `frontend` trong `compose.yaml`
 nằm dưới profile `frontend` nên `podman compose up` mặc định bỏ qua.
 
+## Yêu cầu Node
+
+Cần Node **≥ 20.10** (Orval 7.x dùng cú pháp import JSON mà Node 20.6 và cũ hơn
+không hỗ trợ, sẽ báo lỗi `ERR_IMPORT_ASSERTION_TYPE_MISSING` khi chạy `npm run
+gen:api`). `npm install`/`vitest`/`vite build` vẫn chạy được trên Node cũ hơn,
+chỉ riêng bước sinh client Orval là cần bản mới.
+
+Nếu Node hệ thống cũ hơn mốc này, tải bản portable (không cần quyền admin, không
+đụng Node hệ thống) và trỏ PATH riêng cho phiên làm việc:
+
+```sh
+# một lần: tải + giải nén (đổi version nếu cần bản mới hơn)
+curl -o node-lts.zip https://nodejs.org/dist/v24.20.0/node-v24.20.0-win-x64.zip
+# giải nén vào %LOCALAPPDATA%\node-lts\
+
+# mỗi phiên terminal cần Node mới (build, gen:api):
+export PATH="/c/Users/$USER/AppData/Local/node-lts/node-v24.20.0-win-x64:$PATH"
+node --version   # xác nhận đã lên bản mới
+```
+
 Khi có UI:
 
 1. Thêm `src/frontend/Containerfile` build React tĩnh và phục vụ qua nginx cổng 80.

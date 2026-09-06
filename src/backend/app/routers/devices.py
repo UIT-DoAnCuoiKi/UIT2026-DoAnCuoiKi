@@ -3,7 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.deps import get_current_user, require_role
+from app.deps import admin_only, get_current_user, user_or_edge_key
 from app.models import BarrierEvent, Device, User
 from app.schemas.barrier import BarrierEventOut, BarrierOpenIn
 from app.schemas.device import DeviceHealthOut, DeviceIn, DeviceOut
@@ -11,7 +11,6 @@ from app.services.audit import write_audit
 from app.services.device import device_health, record_heartbeat
 
 router = APIRouter(tags=["devices"])
-admin_only = require_role("manager", "root")
 
 
 @router.post("/devices", response_model=DeviceOut, status_code=status.HTTP_201_CREATED)
@@ -27,7 +26,7 @@ def list_devices(db: Session = Depends(get_db), user: User = Depends(get_current
 
 
 @router.post("/devices/{device_id}/heartbeat", response_model=DeviceOut)
-def heartbeat(device_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def heartbeat(device_id: int, db: Session = Depends(get_db), user: User | None = Depends(user_or_edge_key)):
     device = db.get(Device, device_id)
     if device is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "không tìm thấy thiết bị")

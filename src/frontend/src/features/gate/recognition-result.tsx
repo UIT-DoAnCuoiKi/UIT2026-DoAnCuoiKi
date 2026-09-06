@@ -1,5 +1,5 @@
 import type { GateCapture } from "./use-gate-socket";
-import { CapturePreview } from "./capture-preview";
+import { CapturePreview } from "@/components/capture-preview";
 
 const pct = (v?: number | null) => (v == null ? null : `${Math.round(v * 100)}%`);
 

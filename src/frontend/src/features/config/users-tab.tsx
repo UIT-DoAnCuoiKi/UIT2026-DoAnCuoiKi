@@ -9,10 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { getUserId } from "@/lib/auth";
+import { roleLabel } from "@/lib/labels";
 import { isAxiosError } from "axios";
 
 const ROLES = ["staff", "manager", "root"] as const;
-const ROLE_LABEL: Record<string, string> = { staff: "Nhân viên", manager: "Quản lý", root: "Quản trị" };
 const MIN_PW = 6;
 const SELECT_CLASS = "h-9 rounded-[var(--radius-control)] border border-line bg-bg px-2 text-sm";
 
@@ -80,7 +80,7 @@ export function UsersTab() {
         >
           {ROLES.map((r) => (
             <option key={r} value={r}>
-              {ROLE_LABEL[r]}
+              {roleLabel(r)}
             </option>
           ))}
         </select>
@@ -154,7 +154,7 @@ export function UsersTab() {
         <select className={SELECT_CLASS} value={role} onChange={(e) => setRole(e.target.value)} aria-label="Vai trò mới">
           {ROLES.map((r) => (
             <option key={r} value={r}>
-              {ROLE_LABEL[r]}
+              {roleLabel(r)}
             </option>
           ))}
         </select>

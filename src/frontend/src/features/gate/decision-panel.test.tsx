@@ -11,12 +11,14 @@ vi.mock("sonner", () => ({
 
 const confirmEntry = vi.fn().mockResolvedValue({ id: 1, status: "in_lot" });
 const confirmExit = vi.fn();
+const previewExit = vi.fn();
 const manualFn = vi.fn().mockResolvedValue({ id: 2 });
 const patchFn = vi.fn().mockResolvedValue({});
 const payFn = vi.fn().mockResolvedValue({});
 vi.mock("@/api/generated/sessions/sessions", () => ({
   useConfirmEntry: () => ({ mutateAsync: confirmEntry, isPending: false }),
   useConfirmExit: () => ({ mutateAsync: confirmExit, isPending: false }),
+  usePreviewExit: () => ({ mutateAsync: previewExit, isPending: false }),
   useManualSession: () => ({ mutateAsync: manualFn, isPending: false }),
 }));
 vi.mock("@/api/generated/readings/readings", () => ({
@@ -134,7 +136,7 @@ test("reset button reverts manual edits to recognized values", async () => {
   await userEvent.clear(plate);
   await userEvent.type(plate, "51F-999");
   await userEvent.selectOptions(screen.getByLabelText("Loại xe"), "truck");
-  const reset = screen.getByRole("button", { name: /Đặt lại/i });
+  const reset = screen.getByRole("button", { name: /Hoàn tác sửa/i });
   expect(reset).toBeEnabled();
   await userEvent.click(reset);
   expect(plate.value).toBe("51F-123");
@@ -169,11 +171,85 @@ test("re-recognize button calls onRecapture", async () => {
   expect(onRecapture).toHaveBeenCalled();
 });
 
-test("exit with fee shows inline pay row, no modal", async () => {
-  confirmExit.mockResolvedValueOnce({ outcome: "completed", session: { id: 9, fee_amount: 5000, plate_text: "51F1" } });
+test("Xoá lượt discards the current capture without saving edits, even with no manual edits made", async () => {
+  const onDone = vi.fn();
+  render(<DecisionPanel capture={base} direction="in" onDone={onDone} onRecapture={noop} />);
+  // Đúng lỗi thật: "Hoàn tác sửa" (trước đây gọi "Đặt lại") bị disable khi chưa
+  // sửa gì tay, nên không có cách nào bỏ 1 lượt chụp hỏng trước khi có nút này.
+  expect(screen.getByRole("button", { name: /Hoàn tác sửa/i })).toBeDisabled();
+  await userEvent.click(screen.getByRole("button", { name: /Xoá lượt/i }));
+  expect(onDone).toHaveBeenCalled();
+  expect(patchFn).not.toHaveBeenCalled();
+});
+
+test("exit goes through review before closing the session", async () => {
+  // Bước 1 chỉ tính thử: phải hiện đối chiếu vào/ra, KHÔNG được gọi confirmExit.
+  previewExit.mockResolvedValueOnce({
+    outcome: "match",
+    session: { id: 9, fee_amount: 5000, plate_text: "51F1", entry_time: "2026-09-04T01:00:00" },
+    entry_reading: { id: 1, image_asset_id: 11, plate_text: "51F1" },
+    exit_reading: { id: 2, image_asset_id: 12, plate_text: "51F1" },
+    minutes: 90,
+    fee_amount: 5000,
+    fee_rule_snapshot: { mode: "flat", unit_price: 5000, minutes: 90 },
+  });
   render(<DecisionPanel capture={{ ...base, review_state: "confident" }} direction="out" onDone={noop} onRecapture={noop} />);
-  await userEvent.click(screen.getByRole("button", { name: /Xác nhận RA/i }));
+
+  await userEvent.click(screen.getByRole("button", { name: /Đối chiếu & cho RA/i }));
+  expect(await screen.findByText(/Lúc VÀO/i)).toBeInTheDocument();
+  expect(screen.getByText(/1 giờ 30 phút/i)).toBeInTheDocument();
+  expect(confirmExit).not.toHaveBeenCalled();
+
+  // Bước 2 mới thật sự đóng phiên rồi chuyển sang thu tiền.
+  confirmExit.mockResolvedValueOnce({
+    outcome: "completed",
+    session: { id: 9, fee_amount: 5000, plate_text: "51F1", entry_time: "2026-09-04T01:00:00" },
+  });
+  await userEvent.click(screen.getByRole("button", { name: /^Xác nhận RA$/i }));
   expect(await screen.findByText(/Thu tiền khi RA/i)).toBeInTheDocument();
   await userEvent.click(screen.getByRole("button", { name: /Thu & in/i }));
   expect(payFn).toHaveBeenCalledWith({ data: { session_id: 9, amount: 5000, method: "cash", kind: "payment" } });
+});
+
+test("exit review shows entry time and duration before charging", async () => {
+  previewExit.mockResolvedValueOnce({
+    outcome: "match",
+    session: { id: 9, fee_amount: 3000, plate_text: "51F1", entry_time: "2026-09-04T01:00:00" },
+    entry_reading: { id: 1, image_asset_id: 11, created_at: "2026-09-04T01:00:00" },
+    exit_reading: { id: 2, image_asset_id: 12, created_at: "2026-09-04T03:30:00" },
+    minutes: 150,
+    fee_amount: 3000,
+    fee_rule_snapshot: { mode: "flat", unit_price: 3000, minutes: 150 },
+  });
+  render(<DecisionPanel capture={{ ...base, review_state: "confident" }} direction="out" onDone={noop} onRecapture={noop} />);
+  await userEvent.click(screen.getByRole("button", { name: /Đối chiếu & cho RA/i }));
+
+  expect(await screen.findByText(/Giờ vào/i)).toBeInTheDocument();
+  expect(screen.getByText(/2 giờ 30 phút/i)).toBeInTheDocument();
+  expect(screen.getByText(/Giá trọn lượt/i)).toBeInTheDocument();
+});
+
+test("exit review shows both camera images per side when the lane has multi-camera", async () => {
+  previewExit.mockResolvedValueOnce({
+    outcome: "match",
+    session: { id: 9, fee_amount: 3000, plate_text: "51F1", entry_time: "2026-09-04T01:00:00" },
+    entry_reading: {
+      id: 1, image_asset_id: 11, created_at: "2026-09-04T01:00:00",
+      images: [
+        { role: "front", image_asset_id: 11, is_primary: true },
+        { role: "rear", image_asset_id: 13, is_primary: false },
+      ],
+    },
+    exit_reading: { id: 2, image_asset_id: 12, created_at: "2026-09-04T03:30:00" },
+    minutes: 150,
+    fee_amount: 3000,
+    fee_rule_snapshot: { mode: "flat", unit_price: 3000, minutes: 150 },
+  });
+  render(<DecisionPanel capture={{ ...base, review_state: "confident" }} direction="out" onDone={noop} onRecapture={noop} />);
+  await userEvent.click(screen.getByRole("button", { name: /Đối chiếu & cho RA/i }));
+
+  // Lúc VÀO có 2 ảnh (đa camera): phải thấy cả nhãn "Trước" và "Sau", không
+  // chỉ mỗi ảnh camera chính như trước đây.
+  expect(await screen.findByText("Trước")).toBeInTheDocument();
+  expect(screen.getByText("Sau")).toBeInTheDocument();
 });

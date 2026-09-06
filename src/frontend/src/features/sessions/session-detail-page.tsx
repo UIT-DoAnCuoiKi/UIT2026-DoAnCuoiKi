@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { useSessionDetail, useUpdateSession } from "@/api/generated/sessions/sessions";
 import { StatusChip } from "@/components/status-chip";
 import { SurfaceCard } from "@/components/surface-card";
+import { CameraImageGrid } from "@/components/camera-image-grid";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DisputePanel } from "./dispute-panel";
@@ -25,7 +26,9 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 
 // Ảnh bằng chứng hiện luôn khi mở phiên (không cần bấm). Mỗi lần tải vẫn được
 // backend ghi audit. Giữ chỗ bằng skeleton để tránh nhảy layout (CLS).
-function Evidence({ imageId }: { imageId?: number | null }) {
+// `size`: "main" cho ảnh xe (to, để nhân viên đối chiếu), "crop" cho ảnh biển
+// đã xử lý màu (nhỏ, chỉ để tham khảo thêm).
+function Evidence({ imageId, size = "main" }: { imageId?: number | null; size?: "main" | "crop" }) {
   const [url, setUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
@@ -49,15 +52,25 @@ function Evidence({ imageId }: { imageId?: number | null }) {
     };
   }, [imageId]);
 
-  if (!imageId) return <span className="text-muted">Không có ảnh</span>;
+  const boxClass = size === "main" ? "h-64 sm:h-80" : "h-24";
+  if (!imageId)
+    return (
+      <div className={`flex ${boxClass} w-full items-center justify-center rounded-[var(--radius-control)] bg-faint text-[13px] text-muted`}>
+        Không có ảnh
+      </div>
+    );
   if (failed)
     return (
-      <div className="flex h-48 w-full items-center justify-center rounded-[var(--radius-control)] bg-faint text-[13px] text-muted">
+      <div className={`flex ${boxClass} w-full items-center justify-center rounded-[var(--radius-control)] bg-faint text-[13px] text-muted`}>
         Không tải được ảnh
       </div>
     );
-  if (!url) return <Skeleton className="h-48 w-full" />;
-  return <img src={url} alt="Ảnh bằng chứng" className="max-h-48 rounded-[var(--radius-control)]" />;
+  if (!url) return <Skeleton className={`${boxClass} w-full`} />;
+  return (
+    <div className={`${boxClass} w-full overflow-hidden rounded-[var(--radius-control)] bg-faint`}>
+      <img src={url} alt="Ảnh bằng chứng" className="h-full w-full object-contain" />
+    </div>
+  );
 }
 
 function EditClassification({
@@ -156,10 +169,80 @@ export function SessionDetailPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
         <h1 className="tnum text-lg font-semibold">{formatPlate(data.plate_text)}</h1>
         <StatusChip kind="session" value={data.status} />
+        {/* Giống dòng đầu phiếu thu ở Trạm cổng: giờ vào luôn hiện, còn giờ ra
+            hay thời lượng đang đậu thì tuỳ trạng thái — trước đây phải kéo
+            xuống bảng dữ liệu bên dưới mới thấy, không có ngay ở đầu trang. */}
+        <span className="text-[13px] text-muted">
+          Giờ vào: <span className="tnum font-medium text-ink">{formatDateTime(data.entry_time)}</span>
+        </span>
+        {data.exit_time ? (
+          <span className="text-[13px] text-muted">
+            Giờ ra: <span className="tnum font-medium text-ink">{formatDateTime(data.exit_time)}</span>
+          </span>
+        ) : (
+          <span className="text-[13px] text-muted">
+            Đã đậu: <span className="tnum font-medium text-ink">{formatDuration(data.entry_time, new Date().toISOString())}</span>
+          </span>
+        )}
       </div>
+
+      {/* Ảnh là căn cứ đối chiếu chính, đưa lên đầu trang thay vì nằm dưới các
+          bảng dữ liệu: trái là lúc VÀO, phải là lúc RA, nhân viên nhìn 1 lần
+          là so sánh được ngay, không phải cuộn xuống mới thấy ảnh. */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <SurfaceCard variant="white" className="space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-semibold">Lúc VÀO</p>
+            {data.entry_reading && (
+              <StatusChip kind="review" value={data.entry_reading.review_state ?? "confident"} />
+            )}
+          </div>
+          <p className="tnum text-[13px] text-muted">{formatDateTime(data.entry_time)}</p>
+          {data.entry_reading?.images && data.entry_reading.images.length > 1 ? (
+            <div className="h-64 sm:h-80">
+              <CameraImageGrid
+                images={data.entry_reading.images.map((img) => ({ role: img.role, imageAssetId: img.image_asset_id }))}
+              />
+            </div>
+          ) : (
+            <Evidence imageId={data.entry_reading?.image_asset_id} />
+          )}
+          {data.entry_reading?.plate_crop_asset_id != null && (
+            <div className="space-y-1">
+              <p className="text-[13px] text-muted">Biển đã xử lý màu</p>
+              <Evidence imageId={data.entry_reading.plate_crop_asset_id} size="crop" />
+            </div>
+          )}
+        </SurfaceCard>
+        <SurfaceCard variant="white" className="space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-semibold">Lúc RA</p>
+            {data.exit_reading && (
+              <StatusChip kind="review" value={data.exit_reading.review_state ?? "confident"} />
+            )}
+          </div>
+          <p className="tnum text-[13px] text-muted">{formatDateTime(data.exit_time)}</p>
+          {data.exit_reading?.images && data.exit_reading.images.length > 1 ? (
+            <div className="h-64 sm:h-80">
+              <CameraImageGrid
+                images={data.exit_reading.images.map((img) => ({ role: img.role, imageAssetId: img.image_asset_id }))}
+              />
+            </div>
+          ) : (
+            <Evidence imageId={data.exit_reading?.image_asset_id} />
+          )}
+          {data.exit_reading?.plate_crop_asset_id != null && (
+            <div className="space-y-1">
+              <p className="text-[13px] text-muted">Biển đã xử lý màu</p>
+              <Evidence imageId={data.exit_reading.plate_crop_asset_id} size="crop" />
+            </div>
+          )}
+        </SurfaceCard>
+      </div>
+
       <SurfaceCard variant="white">
         <dl className="grid grid-cols-2 gap-4 md:grid-cols-3">
           <Field label="Nhóm xe">{groupLabel(groupMap, data.vehicle_group)}</Field>
@@ -188,6 +271,10 @@ export function SessionDetailPage() {
           <Field label="Cảnh báo">{data.warning ?? "—"}</Field>
           <Field label="Nhân viên vào">{data.created_by_name ?? "—"}</Field>
           <Field label="Nhân viên ra">{data.closed_by_name ?? "—"}</Field>
+          {/* Dữ liệu đã có sẵn trên PlateReading.lane từ trước, chỉ chưa lộ ra
+              màn này — không tra được xe vào/ra ở làn nào để đối chiếu camera. */}
+          <Field label="Làn vào">{data.entry_reading?.lane ?? "—"}</Field>
+          <Field label="Làn ra">{data.exit_reading?.lane ?? "—"}</Field>
           <Field label="Bãi">{data.lot_name ?? "—"}</Field>
           <Field label="Khu">{data.zone_name ?? "—"}</Field>
         </dl>
@@ -199,35 +286,6 @@ export function SessionDetailPage() {
         color={data.color}
         onSaved={() => refetch()}
       />
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <SurfaceCard variant="white" className="space-y-2">
-          <p className="text-sm font-semibold">Ảnh vào</p>
-          {data.entry_reading && (
-            <StatusChip kind="review" value={data.entry_reading.review_state ?? "confident"} />
-          )}
-          <Evidence imageId={data.entry_reading?.image_asset_id} />
-          {data.entry_reading?.plate_crop_asset_id != null && (
-            <div className="space-y-1">
-              <p className="text-[13px] text-muted">Biển đã xử lý màu</p>
-              <Evidence imageId={data.entry_reading.plate_crop_asset_id} />
-            </div>
-          )}
-        </SurfaceCard>
-        <SurfaceCard variant="white" className="space-y-2">
-          <p className="text-sm font-semibold">Ảnh ra</p>
-          {data.exit_reading && (
-            <StatusChip kind="review" value={data.exit_reading.review_state ?? "confident"} />
-          )}
-          <Evidence imageId={data.exit_reading?.image_asset_id} />
-          {data.exit_reading?.plate_crop_asset_id != null && (
-            <div className="space-y-1">
-              <p className="text-[13px] text-muted">Biển đã xử lý màu</p>
-              <Evidence imageId={data.exit_reading.plate_crop_asset_id} />
-            </div>
-          )}
-        </SurfaceCard>
-      </div>
 
       <SurfaceCard variant="white" className="space-y-2">
         <p className="text-sm font-semibold">Thanh toán</p>

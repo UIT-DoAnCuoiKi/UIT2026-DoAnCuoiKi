@@ -40,8 +40,22 @@ def upgrade() -> None:
         sa.Column("capacity", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("active", sa.Boolean(), nullable=False, server_default=sa.true()),
     )
-    op.add_column("session", sa.Column("lot_id", sa.Integer(), sa.ForeignKey("parking_lot.id"), nullable=True))
-    op.add_column("session", sa.Column("zone_id", sa.Integer(), sa.ForeignKey("zone.id"), nullable=True))
+    # batch_alter_table: SQLite không ALTER được constraint, thêm cột kèm khóa
+    # ngoại trực tiếp sẽ chết. Batch mode copy-and-move xử lý được, còn trên
+    # PostgreSQL alembic vẫn phát ra ALTER TABLE thường nên hành vi không đổi.
+    # Batch mode của SQLite bắt buộc constraint phải có tên (không tự sinh được
+    # khi build lại bảng), nên đặt tên tường minh cho hai FK mới.
+    with op.batch_alter_table("session") as batch:
+        batch.add_column(sa.Column(
+            "lot_id", sa.Integer(),
+            sa.ForeignKey("parking_lot.id", name="fk_session_lot_id_parking_lot"),
+            nullable=True,
+        ))
+        batch.add_column(sa.Column(
+            "zone_id", sa.Integer(),
+            sa.ForeignKey("zone.id", name="fk_session_zone_id_zone"),
+            nullable=True,
+        ))
 
 
 def downgrade() -> None:

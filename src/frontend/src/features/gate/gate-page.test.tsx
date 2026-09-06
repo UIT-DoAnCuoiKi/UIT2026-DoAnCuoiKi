@@ -3,13 +3,20 @@ import userEvent from "@testing-library/user-event";
 import { GatePage } from "./gate-page";
 
 const confirm = vi.fn();
-vi.mock("./use-gate-socket", () => ({
-  useGateSocket: () => ({
-    capturesByDirection: { in: null, out: null },
-    events: [],
-    connected: true,
-    degraded: false,
-  }),
+vi.mock("./use-gate-socket", async () => {
+  const actual = await vi.importActual<typeof import("./use-gate-socket")>("./use-gate-socket");
+  return {
+    ...actual,
+    useGateSocket: () => ({
+      capturesByDirection: { in: null, out: null },
+      events: [],
+      connected: true,
+      degraded: false,
+    }),
+  };
+});
+vi.mock("@/api/generated/config/config", () => ({
+  useListLanes: () => ({ data: [] }),
 }));
 vi.mock("./gate-panel", async () => {
   const { forwardRef, useImperativeHandle } = await import("react");

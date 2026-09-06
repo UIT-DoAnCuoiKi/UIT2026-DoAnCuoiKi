@@ -1,11 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GatePanel, type GatePanelHandle } from "./gate-panel";
-import { useGateSocket } from "./use-gate-socket";
+import { latestForDirectionAndLane, useGateSocket } from "./use-gate-socket";
 import { useGateShortcuts, type ShortcutAction } from "./use-gate-shortcuts";
+import { useListLanes } from "@/api/generated/config/config";
 import { Button } from "@/components/ui/button";
 
 type LayoutMode = "split" | "in" | "out";
 const LS_KEY = "gate-layout-mode";
+// Làn VÀO và làn RA thường là 2 vị trí vật lý khác nhau trong bãi xe (không
+// phải cùng 1 làn đổi chiều), nên mỗi panel nhớ lựa chọn làn riêng của nó.
+const LANE_KEY_IN = "gate-lane-in";
+const LANE_KEY_OUT = "gate-lane-out";
 
 const SHORTCUTS: { key: string; desc: string }[] = [
   { key: "1 / 2", desc: "Focus panel VÀO / RA" },
@@ -13,18 +18,23 @@ const SHORTCUTS: { key: string; desc: string }[] = [
   { key: "Enter", desc: "Xác nhận VÀO/RA hoặc thu tiền" },
   { key: "E", desc: "Sửa biển" },
   { key: "M", desc: "Nhập tay" },
-  { key: "R", desc: "Đặt lại chỉnh sửa" },
+  { key: "R", desc: "Hoàn tác sửa (trả về giá trị model)" },
   { key: "Esc", desc: "Hủy kết quả panel" },
   { key: "1/2/3", desc: "Chọn phương thức khi thu tiền" },
   { key: "?", desc: "Bật/tắt bảng phím tắt" },
 ];
 
 export function GatePage() {
-  const { capturesByDirection, degraded } = useGateSocket();
+  // events (không phải capturesByDirection) để tự lọc theo làn ở dưới — 1 kết
+  // nối WS dùng chung, mỗi panel chỉ lấy đúng capture của làn nó đang trực.
+  const { events, degraded } = useGateSocket();
+  const { data: lanes = [] } = useListLanes();
   const [layout, setLayout] = useState<LayoutMode>(() => (localStorage.getItem(LS_KEY) as LayoutMode) || "split");
   const [active, setActive] = useState<"in" | "out">("in");
   const [showHelp, setShowHelp] = useState(false);
   const [payOpen, setPayOpen] = useState<{ in: boolean; out: boolean }>({ in: false, out: false });
+  const [laneNameIn, setLaneNameIn] = useState<string>(() => localStorage.getItem(LANE_KEY_IN) ?? "");
+  const [laneNameOut, setLaneNameOut] = useState<string>(() => localStorage.getItem(LANE_KEY_OUT) ?? "");
 
   const inRef = useRef<GatePanelHandle | null>(null);
   const outRef = useRef<GatePanelHandle | null>(null);
@@ -35,7 +45,22 @@ export function GatePage() {
     if (layout === "out") setActive("out");
   }, [layout]);
 
+  useEffect(() => localStorage.setItem(LANE_KEY_IN, laneNameIn), [laneNameIn]);
+  useEffect(() => localStorage.setItem(LANE_KEY_OUT, laneNameOut), [laneNameOut]);
+
+  const laneIn = lanes.find((l) => l.name === laneNameIn);
+  const laneOut = lanes.find((l) => l.name === laneNameOut);
+  const wsCaptureIn = latestForDirectionAndLane(events, "in", laneNameIn || null);
+  const wsCaptureOut = latestForDirectionAndLane(events, "out", laneNameOut || null);
+
   const activeRef = () => (active === "in" ? inRef.current : outRef.current);
+
+  // Phải ổn định identity (useCallback, không tạo hàm mới mỗi render): DecisionPanel
+  // đặt callback này trong dependency của 1 useEffect, nên nếu đổi reference mỗi
+  // lần GatePage render sẽ tạo vòng lặp vô hạn (effect chạy lại -> setState ->
+  // GatePage render lại -> effect chạy lại...).
+  const onPayOpenChangeIn = useCallback((open: boolean) => setPayOpen((p) => ({ ...p, in: open })), []);
+  const onPayOpenChangeOut = useCallback((open: boolean) => setPayOpen((p) => ({ ...p, out: open })), []);
 
   const onAction = useCallback(
     (action: Exclude<ShortcutAction, null>) => {
@@ -112,6 +137,39 @@ export function GatePage() {
         <Button variant="outline" className="h-9" onClick={() => setShowHelp((v) => !v)}>
           Phím tắt (?)
         </Button>
+
+        {/* Chọn làn đang trực cho từng hướng — rỗng nghĩa là không lọc theo
+            làn (hành vi cũ), dùng khi chưa cấu hình làn nào hoặc chỉ có 1 làn. */}
+        {showIn && (
+          <select
+            aria-label="Làn đang trực (VÀO)"
+            className="h-9 rounded-[var(--radius-control)] border border-line bg-bg px-2 text-[13px]"
+            value={laneNameIn}
+            onChange={(e) => setLaneNameIn(e.target.value)}
+          >
+            <option value="">Làn VÀO: chưa chọn</option>
+            {lanes.map((l) => (
+              <option key={l.id} value={l.name}>
+                Làn VÀO: {l.name}
+              </option>
+            ))}
+          </select>
+        )}
+        {showOut && (
+          <select
+            aria-label="Làn đang trực (RA)"
+            className="h-9 rounded-[var(--radius-control)] border border-line bg-bg px-2 text-[13px]"
+            value={laneNameOut}
+            onChange={(e) => setLaneNameOut(e.target.value)}
+          >
+            <option value="">Làn RA: chưa chọn</option>
+            {lanes.map((l) => (
+              <option key={l.id} value={l.name}>
+                Làn RA: {l.name}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       <div
@@ -126,10 +184,12 @@ export function GatePage() {
             ref={inRef}
             direction="in"
             wide={layout !== "split"}
-            wsCapture={capturesByDirection.in}
+            wsCapture={wsCaptureIn}
             active={active === "in"}
             onActivate={() => setActive("in")}
-            onPayOpenChange={(open) => setPayOpen((p) => ({ ...p, in: open }))}
+            onPayOpenChange={onPayOpenChangeIn}
+            laneName={laneIn?.name}
+            laneCameras={laneIn?.cameras}
           />
         )}
         {showOut && (
@@ -137,10 +197,12 @@ export function GatePage() {
             ref={outRef}
             direction="out"
             wide={layout !== "split"}
-            wsCapture={capturesByDirection.out}
+            wsCapture={wsCaptureOut}
             active={active === "out"}
             onActivate={() => setActive("out")}
-            onPayOpenChange={(open) => setPayOpen((p) => ({ ...p, out: open }))}
+            onPayOpenChange={onPayOpenChangeOut}
+            laneName={laneOut?.name}
+            laneCameras={laneOut?.cameras}
           />
         )}
       </div>

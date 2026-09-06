@@ -32,6 +32,16 @@ export function formatDuration(startISO?: string | null, endISO?: string | null)
   return `${h} giờ ${m} phút`;
 }
 
+/** Thời lượng tính sẵn theo phút (backend trả `minutes` ở màn xem trước lượt RA). */
+export function formatMinutes(minutes?: number | null): string {
+  if (minutes === null || minutes === undefined || !Number.isFinite(minutes)) return DASH;
+  const mins = Math.max(0, Math.floor(minutes));
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  if (h === 0) return `${m} phút`;
+  return `${h} giờ ${m} phút`;
+}
+
 export function formatPlate(s?: string | null): string {
   if (!s) return DASH;
   return s.trim().toUpperCase();

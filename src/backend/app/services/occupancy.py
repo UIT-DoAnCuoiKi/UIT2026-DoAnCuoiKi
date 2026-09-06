@@ -27,6 +27,20 @@ def lot_is_full(db: Session, lot_id: int) -> bool:
     return lot_occupancy(db, lot_id) >= lot.capacity
 
 
+def resolve_default_lot(db: Session) -> int | None:
+    """Bãi để gán cho phiên khi màn cổng không gửi zone_id.
+
+    Màn cổng hiện không có ô chọn khu (đúng phạm vi MVP 1 làn), nên nếu không
+    suy ra bãi ở đây thì phiên sẽ có lot_id rỗng: vừa không kiểm được sức chứa,
+    vừa biến mất khỏi báo cáo occupancy vốn lọc theo lot_id.
+
+    Chỉ suy ra khi có đúng một bãi đang hoạt động. Nhiều bãi thì trả None để
+    bắt buộc gửi zone_id, không đoán bừa xe thuộc bãi nào.
+    """
+    lots = list(db.scalars(select(ParkingLot).where(ParkingLot.active.is_(True)).limit(2)).all())
+    return lots[0].id if len(lots) == 1 else None
+
+
 def _available(capacity: int, occupancy: int) -> int | None:
     return max(capacity - occupancy, 0) if capacity > 0 else None
 

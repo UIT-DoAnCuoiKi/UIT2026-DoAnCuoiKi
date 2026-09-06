@@ -8,15 +8,10 @@ import { Button } from "@/components/ui/button";
 import { SurfaceCard } from "@/components/surface-card";
 import { useVehicleGroupMap } from "@/lib/vehicle-groups";
 import { matchFlagLabel } from "@/lib/labels";
+import { sessionStatusMeta } from "@/lib/status";
 
 const PAGE = 20;
 const STATUSES = ["", "in_lot", "completed", "disputed", "pending_manual"];
-const STATUS_LABEL: Record<string, string> = {
-  in_lot: "Trong bãi",
-  completed: "Hoàn tất",
-  disputed: "Tranh chấp",
-  pending_manual: "Chờ xử lý tay",
-};
 const MATCH_FLAGS = ["", "exact", "auto_corrected", "manual", "lost_ticket"];
 const SELECT_CLASS =
   "h-9 rounded-[var(--radius-control)] border border-line bg-bg px-2 text-sm";
@@ -49,8 +44,33 @@ export function SessionsPage() {
 
   const reset = () => setOffset(0);
 
+  // Bấm 1 cái ra ngay việc hay làm nhất (xem hôm nay / xem xe còn trong bãi)
+  // thay vì phải tự set từng ô lọc chi tiết bên dưới.
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const isToday = entryFrom === todayStr && entryTo === todayStr;
+  const isInLot = status === "in_lot";
+
+  const showToday = () => {
+    setEntryFrom(isToday ? "" : todayStr);
+    setEntryTo(isToday ? "" : todayStr);
+    reset();
+  };
+  const showInLot = () => {
+    setStatus(isInLot ? "" : "in_lot");
+    reset();
+  };
+
   return (
     <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant={isToday ? "default" : "outline"} className="h-9" onClick={showToday}>
+          Hôm nay
+        </Button>
+        <Button variant={isInLot ? "default" : "outline"} className="h-9" onClick={showInLot}>
+          Đang trong bãi
+        </Button>
+        <span className="h-5 w-px bg-line" aria-hidden />
+      </div>
       <div className="flex flex-wrap items-center gap-2">
         <Input
           className="w-64"
@@ -73,7 +93,7 @@ export function SessionsPage() {
         >
           {STATUSES.map((s) => (
             <option key={s} value={s}>
-              {s ? STATUS_LABEL[s] ?? s : "Tất cả trạng thái"}
+              {s ? sessionStatusMeta(s).label : "Tất cả trạng thái"}
             </option>
           ))}
         </select>

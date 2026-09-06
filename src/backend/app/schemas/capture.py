@@ -21,6 +21,12 @@ class PipelinePayload(BaseModel):
     plates: list[PlateItem] = []
 
 
+class ReadingImageOut(BaseModel):
+    role: str
+    image_asset_id: int
+    is_primary: bool
+
+
 class CaptureResponse(BaseModel):
     reading_id: int
     capture_id: str
@@ -36,4 +42,7 @@ class CaptureResponse(BaseModel):
     color_conf: float | None = None
     image_asset_id: int | None = None
     plate_crop_asset_id: int | None = None
+    # Ảnh chính vẫn là image_asset_id (tương thích ngược); danh sách này thêm
+    # ảnh của các camera phụ khi làn có 2-3 camera. Rỗng nếu làn chỉ có 1 camera.
+    images: list[ReadingImageOut] = []
     duplicate: bool = False

@@ -1,4 +1,5 @@
 import { render, screen, fireEvent } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { SessionsPage } from "./sessions-page";
 
@@ -76,6 +77,31 @@ test("same-day entry range produces a non-empty window", () => {
   );
   fireEvent.change(screen.getByLabelText("Giờ vào từ"), { target: { value: "2026-08-23" } });
   fireEvent.change(screen.getByLabelText("Giờ vào đến"), { target: { value: "2026-08-23" } });
+  expect(lastParams.entry_from).not.toBeNull();
+  expect(lastParams.entry_to).not.toBeNull();
+  expect(new Date(lastParams.entry_from).getTime()).toBeLessThan(new Date(lastParams.entry_to).getTime());
+});
+
+test("quick filter 'Đang trong bãi' sets status to in_lot and toggles off on second click", async () => {
+  render(
+    <MemoryRouter>
+      <SessionsPage />
+    </MemoryRouter>,
+  );
+  const btn = screen.getByRole("button", { name: "Đang trong bãi" });
+  await userEvent.click(btn);
+  expect(lastParams.status).toBe("in_lot");
+  await userEvent.click(btn);
+  expect(lastParams.status).toBeNull();
+});
+
+test("quick filter 'Hôm nay' sets a same-day entry window", async () => {
+  render(
+    <MemoryRouter>
+      <SessionsPage />
+    </MemoryRouter>,
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Hôm nay" }));
   expect(lastParams.entry_from).not.toBeNull();
   expect(lastParams.entry_to).not.toBeNull();
   expect(new Date(lastParams.entry_from).getTime()).toBeLessThan(new Date(lastParams.entry_to).getTime());

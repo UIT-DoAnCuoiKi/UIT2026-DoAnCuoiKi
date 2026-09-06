@@ -29,9 +29,15 @@ def test_shift_reconciliation_ignores_non_cash_e2e(api, staff_h):
     assert o.status_code == 201, o.text
 
     uid = _uid()
+    # Nhập tay VÀO giờ bắt buộc kèm reading đã nhận dạng biển (guard chống nhập
+    # tay lách qua sức chứa/biển trùng/danh sách đen) nên phải chụp trước.
+    plate = f"51K-{uid[:3]}.{uid[3:5]}"
+    r_in = _capture(api, f"e2e-shift-{uid}", "in", plate)
+    assert r_in.status_code == 200, r_in.text
     s = api.post(
         "/sessions/manual",
-        json={"action": "entry", "plate_text": f"51K-{uid[:3]}.{uid[3:5]}", "vehicle_group": "o_to_con"},
+        json={"action": "entry", "plate_text": plate, "vehicle_group": "o_to_con",
+              "reading_id": r_in.json()["reading_id"]},
         headers=staff_h,
     )
     assert s.status_code == 200, s.text
@@ -59,5 +65,13 @@ def test_entry_warning_combines_blacklist_and_duplicate_e2e(api, admin_h, staff_
     assert e1.status_code == 200, e1.text  # xe vào bãi, cảnh báo đen
 
     r2 = _capture(api, f"e2e-bl2-{uid}", "in", plate)
-    w = api.post("/sessions/entry", json={"reading_id": r2.json()["reading_id"]}, headers=staff_h).json()["warning"]
+    # Biển đã trong bãi (r1 vẫn in_lot) nên phải override_duplicate mới vào
+    # được lần hai; không override thì giờ nhận 409 duplicate_plate.
+    resp2 = api.post(
+        "/sessions/entry",
+        json={"reading_id": r2.json()["reading_id"], "override_duplicate": True},
+        headers=staff_h,
+    )
+    assert resp2.status_code == 200, resp2.text
+    w = resp2.json()["warning"]
     assert w and "đen" in w and "trùng" in w, w

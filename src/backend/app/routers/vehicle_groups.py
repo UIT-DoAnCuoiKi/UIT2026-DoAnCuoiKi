@@ -3,12 +3,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.deps import get_current_user, require_role
+from app.deps import admin_only, get_current_user
 from app.models import MonthlyPass, ParkingSession, PriceRule, User, VehicleGroup
 from app.schemas.vehicle_group import VehicleGroupIn, VehicleGroupOut, VehicleGroupUpdate
 
 router = APIRouter(prefix="/vehicle-groups", tags=["vehicle-groups"])
-admin_only = require_role("manager", "root")
 
 
 @router.get("", response_model=list[VehicleGroupOut])

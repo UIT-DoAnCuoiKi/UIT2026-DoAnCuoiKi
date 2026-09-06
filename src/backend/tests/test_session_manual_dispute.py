@@ -89,13 +89,13 @@ def test_patch_reading_vehicle_type_and_color(client, db_session, staff_headers)
     assert reading.review_state == "manual"
 
 
-def test_dispute_then_resolve(client, db_session, staff_headers):
+def test_dispute_then_resolve(client, db_session, admin_headers):
     session = ParkingSession(plate_hash="h", plate_ciphertext=crypto.encrypt_text("51F-123.45"),
                              vehicle_group="o_to_con", status="in_lot")
     db_session.add(session); db_session.commit(); db_session.refresh(session)
 
-    assert client.post(f"/sessions/{session.id}/dispute", headers=staff_headers).json()["status"] == "disputed"
+    assert client.post(f"/sessions/{session.id}/dispute", headers=admin_headers).json()["status"] == "disputed"
 
-    r = client.post(f"/sessions/{session.id}/resolve", json={"fee_amount": 8000}, headers=staff_headers)
+    r = client.post(f"/sessions/{session.id}/resolve", json={"fee_amount": 8000}, headers=admin_headers)
     assert r.json()["status"] == "completed"
     assert r.json()["fee_amount"] == 8000

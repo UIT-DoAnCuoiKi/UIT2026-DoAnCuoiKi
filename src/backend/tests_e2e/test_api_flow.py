@@ -63,8 +63,8 @@ def test_full_gate_flow(api, admin_h, staff_h):
     r = api.get(f"/images/{img_id}", headers=staff_h)
     assert r.status_code == 200 and r.content == _IMG
 
-    # thống kê doanh thu + xuất CSV (admin)
-    assert api.get("/stats", headers=staff_h).json()["revenue"] >= 5000
+    # thống kê doanh thu (chỉ manager/root) + xuất CSV (admin)
+    assert api.get("/stats", headers=admin_h).json()["revenue"] >= 5000
     r = api.get("/stats/export", headers=admin_h)
     assert r.status_code == 200
     assert r.headers["content-type"].startswith("text/csv")
@@ -83,7 +83,17 @@ def test_exit_without_entry_is_disputed(api, staff_h):
 def test_manual_flow(api, admin_h, staff_h):
     uid = _uid()
     api.post("/price-rules", json={"vehicle_group": "xe_may", "mode": "flat", "unit_price": 3000}, headers=admin_h)
-    r = api.post("/sessions/manual", json={"action": "entry", "plate_text": f"59X1-{uid[:3]}.{uid[3:5]}", "vehicle_group": "xe_may"}, headers=staff_h)
+    plate = f"59X1-{uid[:3]}.{uid[3:5]}"
+    # Nhập tay VÀO bắt buộc kèm reading_id có biển đã nhận dạng (chặn nhập tay
+    # lách qua guard sức chứa/biển trùng/danh sách đen).
+    r_in = _capture(api, f"e2e-manual-{uid}", "in", plate)
+    assert r_in.status_code == 200, r_in.text
+    r = api.post(
+        "/sessions/manual",
+        json={"action": "entry", "plate_text": plate, "vehicle_group": "xe_may",
+              "reading_id": r_in.json()["reading_id"]},
+        headers=staff_h,
+    )
     assert r.status_code == 200 and r.json()["match_flag"] == "manual"
     sid = r.json()["id"]
     r = api.post("/sessions/manual", json={"action": "exit", "session_id": sid}, headers=staff_h)

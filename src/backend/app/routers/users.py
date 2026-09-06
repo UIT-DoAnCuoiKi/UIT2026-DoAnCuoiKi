@@ -3,14 +3,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.deps import require_role
+from app.deps import admin_only
 from app.models import User
 from app.schemas.user import UserCreate, UserOut, UserUpdate
 from app.security.passwords import hash_password
 from app.services.audit import write_audit
 
 router = APIRouter(prefix="/users", tags=["users"])
-admin_only = require_role("manager", "root")
 _ROLES = ("staff", "manager", "root")
 
 

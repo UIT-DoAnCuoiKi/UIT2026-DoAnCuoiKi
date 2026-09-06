@@ -117,16 +117,18 @@ class CapturePoster:
     def __init__(
         self, client: httpx.Client, *, backend: str, edge_key: str, direction: str,
         lane: str | None = None, retries: int = 3, backoff: float = 0.5,
-        sleep=time.sleep,
+        sleep=time.sleep, device_id: int | None = None,
     ) -> None:
         self._client = client
-        self._url = f"{backend.rstrip('/')}/captures"
+        self._base = backend.rstrip("/")
+        self._url = f"{self._base}/captures"
         self._headers = {"X-Edge-Key": edge_key}
         self._direction = direction
         self._lane = lane
         self._retries = retries
         self._backoff = backoff
         self._sleep = sleep
+        self._device_id = device_id
 
     def post(self, capture_id: str, result: dict, jpeg: bytes) -> bool:
         data = {
@@ -149,6 +151,7 @@ class CapturePoster:
 
             if resp.status_code < 300:
                 log.info("POST ok capture_id=%s (%d)", capture_id, resp.status_code)
+                self.heartbeat()
                 return True
             if 400 <= resp.status_code < 500:
                 log.error(
@@ -162,6 +165,24 @@ class CapturePoster:
 
         log.error("POST thất bại sau %d lần, bỏ capture_id=%s", self._retries, capture_id)
         return False
+
+    def heartbeat(self) -> None:
+        """Báo thiết bị còn sống sau mỗi capture gửi thành công.
+
+        Không cấu hình --device-id thì bỏ qua. Lỗi ở đây không được ảnh hưởng
+        luồng chính: heartbeat chỉ phục vụ màn hình health, hỏng thì thiết bị vẫn
+        phải tiếp tục gửi capture bình thường.
+        """
+        if self._device_id is None:
+            return
+        try:
+            resp = self._client.post(
+                f"{self._base}/devices/{self._device_id}/heartbeat", headers=self._headers,
+            )
+            if resp.status_code >= 300:
+                log.warning("heartbeat %d device_id=%s", resp.status_code, self._device_id)
+        except httpx.HTTPError as exc:
+            log.warning("heartbeat lỗi mạng device_id=%s: %s", self._device_id, exc)
 
 
 # --------------------------------------------------------------------------- #
@@ -242,6 +263,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--direction", choices=("in", "out"), default=os.environ.get("EDGE_DIRECTION", "in"),
                    help="Hướng cổng: in hoặc out")
     p.add_argument("--lane", default=os.environ.get("EDGE_LANE"), help="Mã làn (tùy chọn)")
+    p.add_argument("--device-id", dest="device_id", type=int,
+                   default=int(os.environ["EDGE_DEVICE_ID"]) if os.environ.get("EDGE_DEVICE_ID") else None,
+                   help="Id thiết bị trong bảng device, để báo heartbeat cho màn hình health (tùy chọn)")
     p.add_argument("--camera", default=os.environ.get("EDGE_CAMERA", "0"),
                    help="Nguồn camera: index thiết bị, đường dẫn file, hoặc URL RTSP")
     p.add_argument("--trigger", choices=("key", "gpio"), default=os.environ.get("EDGE_TRIGGER", "key"),
@@ -275,6 +299,7 @@ def main(argv: list[str] | None = None) -> int:
     poster = CapturePoster(
         client, backend=args.backend, edge_key=args.edge_key,
         direction=args.direction, lane=args.lane, retries=args.retries,
+        device_id=args.device_id,
     )
 
     try:

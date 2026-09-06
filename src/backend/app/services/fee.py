@@ -17,7 +17,12 @@ def compute_fee(rule: PriceRule, entry_time: datetime, exit_time: datetime) -> t
         return 0, {"mode": rule.mode, "grace_minutes": grace, "minutes": round(minutes, 2), "free": True}
 
     if rule.mode == "flat":
-        return rule.unit_price, {"mode": "flat", "unit_price": rule.unit_price}
+        # `minutes` không tham gia tính tiền ở chế độ flat, nhưng vẫn ghi vào
+        # snapshot để mọi chế độ có cùng hình dạng: màn thu tiền dựng diễn giải
+        # (thời lượng gửi + đơn giá) từ một chỗ, không phải tự suy lại theo mode.
+        return rule.unit_price, {
+            "mode": "flat", "unit_price": rule.unit_price, "minutes": round(minutes, 2),
+        }
 
     if not rule.block_minutes:
         raise ValueError("price rule mode block thiếu block_minutes")

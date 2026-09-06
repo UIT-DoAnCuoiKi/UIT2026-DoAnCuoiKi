@@ -100,9 +100,12 @@ Unit test (SQLite in memory, không cần server chạy), từ `src/backend`:
 pytest -q            # 84 test
 ```
 
-E2E API test (vào backend HTTP thật), cần stack đang chạy:
+E2E API test (vào backend HTTP thật), cần stack đang chạy. Seed nhóm xe trước
+(nhiều test dùng bảng giá theo nhóm, không seed thì fail vì `vehicle_group không
+tồn tại`):
 
 ```sh
+python -m scripts.seed_vehicle_groups
 BASE_URL=http://localhost:8000 pytest tests_e2e -q
 ```
 

@@ -22,12 +22,54 @@ def test_ingest_creates_reading_and_response(db_session):
     assert reading.color == "white"
     assert reading.vehicle_type == "car"
 
-    resp = build_capture_response(reading, plate_text, duplicate)
+    resp = build_capture_response(db_session, reading, plate_text, duplicate)
     assert resp.plate_text == "51F12345"
     assert resp.vehicle_group == "o_to_con"
     assert resp.duplicate is False
     assert resp.ocr_conf == 0.95
     assert resp.color_conf == 0.9
+    # Ảnh chính luôn có 1 dòng ReadingImage tương ứng (is_primary), kể cả khi
+    # làn chỉ có 1 camera — để truy vấn danh sách ảnh của 1 reading luôn nhất quán.
+    assert len(resp.images) == 1
+    assert resp.images[0].is_primary is True
+    assert resp.images[0].image_asset_id == resp.image_asset_id
+
+
+def test_ingest_stores_extra_camera_images(db_session):
+    """Làn 2 camera (trước + sau xe): ảnh cam phụ phải lưu thật, không bị vứt."""
+    from app.models import ImageAsset, ReadingImage
+    from app.services.capture_ingest import build_capture_response, ingest_reading
+
+    reading, _, _ = ingest_reading(
+        db_session, capture_id="cap-multi-1", direction="in", lane="lane1",
+        payload=_payload(), image_bytes=b"front-frame",
+        primary_role="front", extra_images=[(b"rear-frame", "rear")],
+    )
+
+    rows = db_session.query(ReadingImage).filter_by(reading_id=reading.id).order_by(ReadingImage.id).all()
+    assert [(r.role, r.is_primary) for r in rows] == [("front", True), ("rear", False)]
+    # Ảnh phụ phải là 1 ImageAsset THẬT KHÁC với ảnh chính, không phải trỏ lại
+    # cùng 1 bản ghi — nếu không sẽ không lưu được đủ 2 ảnh như yêu cầu.
+    assert rows[1].image_asset_id != rows[0].image_asset_id
+    assert db_session.get(ImageAsset, rows[1].image_asset_id) is not None
+
+    resp = build_capture_response(db_session, reading, "51F12345", False)
+    assert len(resp.images) == 2
+    assert resp.image_asset_id == rows[0].image_asset_id  # ảnh chính không đổi vị trí cũ
+
+
+def test_ingest_rejects_mismatched_extra_roles(client, staff_headers):
+    """API phải từ chối rõ ràng khi số ảnh phụ và số vai trò lệch nhau, không đoán."""
+    r = client.post(
+        "/captures/infer",
+        data={"capture_id": "cap-multi-2", "direction": "in", "extra_roles": []},
+        files={
+            "image": ("front.jpg", b"front", "image/jpeg"),
+            "extra_images": ("rear.jpg", b"rear", "image/jpeg"),
+        },
+        headers=staff_headers,
+    )
+    assert r.status_code == 422
 
 
 def test_ingest_is_idempotent_on_capture_id(db_session):
@@ -71,7 +113,7 @@ def test_ingest_persists_plate_crop_asset(db_session):
     # crop bytes must not be duplicated into the JSON column
     for p in reading.raw_pipeline_json["plates"]:
         assert "crop_proc_b64" not in p
-    resp = build_capture_response(reading, "51F12345", False)
+    resp = build_capture_response(db_session, reading, "51F12345", False)
     assert resp.plate_crop_asset_id == reading.plate_crop_asset_id
 
 
