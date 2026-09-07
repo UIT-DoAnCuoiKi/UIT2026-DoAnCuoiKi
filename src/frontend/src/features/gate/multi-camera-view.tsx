@@ -52,6 +52,18 @@ function Tile({
       {streaming && slot ? (
         <>
           <video ref={slot.videoRef} autoPlay muted playsInline className="h-full w-full object-cover" />
+          {/* Nút này phải có cả khi camera ĐANG chạy, giống CameraView (1 camera):
+              thiếu nó thì máy có webcam cắm sẵn không còn cách nào tải ảnh mẫu để
+              thử pipeline, vì ô camera không bao giờ rơi về nhánh "chưa kết nối". */}
+          {allowUpload && (
+            <Button
+              variant="outline"
+              className="absolute right-1 top-1 h-7 px-2 text-[11px]"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              Tải ảnh
+            </Button>
+          )}
           <span className="absolute bottom-1 left-1.5 rounded bg-black/55 px-1.5 py-0.5 text-[11px] font-medium text-white">
             {label}
           </span>

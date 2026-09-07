@@ -235,8 +235,11 @@ def _build_pipeline(args):
     from pipeline.onnx_pipeline import OnnxAlprPipeline
 
     return OnnxAlprPipeline(
+        coarse_weights=args.coarse_weights,
         plate_weights=args.plate_weights,
         ocr_onnx=args.ocr_onnx,
+        type_onnx=args.type_onnx,
+        type_classes_path=args.type_classes,
         style_onnx=args.style_onnx,
         style_classes_path=args.style_classes,
         conf=args.conf,
@@ -275,8 +278,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--conf", type=float, default=None, help="Ngưỡng confidence phát hiện biển số")
     p.add_argument("--retries", type=int, default=3, help="Số lần retry POST khi lỗi mạng")
     # Ghi đè đường dẫn model (mặc định trỏ vào repo, giải trong onnx_pipeline).
+    # --coarse-weights trỏ sang .onnx để chạy bước định vị xe qua onnxruntime
+    # thuần, không cần torch/ultralytics cài trên thiết bị (vd Raspberry Pi).
+    p.add_argument("--coarse-weights", dest="coarse_weights", default=os.environ.get("ML_COARSE_WEIGHTS"))
     p.add_argument("--plate-weights", dest="plate_weights", default=os.environ.get("ML_PLATE_WEIGHTS"))
     p.add_argument("--ocr-onnx", dest="ocr_onnx", default=os.environ.get("ML_OCR_ONNX"))
+    p.add_argument("--type-onnx", dest="type_onnx", default=os.environ.get("ML_TYPE_ONNX"))
+    p.add_argument("--type-classes", dest="type_classes", default=os.environ.get("ML_TYPE_CLASSES"))
     p.add_argument("--style-onnx", dest="style_onnx", default=os.environ.get("ML_STYLE_ONNX"))
     p.add_argument("--style-classes", dest="style_classes", default=os.environ.get("ML_STYLE_CLASSES"))
     return p

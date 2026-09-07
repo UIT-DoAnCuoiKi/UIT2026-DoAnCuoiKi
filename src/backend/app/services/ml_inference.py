@@ -3,16 +3,19 @@
 giải mã ảnh thô upload từ màn Trạm cổng, chạy pipeline, ánh xạ dict kết quả sang
 `PipelinePayload`.
 
-Runner chạy 3 model đã huấn luyện ở src/ml: detector YOLO (.pt) qua ultralytics,
-OCR CRNN (.onnx) và classifier kiểu dáng (.onnx) qua onnxruntime. Logic suy luận
-nằm trong `onnx_pipeline`; adapter này chỉ lo phần backend (bytes -> BGR -> dict
--> PipelinePayload) và cache engine theo tiến trình.
+Runner chạy: YOLO định vị xe (mặc định `.pt` qua ultralytics, đổi sang `.onnx`
+qua `ML_COARSE_WEIGHTS` để chạy onnxruntime thuần, không cần torch/ultralytics
+cài đặt — xem `predict_vehicle.CoarseVehicleDetector`), detector biển YOLO
+(`.pt`/`.onnx` qua ultralytics/onnxruntime), OCR CRNN (`.onnx`), classifier
+loại xe (`.onnx`) và classifier kiểu dáng (`.onnx`) qua onnxruntime. Logic suy
+luận nằm trong `onnx_pipeline`; adapter này chỉ lo phần backend (bytes -> BGR
+-> dict -> PipelinePayload) và cache engine theo tiến trình.
 
 Các import nặng (cv2, cây src/ml, runner) nằm trong hàm để suite test backend
 (không có model, không có torch) vẫn import được module. Chọn adapter bằng
 INFERENCE_ENGINE=ml. Đường dẫn model mặc định trỏ vào repo (giải trong
-onnx_pipeline), ghi đè bằng biến môi trường ML_PLATE_WEIGHTS, ML_OCR_ONNX,
-ML_STYLE_ONNX, ML_STYLE_CLASSES.
+onnx_pipeline), ghi đè bằng biến môi trường ML_COARSE_WEIGHTS, ML_PLATE_WEIGHTS,
+ML_OCR_ONNX, ML_TYPE_ONNX, ML_TYPE_CLASSES, ML_STYLE_ONNX, ML_STYLE_CLASSES.
 """
 import os
 import sys
@@ -53,7 +56,8 @@ _engine: "MlInferenceEngine | None" = None
 
 def get_ml_engine() -> "MlInferenceEngine":
     """Nạp runner một lần (cache tiến trình). Đường dẫn mặc định trỏ vào repo,
-    ghi đè bằng ML_PLATE_WEIGHTS, ML_OCR_ONNX, ML_STYLE_ONNX, ML_STYLE_CLASSES."""
+    ghi đè bằng ML_COARSE_WEIGHTS, ML_PLATE_WEIGHTS, ML_OCR_ONNX, ML_TYPE_ONNX,
+    ML_TYPE_CLASSES, ML_STYLE_ONNX, ML_STYLE_CLASSES."""
     global _engine
     if _engine is not None:
         return _engine
@@ -65,8 +69,11 @@ def get_ml_engine() -> "MlInferenceEngine":
     from pipeline.onnx_pipeline import OnnxAlprPipeline
 
     pipeline = OnnxAlprPipeline(
+        coarse_weights=os.environ.get("ML_COARSE_WEIGHTS"),
         plate_weights=os.environ.get("ML_PLATE_WEIGHTS"),
         ocr_onnx=os.environ.get("ML_OCR_ONNX"),
+        type_onnx=os.environ.get("ML_TYPE_ONNX"),
+        type_classes_path=os.environ.get("ML_TYPE_CLASSES"),
         style_onnx=os.environ.get("ML_STYLE_ONNX"),
         style_classes_path=os.environ.get("ML_STYLE_CLASSES"),
     )

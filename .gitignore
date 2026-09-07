@@ -60,5 +60,8 @@ testimage/
 src/backend/data/
 *.enc
 
+# database dev/test cục bộ (SQLite) - đổi liên tục, có thể chứa dữ liệu demo đã mã hoá
+*.db
+
 # node / frontend deps
 node_modules/

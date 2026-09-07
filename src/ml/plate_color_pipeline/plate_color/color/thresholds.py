@@ -57,3 +57,32 @@ CONF_FLOOR = 0.35           # winner share below this → unknown
 # contour lớn nhất (cùng kỹ thuật deskew() trong pipeline/ocr.py) để tìm đúng
 # vùng nền biển, bỏ viền nhiễu, thay vì đoán 1 tỉ lệ % cố định.
 COLOR_MIN_CONTOUR_AREA_FRAC = 0.3  # contour lớn nhất phải chiếm tối thiểu 30% crop mới tin cậy (giống ngưỡng deskew())
+
+# ── 2 lỗi thật đã ghi nhận, CHƯA SỬA (test trên ảnh thật, không phải suy đoán) ─
+#
+# (a) Biển trắng bị đọc thành "blue" khi cả khung hình bị ám màu xanh (đèn LED/
+#     ánh sáng đêm) — khác lỗi viền crop ở trên, lần này cả nền biển thật sự lệch
+#     hue chứ không phải do rìa crop. Đo trên 1 ảnh camera cổng ban đêm thật:
+#     nền biển trắng ra Hue≈95 (rơi đúng dải HUE_BLUE), kênh Blue trung bình cao
+#     hơn hẳn kênh Red (183 so với 135). Cân bằng trắng kiểu gray-world SỬA ĐÚNG
+#     case này (blue→white), nhưng lại làm giảm mạnh độ tin cậy của biển VÀNG
+#     thật (đo trên ảnh khác: 77.6%→54.9%, kèm nhiễu màu ở viền chữ) — nên KHÔNG
+#     thể bật gray-world WB vô điều kiện cho mọi ảnh, phải phát hiện được ảnh
+#     nào thực sự bị ám màu trước (chưa có cơ chế này, xem thảo luận trong
+#     phiên làm việc portal Trạm cổng ngày 2026-09-06 nếu cần chi tiết).
+#
+# (b) Biển XANH THẬT (chữ trắng, biển cơ quan nhà nước "80B...") bị đọc thành
+#     "white" ngay cả ban ngày bình thường, KHÔNG liên quan ám màu. Nguyên nhân
+#     khác hẳn: biển xanh navy tối/cũ có màu BGR gần cân bằng (đo được B≈72,
+#     G≈64, R≈71 — kênh Blue và Red chỉ chênh 1 đơn vị). Với công thức
+#     S=(max-min)/max của HSV, màu càng tối thì S càng bị thổi phồng giả tạo dù
+#     kênh màu chỉ lệch chút ít, VÀ Hue trở nên cực kỳ không ổn định quanh điểm
+#     Blue≈Red (nhiễu ảnh rất nhỏ đẩy Hue nhảy hẳn từ ~0° sang ~120°). Đo thực
+#     tế: gần nửa số pixel nền (đúng 1 màu navy đồng nhất với mắt thường) bị
+#     phân mảnh hue ra 2 cụm — ~40% rơi vào dải đỏ/vàng (Hue 0–20), phần còn lại
+#     mới đúng dải xanh (Hue 110–140) — làm phiếu bầu "blue" bị pha loãng, thua
+#     phiếu "white" (từ chữ trắng + phản chiếu sáng). Đây là điểm yếu của chính
+#     công thức HSV với màu tối/ít bão hòa tuyệt đối, không sửa được bằng cách
+#     lọc ám màu ở mục (a) — cần đổi hẳn cách đo (vd. hiệu số kênh màu tuyệt
+#     đối, hoặc chuyển sang không gian màu LAB ổn định hơn với vùng tối) mới
+#     giải quyết được, ngoài phạm vi sửa nhanh.

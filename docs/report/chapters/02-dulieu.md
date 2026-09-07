@@ -127,7 +127,7 @@ Cho module phân loại xe (Nhật, Tuần 5), nhóm chốt dùng **A1 - Vietnam
 - **Detect biển:** A1 (dataset biển số VN, mục 2.1) làm nền chính, A3/A4 bổ sung, cùng `plate_tanhphp` và `plate_bomaich_yolov7` (mục 2.3.1).
 - **OCR:** `plate_ocr_topkek` làm nguồn chính, `motorbike_ocr_100` làm test set riêng cho biển 2 hàng.
 - **Màu biển:** không cần dataset gán nhãn riêng - dùng trực tiếp HSV + CLAHE trên crop biển đã có (mục 2.3.2).
-- **Phân loại xe:** B5 — Vehicle Body Style Dataset (mục 2.1.2) làm nguồn chính để pretrain + fine-tune phân loại kiểu dáng (sedan/SUV/pickup...) ở Tuần 5, đánh giá tính khả quan trước khi quyết định bổ sung dataset khác nếu cần; A1 dùng làm proxy BSD/BSV cho 2 lớp ô tô/xe máy trong giai đoạn đầu (mục 2.3.3).
+- **Phân loại xe:** B5 (Vehicle Body Style Dataset, mục 2.1.2) làm nguồn chính để pretrain + fine-tune phân loại kiểu dáng (sedan/SUV/pickup...) ở Tuần 5, đánh giá tính khả quan trước khi quyết định bổ sung dataset khác nếu cần; A1 dùng làm proxy BSD/BSV cho 2 lớp ô tô/xe máy trong giai đoạn đầu (mục 2.3.3).
 
 ---
 

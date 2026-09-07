@@ -2,7 +2,7 @@
 
 **Smart Parking Management System using Computer Vision and Edge AI**
 
-Đồ án tốt nghiệp — Trường Đại học Công nghệ Thông tin, ĐHQG-HCM (UIT).
+Đồ án tốt nghiệp, Trường Đại học Công nghệ Thông tin, ĐHQG-HCM (UIT).
 
 ## Thông tin đề tài
 
@@ -14,7 +14,7 @@
 
 ## Mục tiêu
 
-Xây dựng một hệ thống quản lý bãi giữ xe thông minh có khả năng tự động nhận diện phương tiện (biển số, loại xe, màu nền biển số) bằng thị giác máy tính. Hệ thống được thiết kế độc lập nền tảng (khả chuyển), triển khai được trên máy chủ, PC hoặc thiết bị biên — ưu tiên minh họa khả năng chạy trên **Edge AI** (ví dụ Raspberry Pi) để giảm phụ thuộc máy chủ và tăng tính ứng dụng thực tế. Hệ thống hỗ trợ quản lý xe vào/ra, đối chiếu chống gian lận, tính phí tự động và cung cấp dashboard thống kê.
+Xây dựng một hệ thống quản lý bãi giữ xe thông minh có khả năng tự động nhận diện phương tiện (biển số, loại xe, màu nền biển số) bằng thị giác máy tính. Hệ thống được thiết kế độc lập nền tảng (khả chuyển), triển khai được trên máy chủ, PC hoặc thiết bị biên, ưu tiên minh họa khả năng chạy trên **Edge AI** (ví dụ Raspberry Pi) để giảm phụ thuộc máy chủ và tăng tính ứng dụng thực tế. Hệ thống hỗ trợ quản lý xe vào/ra, đối chiếu chống gian lận, tính phí tự động và cung cấp dashboard thống kê.
 
 ### Mục tiêu cụ thể
 
@@ -27,10 +27,10 @@ Xây dựng một hệ thống quản lý bãi giữ xe thông minh có khả n�
 ## Phạm vi
 
 - **Phương tiện**: tập trung vào xe máy và ô tô (phổ biến nhất tại bãi giữ xe Việt Nam); mô hình phân loại vẫn huấn luyện đủ 4 lớp nhưng chỉ đánh giá chuyên sâu trên 2 lớp chính.
-- **Chức năng**: nhận diện biển số, loại xe, màu biển, quản lý vào/ra, tính phí, dashboard thống kê — chưa xử lý xe di chuyển tốc độ cao (free-flow).
+- **Chức năng**: nhận diện biển số, loại xe, màu biển, quản lý vào/ra, tính phí, dashboard thống kê; chưa xử lý xe di chuyển tốc độ cao (free-flow).
 - **Nền tảng**: thiết kế độc lập nền tảng (PC/máy chủ hoặc thiết bị biên); phần triển khai minh họa trên một thiết bị biên cụ thể.
 - **Dữ liệu**: kết hợp bộ dữ liệu biển số/phương tiện Việt Nam công khai với ảnh tự thu thập trong điều kiện thực tế.
-- **Bảo vệ dữ liệu cá nhân**: biển số và hình ảnh phương tiện được xử lý theo Luật Bảo vệ dữ liệu cá nhân (hiệu lực 01/01/2026) — kiểm soát truy cập, mã hóa dữ liệu nhạy cảm, tự động xóa sau thời hạn quy định kể từ khi xe rời bãi.
+- **Bảo vệ dữ liệu cá nhân**: biển số và hình ảnh phương tiện được xử lý theo Luật Bảo vệ dữ liệu cá nhân (hiệu lực 01/01/2026): kiểm soát truy cập, mã hóa dữ liệu nhạy cảm, tự động xóa sau thời hạn quy định kể từ khi xe rời bãi.
 
 ## Đối tượng nghiên cứu
 
