@@ -1,9 +1,15 @@
 """Chạy pipeline phân loại xe trên 1 ảnh, dùng để thử nhanh từ dòng lệnh.
 
 Pipeline gồm 2 bước:
-  1. Loại thô (car/motorcycle/bus/truck): YOLOv8n pretrained trên COCO,
-     không huấn luyện thêm. Đồng thời dùng luôn box của bước này để cắt
-     vùng xe cho bước 2.
+  1. Phát hiện + cắt vùng xe: YOLOv8n pretrained trên COCO, không huấn luyện
+     thêm. Model được nạp 1 lần rồi cache theo instance (nạp lại từ đĩa mỗi
+     lần gọi từng chiếm 88% độ trễ toàn pipeline, xem CoarseVehicleDetector).
+     2 backend chọn được: "pt" (ultralytics, mặc định) hoặc "onnx"
+     (onnxruntime thuần, không cần torch — dùng khi triển khai thiết bị muốn
+     tránh phụ thuộc torch, vd Raspberry Pi). Nhãn lớp COCO
+     (car/motorcycle/bus/truck) chỉ dùng làm loại thô dự phòng cho "bus" —
+     car/motorbike/truck đã có model tự huấn luyện riêng, chính xác hơn (xem
+     onnx_pipeline.py, train_vehicle_type_classifier.py).
   2. Kiểu dáng (chỉ chạy khi bước 1 ra "car"): model tự huấn luyện, 3 lớp
      Sedan / GamCao / XeTai (xem src/ml/data_prep/prepare_classification_data.py
      để biết 12 kiểu dáng gốc của B5 được gộp vào 3 nhóm này thế nào).
@@ -33,38 +39,160 @@ from classifier import build_model, build_transforms  # noqa: E402
 
 WEIGHTS_DIR = REPO_ROOT / "src" / "ml" / "weights"
 
-# Chỉ giữ 4 lớp phương tiện trong COCO, bỏ qua người/vật thể khác trong khung hình
-COCO_VEHICLE_CLASSES = {2: "car", 3: "motorcycle", 5: "bus", 7: "truck"}
+# Chỉ giữ 4 lớp phương tiện trong COCO, bỏ qua người/vật thể khác trong khung hình.
+# "motorbike" (không phải "motorcycle") để khớp tên lớp của model loại-xe tự huấn
+# luyện (train_vehicle_type_classifier.py) và bảng ánh xạ nhóm phí backend
+# (app/services/vehicle_groups.py) — trước đây lệch tên khiến mọi xe máy không
+# được gán nhóm phí tự động (group_for("motorcycle") luôn trả None).
+COCO_VEHICLE_CLASSES = {2: "car", 3: "motorbike", 5: "bus", 7: "truck"}
+_COCO_NUM_CLASSES = 80
 
 
-def detect_vehicle_crop(img: Image.Image, padding_frac: float = 0.10):
+class CoarseVehicleDetector:
+    """Định vị xe (box + nhãn COCO thô) trong 1 khung hình. 2 backend, chọn
+    được qua tham số `backend`, cùng khuôn với `PlateDetector`
+    (plate_detection_pipeline/plate_detect/inference/plate_detector.py):
+
+    - `"pt"` (mặc định): `ultralytics.YOLO`, cần torch cài đặt. Ultralytics tự
+      letterbox (giữ tỉ lệ khung hình + đệm) và tự NMS nội bộ.
+    - `"onnx"`: `onnxruntime` thuần, KHÔNG cần torch/ultralytics cài đặt — dùng
+      khi triển khai trên thiết bị muốn tránh phụ thuộc torch (vd Raspberry
+      Pi, xem docs/report/chapters/05-phanloai.md mục 5.6). Tự làm letterbox
+      (resize giữ tỉ lệ + đệm xám 114, đúng quy ước ultralytics) rồi giải mã
+      box/NMS bằng `decode_v8` (tái dùng từ module phát hiện biển của Đức).
+
+      QUAN TRỌNG: bước letterbox không được thay bằng squash-resize (resize
+      thẳng về hình vuông, bỏ qua tỉ lệ khung hình) như `PlateDetector._detect_onnx`
+      đang làm cho biển số — đo thực tế trên ảnh camera cổng thật (khung hình
+      rất rộng, 2048x899) cho thấy squash-resize làm méo xe đến mức model
+      KHÔNG phát hiện được xe nào (0 detection). Letterbox đúng cho kết quả
+      gần như giống hệt bản pt trên cùng ảnh (car conf=0,853 so với 0,850, box
+      lệch vài pixel). Biển số không gặp vấn đề này vì ảnh crop biển đã tương
+      đối vuông vắn trước khi vào bước phát hiện.
+
+    Model/session cache theo INSTANCE (nạp 1 lần, dùng lại cho mọi khung hình
+    tiếp theo) — xem lý do cache ở `detect_vehicle_crop`.
+    """
+
+    def __init__(self, weights, backend: str = "pt", conf: float = 0.25,
+                 iou: float = 0.5, sess_options=None):
+        self.weights = str(weights)
+        self.backend = backend
+        self.conf = conf
+        self.iou = iou
+        self._sess_options = sess_options
+        self._model = None
+        self._session = None
+
+    def detect(self, img: Image.Image):
+        """Trả list `(x1, y1, x2, y2, cls_id, conf)` tọa độ ẢNH GỐC, chưa lọc
+        theo `COCO_VEHICLE_CLASSES` (việc lọc + chọn box lớn nhất do
+        `detect_vehicle_crop` đảm nhận, dùng chung cho cả 2 backend)."""
+        if self.backend == "pt":
+            return self._detect_pt(img)
+        if self.backend == "onnx":
+            return self._detect_onnx(img)
+        raise ValueError(f"unknown backend '{self.backend}'")
+
+    def _detect_pt(self, img: Image.Image):
+        if self._model is None:
+            from ultralytics import YOLO
+
+            Path(self.weights).parent.mkdir(parents=True, exist_ok=True)
+            # Chỉ định đường dẫn tuyệt đối để trọng số luôn nằm 1 chỗ, không
+            # phụ thuộc thư mục đang chạy lệnh (ultralytics tự tải về lần đầu)
+            self._model = YOLO(self.weights)
+        r = self._model.predict(img, conf=self.conf, verbose=False)[0]
+        return [
+            (*box.xyxy[0].tolist(), int(box.cls[0]), float(box.conf[0]))
+            for box in r.boxes
+        ]
+
+    def _detect_onnx(self, img: Image.Image):
+        import cv2
+        import numpy as np
+        import onnxruntime as ort
+
+        # Gói plate_detect (module phát hiện biển của Đức) có thể chưa nằm
+        # trên sys.path nếu class này được dùng độc lập, ngoài onnx_pipeline.py
+        # (nơi _ensure_ml_path() đã lo việc này).
+        _plate_detect_dir = REPO_ROOT / "src" / "ml" / "plate_detection_pipeline"
+        if str(_plate_detect_dir) not in sys.path:
+            sys.path.insert(0, str(_plate_detect_dir))
+        from plate_detect.inference.postprocess import decode_v8
+
+        if self._session is None:
+            self._session = ort.InferenceSession(
+                self.weights, sess_options=self._sess_options, providers=["CPUExecutionProvider"]
+            )
+        inp = self._session.get_inputs()[0]
+        h, w = inp.shape[2:]
+        h = h if isinstance(h, int) else 640
+        w = w if isinstance(w, int) else 640
+
+        img_rgb = np.array(img)  # ảnh vào đã là PIL RGB, không cần đổi kênh màu
+        ih, iw = img_rgb.shape[:2]
+        scale = min(w / iw, h / ih)
+        nw, nh = max(1, round(iw * scale)), max(1, round(ih * scale))
+        resized = cv2.resize(img_rgb, (nw, nh), interpolation=cv2.INTER_LINEAR)
+        canvas = np.full((h, w, 3), 114, dtype=np.uint8)  # đệm xám, đúng quy ước ultralytics
+        pad_x, pad_y = (w - nw) // 2, (h - nh) // 2
+        canvas[pad_y:pad_y + nh, pad_x:pad_x + nw] = resized
+
+        blob = canvas.transpose(2, 0, 1)[None]
+        blob = np.ascontiguousarray(blob, dtype=np.float32) / 255.0
+        raw = self._session.run(None, {inp.name: blob})[0][0]
+        boxes, scores, classes = decode_v8(raw, self.conf, self.iou, _COCO_NUM_CLASSES)
+
+        out = []
+        for (x1, y1, x2, y2), cls_id, score in zip(boxes, classes, scores):
+            # Un-letterbox: trừ đệm rồi chia lại tỉ lệ, về đúng tọa độ ảnh gốc
+            out.append((
+                (x1 - pad_x) / scale, (y1 - pad_y) / scale,
+                (x2 - pad_x) / scale, (y2 - pad_y) / scale,
+                int(cls_id), float(score),
+            ))
+        return out
+
+
+# Cache theo tiến trình cho detector mặc định (backend "pt", dùng cho CLI và
+# mọi nơi gọi detect_vehicle_crop() không tự truyền detector riêng). Nạp lại
+# YOLO(...) từ đĩa mỗi lần gọi tốn ~135ms (đo thực tế), chiếm 88% độ trễ toàn
+# pipeline khi chạy nhiều khung hình liên tiếp — cache instance 1 lần giải
+# quyết đúng vấn đề này, cùng nguyên tắc với _engine trong ml_inference.py.
+_default_coarse_detector: CoarseVehicleDetector | None = None
+
+
+def _get_default_coarse_detector() -> CoarseVehicleDetector:
+    global _default_coarse_detector
+    if _default_coarse_detector is None:
+        _default_coarse_detector = CoarseVehicleDetector(WEIGHTS_DIR / "yolov8n.pt", backend="pt")
+    return _default_coarse_detector
+
+
+def detect_vehicle_crop(img: Image.Image, padding_frac: float = 0.10, detector: CoarseVehicleDetector | None = None):
     """Phát hiện và cắt vùng xe lớn nhất trong ảnh bằng YOLOv8n pretrained.
 
     Biên 10% mặc định khớp với quy ước lúc chuẩn bị dữ liệu huấn luyện, đổi
     giá trị này sẽ làm ảnh đầu vào lệch so với phân phối lúc train.
 
+    `detector`: truyền vào để dùng backend/cấu hình khác (vd `onnx` khi triển
+    khai không có torch); bỏ trống thì dùng 1 detector mặc định (backend
+    "pt") cache theo tiến trình, khớp hành vi trước đây.
+
     Trả về (ảnh_đã_cắt, thông_tin_box). Nếu không phát hiện được xe nào thì
     trả về (ảnh_gốc, None) để nơi gọi tự quyết định xử lý.
     """
-    from ultralytics import YOLO
-
-    yolo_weights = WEIGHTS_DIR / "yolov8n.pt"
-    yolo_weights.parent.mkdir(parents=True, exist_ok=True)
-    # Chỉ định đường dẫn tuyệt đối để trọng số luôn nằm 1 chỗ, không phụ
-    # thuộc thư mục đang chạy lệnh (ultralytics tự tải về lần đầu)
-    model = YOLO(str(yolo_weights))
-    results = model.predict(img, verbose=False)[0]
+    detector = detector or _get_default_coarse_detector()
 
     # Lấy xe có diện tích lớn nhất làm phương tiện chính của khung hình
     best = None  # (area, x1, y1, x2, y2, tên_lớp, conf)
-    for box in results.boxes:
-        cls_id = int(box.cls[0])
+    for x1, y1, x2, y2, cls_id, conf in detector.detect(img):
         if cls_id not in COCO_VEHICLE_CLASSES:
             continue
-        x1, y1, x2, y2 = box.xyxy[0].tolist()
         area = (x2 - x1) * (y2 - y1)
         if best is None or area > best[0]:
-            best = (area, x1, y1, x2, y2, COCO_VEHICLE_CLASSES[cls_id], float(box.conf[0]))
+            best = (area, x1, y1, x2, y2, COCO_VEHICLE_CLASSES[cls_id], conf)
 
     if best is None:
         return img, None

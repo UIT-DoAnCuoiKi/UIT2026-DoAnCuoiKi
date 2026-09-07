@@ -32,12 +32,17 @@ def build_detections(boxes, classes, confs, image, names, pad: int = 4) -> list[
 
 class PlateDetector:
     def __init__(self, weights: str, backend: str = "pt",
-                 names: dict | None = None, conf: float = 0.25, iou: float = 0.5):
+                 names: dict | None = None, conf: float = 0.25, iou: float = 0.5,
+                 sess_options=None):
         self.weights = weights
         self.backend = backend
         self.names = names or {0: "bien_1hang", 1: "bien_2hang"}
         self.conf = conf
         self.iou = iou
+        # Truyền tay (vd. giới hạn 1 luồng) khi detector chạy chung tiến trình với
+        # nhiều model nhỏ khác — xem onnx_pipeline._single_threaded_session_options.
+        # None -> onnxruntime tự chọn (mặc định phù hợp cho benchmark/eval độc lập).
+        self._sess_options = sess_options
         self._model = None
         self._session = None
 
@@ -66,7 +71,7 @@ class PlateDetector:
         import onnxruntime as ort
         if self._session is None:
             self._session = ort.InferenceSession(
-                self.weights, providers=["CPUExecutionProvider"])
+                self.weights, sess_options=self._sess_options, providers=["CPUExecutionProvider"])
         inp_name = self._session.get_inputs()[0].name
         h, w = self._session.get_inputs()[0].shape[2:]
         h = h if isinstance(h, int) else 640

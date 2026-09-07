@@ -1,0 +1,16 @@
+{
+  "epochs": 15,
+  "batch_size": 32,
+  "lr": 0.0001,
+  "optimizer": "Adam",
+  "augmentation": "RandomResizedCrop(224, scale=0.8-1.0), RandomHorizontalFlip, RandomRotation(10), ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2)",
+  "loss": "CrossEntropyLoss(weight=class_weights), trong so nghich ti le so mau moi lop (lop truck it anh hon nhieu, class_weights bu lai)",
+  "device": "cuda (NVIDIA GeForce RTX 4070)",
+  "models": [
+    "resnet18",
+    "mobilenet_v3_small"
+  ],
+  "data_source": "kaggle_vn_plate_segment: carlong_ (car, cong barrier), greenpack_ (motorbike, CCTV cong), 73 anh Dieu_/Hung_ da xem tay loc xe tai (xem prepare_vehicle_type_dataset.py)",
+  "data_dir": "data\\processed\\vehicle-type",
+  "note": "Thay the YOLOv8n pretrained COCO (khong train lai) dang dung trong predict_vehicle.detect_vehicle_crop de suy loai xe tho; YOLOv8n van dung de tim/cat vung xe, chi bo phan doc nhan lop COCO cua no."
+}

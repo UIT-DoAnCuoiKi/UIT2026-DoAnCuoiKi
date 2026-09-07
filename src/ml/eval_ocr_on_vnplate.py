@@ -17,6 +17,10 @@ import math
 import sys
 from pathlib import Path
 
+if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":  # console Windows mặc định cp1252
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "src" / "ml" / "training"))
 sys.path.insert(0, str(REPO_ROOT / "src" / "ml"))
@@ -90,13 +94,15 @@ def report(name: str, d: pd.DataFrame) -> dict:
 TEST_SETS = {
     "vn_plate": TEST_CSV,
     "topkek": REPO_ROOT / "data" / "processed" / "plate-ocr" / "test.csv",
+    "a1": REPO_ROOT / "data" / "processed" / "a1-ocr-test.csv",
 }
 
 
 def main() -> None:
+    # Model đang dùng thật (sau fix "Đ"), so trực tiếp topkek (dataset train OCR)
+    # với a1 (dataset train detector, phân giải cao hơn) để đo domain gap.
     candidates = {
-        "V2_synthetic_degraded": WEIGHTS_DIR / "plate-ocr-crnn-V2_synthetic_degraded.pt",
-        "V3_fixed_labels": WEIGHTS_DIR / "plate-ocr-crnn-V3_fixed_labels.pt",
+        "current": WEIGHTS_DIR / "plate-ocr-crnn.onnx",
     }
 
     summary = []

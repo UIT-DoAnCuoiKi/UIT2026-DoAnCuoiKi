@@ -61,7 +61,7 @@ Lưu ý: chạy `python -m scripts.seed_admin` (dạng module) từ `src/backend
 
 ## Nhận diện thật bằng model đã train (INFERENCE_ENGINE=ml)
 
-Mặc định `INFERENCE_ENGINE=fake`: `POST /captures/infer` trả biển cứng `51F12345`, không cần model. Để chạy model thật ở `src/ml` (detector YOLO `.pt`, OCR CRNN `.onnx`, classifier kiểu dáng `.onnx` qua `app/services/ml_inference.py`):
+Mặc định `INFERENCE_ENGINE=fake`: `POST /captures/infer` trả biển cứng `51F12345`, không cần model. Để chạy model thật ở `src/ml` (detector YOLO `.pt`/`.onnx`, OCR CRNN `.onnx`, classifier loại xe `.onnx`, classifier kiểu dáng `.onnx` qua `app/services/ml_inference.py`):
 
 ```sh
 # trong cùng venv chạy uvicorn, cài chồng phụ thuộc ML (kéo torch, ~torchvision, opencv)
@@ -70,7 +70,9 @@ export INFERENCE_ENGINE=ml
 uvicorn app.main:app --port 8000
 ```
 
-Đường dẫn model mặc định trỏ vào repo (`src/ml/weights`, output detector), suy ra từ vị trí `ml_inference.py`; ghi đè bằng `ML_PLATE_WEIGHTS`, `ML_OCR_ONNX`, `ML_STYLE_ONNX`, `ML_STYLE_CLASSES` nếu cần. Model nạp một lần lúc capture đầu (lười), lần đầu chậm vài giây.
+Đường dẫn model mặc định trỏ vào repo (`src/ml/weights`, output detector), suy ra từ vị trí `ml_inference.py`; ghi đè bằng `ML_PLATE_WEIGHTS`, `ML_OCR_ONNX`, `ML_TYPE_ONNX`, `ML_TYPE_CLASSES`, `ML_STYLE_ONNX`, `ML_STYLE_CLASSES` nếu cần. Model nạp một lần lúc capture đầu (lười), lần đầu chậm vài giây.
+
+Pipeline nạp đồng thời 4-5 model nhỏ chạy tuần tự trên 1 ảnh; mỗi model mặc định tự phân luồng theo toàn bộ số lõi máy, cộng dồn lại gây tranh chấp luồng nặng (đo thực tế: ~900ms/ảnh mặc định so với ~145ms khi ép 1 luồng/model). `ML_INTRAOP_THREADS` (mặc định `1`, an toàn cho mọi máy kể cả Raspberry Pi) chỉnh số luồng này; máy nhiều lõi (>=16) có thể tăng lên 4-5 để nhanh hơn nữa (đo được ~70ms/ảnh ở 4-5 luồng trên máy dev 24 lõi) — xem `pipeline/onnx_pipeline.py:_intra_op_threads()`.
 
 Giới hạn: chỉ dùng được ở đường chạy cục bộ (Cách 2). Đường Podman KHÔNG chạy được ML vì image backend (`Containerfile`) chỉ cài `requirements.txt` và không copy `src/ml` vào image. Muốn chạy ML trong container phải thêm `requirements-ml.txt`, copy `src/ml` cộng weights, và mở rộng build context.
 

@@ -1,4 +1,4 @@
-# Kiến trúc hiện tại (SmartPark) — ảnh chụp 01/09/2026
+# Kiến trúc hiện tại (SmartPark), ảnh chụp 01/09/2026
 
 Trạng thái thật, suy từ code + deploy podman đang chạy. Đánh dấu: DEPLOYED (đang chạy podman Mac), GAP (đã code nhưng chưa chạy được), PI (thuộc Raspberry Pi, chưa deploy).
 
