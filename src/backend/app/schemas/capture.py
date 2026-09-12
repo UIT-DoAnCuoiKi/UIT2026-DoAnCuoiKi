@@ -19,6 +19,12 @@ class PipelinePayload(BaseModel):
     vehicle_style: str | None = None
     vehicle_style_conf: float | None = None
     plates: list[PlateItem] = []
+    # Thời gian từng giai đoạn suy luận (ms), chỉ có khi bật dev_mode. Khoá là
+    # tên giai đoạn do pipeline đặt nên để dict mở, không ràng buộc cứng.
+    timings_ms: dict[str, float] | None = None
+    # Tài nguyên tiêu thụ cho đúng lượt suy luận này (RAM, số lõi dùng trung
+    # bình). Cùng điều kiện dev_mode với timings_ms.
+    resources: dict[str, float] | None = None
 
 
 class ReadingImageOut(BaseModel):
@@ -46,3 +52,7 @@ class CaptureResponse(BaseModel):
     # ảnh của các camera phụ khi làn có 2-3 camera. Rỗng nếu làn chỉ có 1 camera.
     images: list[ReadingImageOut] = []
     duplicate: bool = False
+    # Chỉ trả khi dev_mode bật, để màn Trạm cổng hiện thời gian từng giai đoạn
+    # và tài nguyên tiêu thụ.
+    timings_ms: dict[str, float] | None = None
+    resources: dict[str, float] | None = None

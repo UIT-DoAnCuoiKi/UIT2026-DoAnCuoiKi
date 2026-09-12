@@ -4,12 +4,12 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.deps import get_current_user, require_edge_key
-from app.models import Lane, PlateReading, User
+from app.models import FeatureToggle, Lane, PlateReading, User
 from app.schemas.capture import CaptureResponse, PipelinePayload
 from app.security import crypto
 from app.services.capture import select_representative
 from app.services.capture_ingest import build_capture_response, ingest_reading
-from app.services.inference import InferenceEngine, get_inference_engine
+from app.services.inference import InferenceEngine, InferenceOptions, get_inference_engine
 
 router = APIRouter(tags=["captures"])
 
@@ -33,9 +33,28 @@ def _ocr_conf(payload: PipelinePayload) -> float:
     return rep.ocr_conf if rep and rep.ocr_conf is not None else -1.0
 
 
+def _inference_options(db: Session) -> InferenceOptions:
+    """Đọc bảng feature_toggle thành cờ cho pipeline.
+
+    Trước đây ba công tắc read_plate/plate_color/vehicle_class chỉ được lưu và
+    hiển thị, không nơi nào trong đường suy luận hỏi tới, nên tắt đi vẫn thấy kết
+    quả như thường. `dev_mode` quyết định có đo thời gian từng giai đoạn không.
+    """
+    toggle = db.scalars(select(FeatureToggle).order_by(FeatureToggle.id)).first()
+    if toggle is None:
+        return InferenceOptions()
+    return InferenceOptions(
+        read_plate=toggle.read_plate,
+        plate_color=toggle.plate_color,
+        vehicle_class=toggle.vehicle_class,
+        collect_timings=toggle.dev_mode,
+    )
+
+
 def _apply_recognition_mode(
     engine: InferenceEngine, lane: str | None, db: Session,
     raw: bytes, primary_role: str, extras: list[tuple[bytes, str]],
+    options: InferenceOptions,
 ) -> tuple[PipelinePayload, bytes, str, list[tuple[bytes, str]]]:
     """Chạy nhận dạng theo cấu hình của làn.
 
@@ -47,7 +66,7 @@ def _apply_recognition_mode(
     một camera có thể bị khuất/lóa mà camera còn lại vẫn đọc được. Trả về đã
     hoán vị đúng: image_bytes/role của ảnh thắng cuộc, phần còn lại dồn vào extras.
     """
-    payload = engine.infer(raw)
+    payload = engine.infer(raw, options)
     if not lane or not extras:
         return payload, raw, primary_role, extras
 
@@ -56,7 +75,7 @@ def _apply_recognition_mode(
         return payload, raw, primary_role, extras
 
     extra_bytes, extra_role = extras[0]
-    extra_payload = engine.infer(extra_bytes)
+    extra_payload = engine.infer(extra_bytes, options)
     if _ocr_conf(extra_payload) <= _ocr_conf(payload):
         return payload, raw, primary_role, extras
 
@@ -105,12 +124,18 @@ def infer_capture(
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "direction phải là in hoặc out")
     raw = image.file.read()
     extras = _zip_extra_images(extra_images, extra_roles)
-    payload, raw, primary_role, extras = _apply_recognition_mode(engine, lane, db, raw, primary_role, extras)
+    options = _inference_options(db)
+    payload, raw, primary_role, extras = _apply_recognition_mode(
+        engine, lane, db, raw, primary_role, extras, options
+    )
     reading, plate_text, duplicate = ingest_reading(
         db, capture_id=capture_id, direction=direction, lane=lane, payload=payload, image_bytes=raw,
         primary_role=primary_role, extra_images=extras,
     )
-    return build_capture_response(db, reading, plate_text, duplicate)
+    res = build_capture_response(db, reading, plate_text, duplicate)
+    res.timings_ms = payload.timings_ms
+    res.resources = payload.resources
+    return res
 
 
 @router.get("/captures/latest", response_model=CaptureResponse | None)

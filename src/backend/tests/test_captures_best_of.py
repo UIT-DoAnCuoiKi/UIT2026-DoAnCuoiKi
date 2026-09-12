@@ -13,7 +13,7 @@ class _ByBytesEngine:
     def __init__(self, mapping: dict[bytes, PipelinePayload]) -> None:
         self._mapping = mapping
 
-    def infer(self, image_bytes: bytes) -> PipelinePayload:
+    def infer(self, image_bytes: bytes, options=None) -> PipelinePayload:
         return self._mapping[image_bytes]
 
 

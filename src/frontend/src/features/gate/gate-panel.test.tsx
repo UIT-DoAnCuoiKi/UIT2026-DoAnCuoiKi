@@ -3,7 +3,10 @@ import userEvent from "@testing-library/user-event";
 import { GatePanel } from "./gate-panel";
 
 const postInfer = vi.fn().mockResolvedValue({ reading_id: 5, capture_id: "c5", direction: "in", review_state: "confident", plate_text: "51F12345" });
-vi.mock("./infer-capture", () => ({ postInfer: (...a: unknown[]) => postInfer(...a) }));
+vi.mock("./infer-capture", () => ({
+  postInfer: (...a: unknown[]) => postInfer(...a),
+  newCaptureId: () => "test-capture-id",
+}));
 vi.mock("./use-cameras", () => ({
   useCameras: (roles: string[]) => ({
     slots: roles.map((role) => ({

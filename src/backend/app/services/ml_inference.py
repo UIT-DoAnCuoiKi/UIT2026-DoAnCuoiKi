@@ -40,15 +40,24 @@ class MlInferenceEngine:
     def __init__(self, pipeline) -> None:
         self._pipeline = pipeline
 
-    def infer(self, image_bytes: bytes) -> PipelinePayload:
+    def infer(self, image_bytes: bytes, options=None) -> PipelinePayload:
         import cv2
         import numpy as np
 
+        from app.services.inference import InferenceOptions
+
+        opts = options or InferenceOptions()
         arr = np.frombuffer(image_bytes, dtype=np.uint8)
         img_bgr = cv2.imdecode(arr, cv2.IMREAD_COLOR)
         if img_bgr is None:
             return PipelinePayload(vehicle_type=None, plates=[])
-        return result_to_payload(self._pipeline.run(img_bgr))
+        return result_to_payload(self._pipeline.run(
+            img_bgr,
+            read_plate_enabled=opts.read_plate,
+            plate_color_enabled=opts.plate_color,
+            vehicle_class_enabled=opts.vehicle_class,
+            collect_timings=opts.collect_timings,
+        ))
 
 
 _engine: "MlInferenceEngine | None" = None

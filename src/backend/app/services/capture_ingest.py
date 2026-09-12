@@ -127,5 +127,10 @@ def ingest_reading(
         "image_asset_id": reading.image_asset_id,
         "plate_crop_asset_id": reading.plate_crop_asset_id,
         "duplicate": False,
+        # Phải có ở đây, không chỉ ở phản hồi HTTP: màn Trạm cổng nhận cả hai
+        # đường cho cùng một lượt chụp, đường nào tới sau thì ghi đè state.
+        # Thiếu ở đây thì sự kiện WS xoá mất số đo mà HTTP vừa trả về.
+        "timings_ms": payload.timings_ms,
+        "resources": payload.resources,
     })
     return reading, plate_text, False

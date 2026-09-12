@@ -1,6 +1,24 @@
 import { AXIOS_INSTANCE } from "@/api/axios-instance";
 import type { CaptureResponse } from "@/api/generated/model";
 
+/** Id duy nhất cho mỗi lượt chụp.
+ *
+ * Không gọi thẳng `crypto.randomUUID()`: hàm đó chỉ tồn tại ở ngữ cảnh an toàn
+ * (HTTPS hoặc localhost). Mở portal qua IP trong LAN, ví dụ khi chạy trên
+ * Raspberry Pi và xem từ máy khác, nó là undefined nên ném lỗi trước cả khi
+ * kịp gửi request, và triệu chứng nhìn thấy chỉ là "nhận dạng thất bại".
+ * `getRandomValues` thì vẫn dùng được ở ngữ cảnh không an toàn.
+ */
+export function newCaptureId(): string {
+  const c = globalThis.crypto;
+  if (typeof c?.randomUUID === "function") return c.randomUUID();
+  if (typeof c?.getRandomValues === "function") {
+    const bytes = c.getRandomValues(new Uint8Array(16));
+    return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+  }
+  return `${Date.now().toString(16)}-${Math.random().toString(16).slice(2, 10)}`;
+}
+
 export async function postInfer(
   blob: Blob,
   direction: "in" | "out",

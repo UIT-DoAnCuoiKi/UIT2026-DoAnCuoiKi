@@ -1,5 +1,6 @@
 import type { GateCapture } from "./use-gate-socket";
 import { CapturePreview } from "@/components/capture-preview";
+import { InferenceTimings } from "./inference-timings";
 
 const pct = (v?: number | null) => (v == null ? null : `${Math.round(v * 100)}%`);
 
@@ -25,6 +26,7 @@ export function RecognitionResult({ capture }: { capture: GateCapture }) {
         {capture.plate_valid === false && (
           <span className="text-st-amber">Cảnh báo: biển sai định dạng (vẫn cho xác nhận)</span>
         )}
+        <InferenceTimings timings={capture.timings_ms} resources={capture.resources} />
       </div>
       {capture.plate_crop_asset_id != null && (
         <div className="space-y-1">

@@ -20,6 +20,11 @@ export type GateCapture = {
   // đến từ postInfer của chính panel này (không có trên sự kiện WS/edge).
   images?: { role: string; image_asset_id: number; is_primary: boolean }[];
   duplicate?: boolean;
+  // Thời gian từng giai đoạn suy luận (ms) và tài nguyên tiêu thụ. Backend chỉ
+  // trả khi dev_mode bật, và chỉ cho lượt chụp từ portal (POST /captures/infer);
+  // sự kiện từ edge worker không có vì worker không tự đo.
+  timings_ms?: Record<string, number> | null;
+  resources?: Record<string, number> | null;
   // Frontend-only: object URL của khung hình vừa chụp ở máy trạm (không qua
   // server), để hiện ngay ảnh đúng khung đã gửi model. Capture từ WS không có.
   local_image_url?: string;

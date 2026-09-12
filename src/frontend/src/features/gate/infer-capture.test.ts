@@ -1,4 +1,4 @@
-import { postInfer } from "./infer-capture";
+import { postInfer, newCaptureId } from "./infer-capture";
 import { AXIOS_INSTANCE } from "@/api/axios-instance";
 
 vi.mock("@/api/axios-instance", () => ({
@@ -28,4 +28,43 @@ test("postInfer sends extra camera images with matching roles", async () => {
   expect(form.get("primary_role")).toBe("front");
   expect(form.getAll("extra_roles")).toEqual(["rear"]);
   expect(form.getAll("extra_images")).toHaveLength(1);
+});
+
+// Lỗi thật đã gặp: mở portal qua IP trong LAN (http://192.168.x.x, không phải
+// localhost) thì trình duyệt coi là ngữ cảnh không an toàn và không có
+// crypto.randomUUID. Gọi thẳng vào là ném lỗi trước khi kịp gửi request, người
+// dùng chỉ thấy "Nhận dạng thất bại" mà không có request nào tới backend.
+describe("newCaptureId", () => {
+  const realCrypto = globalThis.crypto;
+  afterEach(() => {
+    Object.defineProperty(globalThis, "crypto", { value: realCrypto, configurable: true });
+  });
+
+  test("dùng randomUUID khi có (ngữ cảnh an toàn)", () => {
+    Object.defineProperty(globalThis, "crypto", {
+      value: { randomUUID: () => "uuid-tu-trinh-duyet" },
+      configurable: true,
+    });
+    expect(newCaptureId()).toBe("uuid-tu-trinh-duyet");
+  });
+
+  test("lùi về getRandomValues khi thiếu randomUUID", () => {
+    Object.defineProperty(globalThis, "crypto", {
+      value: {
+        getRandomValues: (arr: Uint8Array) => {
+          arr.fill(0xab);
+          return arr;
+        },
+      },
+      configurable: true,
+    });
+    expect(newCaptureId()).toBe("ab".repeat(16));
+  });
+
+  test("vẫn sinh được id khi không có crypto nào", () => {
+    Object.defineProperty(globalThis, "crypto", { value: undefined, configurable: true });
+    const id = newCaptureId();
+    expect(id).toMatch(/^[0-9a-f]+-[0-9a-z]+$/);
+    expect(id.length).toBeGreaterThan(8);
+  });
 });

@@ -7,7 +7,7 @@ import { CameraImageGrid, type CameraImage } from "@/components/camera-image-gri
 import { DecisionPanel, type DecisionPanelHandle } from "./decision-panel";
 import { useCamera } from "./use-camera";
 import { useCameras } from "./use-cameras";
-import { postInfer } from "./infer-capture";
+import { postInfer, newCaptureId } from "./infer-capture";
 import type { GateCapture } from "./use-gate-socket";
 import type { LaneCameraOut } from "@/api/generated/model";
 import { useGetToggles } from "@/api/generated/config/config";
@@ -44,10 +44,11 @@ export const GatePanel = forwardRef<
   { direction, wsCapture, active, onActivate, onPayOpenChange, wide = false, laneName, laneCameras = [] },
   ref,
 ) {
+  const { data: toggles } = useGetToggles();
+  const devMode = toggles?.dev_mode ?? false;
   // Tải ảnh thay camera thật chỉ để test — ẩn khỏi vận hành thật trừ khi bật
   // dev_mode ở màn Cấu hình (tránh ai đó thay ảnh gốc bằng ảnh tuỳ ý).
-  const { data: toggles } = useGetToggles();
-  const allowUpload = toggles?.dev_mode ?? false;
+  const allowUpload = devMode;
 
   const hasMultiCam = laneCameras.length > 0;
   const laneCameraKey = laneCameras.map((c) => c.id).join(",");
@@ -106,9 +107,13 @@ export const GatePanel = forwardRef<
     setBusy(true);
     try {
       const localUrl = URL.createObjectURL(blob);
-      const res = await postInfer(blob, direction, crypto.randomUUID(), laneName ?? undefined, extraImages, primaryRole);
+      const res = await postInfer(blob, direction, newCaptureId(), laneName ?? undefined, extraImages, primaryRole);
       setCaptureWithUrl({ ...(res as unknown as GateCapture), local_image_url: localUrl }, localUrl);
-    } catch {
+    } catch (err) {
+      // Log nguyên lỗi: nuốt im như trước thì mọi nguyên nhân (mất mạng, 401,
+      // API trình duyệt thiếu ở ngữ cảnh không an toàn) đều chỉ hiện ra đúng
+      // một dòng "Nhận dạng thất bại", không lần ra được.
+      console.error("postInfer thất bại:", err);
       toast.error("Nhận dạng thất bại");
     } finally {
       setBusy(false);
