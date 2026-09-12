@@ -1,0 +1,2 @@
+model,mAP50_before,mAP50_after,mAP5095_before,mAP5095_after,precision_before,recall_before,precision_after,recall_after,n_test_before,n_test_after,run_date
+yolov8n_s0,0.9889,0.9831,0.8638,0.8341,0.9889,0.9856,0.9829,0.9796,572,342,2026-09-12

@@ -1,0 +1,210 @@
+% =====================================================================
+%  CHƯƠNG 4 — PHÁT HIỆN XE VÀ BIỂN SỐ          | Phụ trách: Nhật
+%  Ngân sách: mục tiêu 7 trang, trần 8 trang
+%  Nguồn số:
+%    src/ml/experiments.csv (dòng 2026-08-13, test split)
+%    src/ml/plate_detection_pipeline/output/plate_det_results_20260812_2212/
+%      runs/*/results.csv (6 run, 50 epoch mỗi run)
+%    src/ml/experiments/a1_dedup_eval.csv (đo ngày 2026-09-12)
+%    data/processed/a1_det/phash_report.txt (230 cặp train–test Hamming<=5)
+%    src/ml/plate_detection_pipeline/output/.../args.yaml (siêu tham số)
+%    docs/research/2026-07-18-yolo-architecture.md (kiến trúc YOLO)
+%    src/ml/pipeline/onnx_pipeline.py (_DEFAULTS["plate_weights"])
+% =====================================================================
+\chapter{Phát Hiện Xe và Biển Số}
+\label{ch:phathien}
+
+Chương này trình bày mô hình phát hiện đối tượng (object detection) dùng để định vị vùng biển số trong ảnh đầu vào của hệ thống. Đề tài lựa chọn và so sánh hai kiến trúc từ dòng YOLO là YOLOv8n và YOLO26n, đào tạo trên bộ dữ liệu A1 đã trình bày trong Chương~\ref{ch:dulieu}, rồi đánh giá trên cả tập kiểm tra gốc lẫn tập đã khử trùng lặp gần để có ước lượng hiệu năng đáng tin hơn.
+
+\section{Kiến Trúc Mô Hình}
+\label{sec:phathien-kientruc}
+
+\subsection{Phát Hiện Một Giai Đoạn và Họ YOLO}
+
+Phương pháp phát hiện đối tượng một giai đoạn (single-stage detector) gộp bước sinh vùng ứng viên và bước phân loại vào một lần forward pass duy nhất, khác với kiến trúc hai giai đoạn như Faster R-CNN phải chạy lưới đề xuất vùng rồi mới phân loại từng vùng~\autocite{ren2015fasterrcnn}. Điều này giúp rút ngắn độ trễ suy luận, phù hợp với ngân sách dưới hai giây mỗi lượt xe trên thiết bị biên của đề tài.
+
+Họ YOLO đại diện cho hướng phát triển điển hình của detector một giai đoạn~\autocite{redmon2016yolo,terven2023comprehensive}. Qua các thế hệ, backbone chuyển dần sang thiết kế CSP và neck chuyển sang PANet để tăng khả năng phát hiện vật thể nhỏ, trong khi head liên tục được cải tiến để giảm nhiễu gradient và đơn giản hóa xuất mô hình.
+
+\subsection{YOLOv8n: Kiến Trúc Nền}
+
+YOLOv8n là phiên bản nano của YOLOv8, phát hành bởi Ultralytics năm 2023~\autocite{jocher2023yolov8}. Kiến trúc gồm ba thành phần chính.
+
+\textbf{Backbone CSPDarknet với block C2f.} Backbone trích xuất đặc trưng (feature) đa tỷ lệ ở stride 8/16/32, tương ứng lưới 80×80, 40×40 và 20×20 cho ảnh đầu vào 640 pixel. Mỗi tầng dùng block C2f thay thế block C3 của YOLOv5: thay vì chỉ route tensor bottleneck cuối, C2f concatenate tất cả \(n+2\) tensor trung gian trước convolution 1×1 fuse, cho gradient flow phong phú hơn~\autocite{terven2023comprehensive}.
+
+\textbf{Neck PAN-FPN.} Neck tổng hợp đặc trưng theo cả hướng top-down (ngữ nghĩa từ lưới thưa xuống) và bottom-up (định vị từ lưới mịn lên), đảm bảo mỗi mức lưới vừa biết vật thể là gì vừa biết vị trí của nó~\autocite{jocher2023yolov8}.
+
+\textbf{Head anchor-free và decoupled.} YOLOv8 loại bỏ hoàn toàn anchor box. Head có hai nhánh song song cho mỗi mức lưới: nhánh localization regress bốn khoảng cách cạnh qua Distribution Focal Loss (DFL) với 16 bin xác suất, và nhánh classification dự đoán điểm lớp bằng BCE. Việc tách riêng hai nhánh giảm nhiễu gradient giữa mục tiêu định vị và mục tiêu phân loại~\autocite{terven2023comprehensive}. Việc gán nhãn dương trong quá trình huấn luyện dùng Task-Aligned Assigner (TAL) từ TOOD~\autocite{feng2021tood}, chọn top-$k=10$ anchor point tốt nhất cho mỗi đối tượng ground truth theo điểm kết hợp phân loại và IoU.
+
+\subsection{YOLO26n: Ứng Viên Thế Hệ Mới}
+
+YOLO26 ra mắt tháng 1 năm 2026~\autocite{jocher2026yolo26}. So với YOLOv8, mô hình có bốn thay đổi kiến trúc đã được xác nhận bởi paper arXiv:2606.03748~\autocite{jocher2026yolo26} và phân tích độc lập~\autocite{chakrabarty2026yolo26nmsfree}.
+
+Thứ nhất, thiết kế dual-head cho phép suy luận không cần Non-Maximum Suppression (NMS-free, end-to-end): head one-to-many phục vụ quá trình huấn luyện, head one-to-one xuất trực tiếp tối đa 300 detection mỗi ảnh khi suy luận, loại bỏ bước hậu xử lý NMS vốn là thao tác tuần tự phụ thuộc dữ liệu và làm phức tạp việc xuất ONNX.
+
+Thứ hai, DFL bị loại bỏ hoàn toàn, nhánh localization regress thẳng bốn khoảng cách cạnh với khoảng không ràng buộc, đơn giản hóa đồ thị tính toán và giảm chi phí khi lượng tử hóa INT8.
+
+Thứ ba, optimizer MuSGD kết hợp SGD với Muon từ huấn luyện mô hình ngôn ngữ lớn, cải thiện tính ổn định hội tụ.
+
+Thứ tư, Progressive Loss kết hợp với Small-Target-Aware Label Assignment (STAL) đảm bảo độ phủ anchor dương cho vật thể nhỏ. Điều này đặc biệt liên quan đến nhiệm vụ phát hiện biển số, vốn là vật thể nhỏ so với toàn khung ảnh~\autocite{zhu2025licenseplate}.
+
+\subsection{Lý Do Chọn Biến Thể Nano}
+
+Biến thể n (nano) của cả hai kiến trúc được chọn vì đây là điểm cân bằng giữa hiệu năng và tài nguyên phù hợp nhất với Raspberry Pi 5. Theo benchmark chính thức của Ultralytics, YOLO26n đạt 67,69 ms (NCNN) và 130,33 ms (ONNX) mỗi ảnh 640 pixel trên Raspberry Pi 5~\autocite{ultralytics2026rpiguide}. Với cascade hai detector (phát hiện xe rồi phát hiện biển số trên vùng cắt), tổng thời gian detection còn dưới 300 ms, để lại ngân sách đủ cho OCR và logic trong giới hạn hai giây~\autocite{mdpi2026sbcbenchmark}.
+
+Ngoài ra, pipeline suy luận trong \texttt{src/ml/pipeline/onnx\_pipeline.py} đã tích hợp sẵn mô hình YOLOv8n qua Ultralytics (biến \texttt{\_DEFAULTS["plate\_weights"]}), nên việc chọn biến thể này còn đảm bảo tính nhất quán với phần còn lại của hệ thống.
+
+\section{Thiết Lập Huấn Luyện}
+\label{sec:phathien-huanluyen}
+
+\subsection{Dữ Liệu}
+
+Đề tài sử dụng bộ dữ liệu A1 (Vietnam License Plate Segment của duydieunguyen) đã được mô tả trong Chương~\ref{ch:dulieu}. Bộ dữ liệu gồm 4.578 ảnh với 5.200 đối tượng biển số chia thành hai lớp: biển một hàng (\texttt{bien\_1hang}, đặc trưng ô tô) và biển hai hàng (\texttt{bien\_2hang}, đặc trưng xe máy). Phân chia tập theo tỉ lệ tiêu chuẩn: 3.433 ảnh huấn luyện, 573 ảnh kiểm định, 572 ảnh kiểm tra.
+
+\subsection{Siêu Tham Số}
+
+% Nguồn: src/ml/plate_detection_pipeline/output/plate_det_results_20260812_2212/
+%         runs/yolov8n_s0_640/args.yaml và configs/default.yaml
+\begin{table}[htbp]
+\centering
+\caption{Siêu tham số huấn luyện detector biển số.}
+% Nguồn: args.yaml của run yolov8n\_s0\_640 (xem report/chapters/04-phathien.tex).
+\label{tab:det-hyperparam}
+\begin{tabular}{ll}
+\toprule
+\textbf{Tham số} & \textbf{Giá trị} \\
+\midrule
+Kích thước ảnh đầu vào (\texttt{imgsz}) & 640 \\
+Số epoch & 50 \\
+Batch size & 16 \\
+Patience (early stopping) & 10 \\
+Optimizer & Auto (SGD mặc định Ultralytics) \\
+Learning rate khởi đầu (\texttt{lr0}) & 0,01 \\
+Learning rate cuối (\texttt{lrf}) & 0,01 \\
+Momentum & 0,937 \\
+Weight decay & 0,0005 \\
+Warmup epochs & 3 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Bảng~\ref{tab:det-hyperparam} liệt kê các siêu tham số chính. Mô hình khởi tạo từ trọng số pretrained trên COCO (ImageNet-pretrained backbone) thay vì huấn luyện từ đầu. Mỗi kiến trúc được huấn luyện với ba seed ngẫu nhiên (0, 1, 2) để đánh giá tính ổn định của kết quả. Chi tiết về phân phối siêu tham số augmentation được đưa vào Phụ lục~\ref{app:huanluyen}.
+
+\textbf{Augmentation.} Ultralytics áp dụng bộ augmentation mặc định gồm: biến đổi màu sắc HSV (hue $\pm$0,015, saturation $\pm$0,70, value $\pm$0,50), dịch chuyển, co giãn, lật ngang (xác suất 50\%) và Mosaic (xác suất 100\%). Mosaic ghép bốn ảnh thành một ảnh huấn luyện, tăng đáng kể sự đa dạng bối cảnh mà không cần thêm dữ liệu thật.
+
+\section{Độ Đo Đánh Giá}
+\label{sec:phathien-dodo}
+
+Đề tài sử dụng bốn độ đo tiêu chuẩn trong object detection để đánh giá hiệu năng phát hiện biển số.
+
+\textbf{Precision (P)} đo tỉ lệ dự đoán đúng trong tổng số dự đoán dương của mô hình:
+\begin{equation}
+P = \frac{TP}{TP + FP}
+\end{equation}
+trong đó TP là true positive (phát hiện đúng vùng biển số) và FP là false positive (phát hiện nhầm vùng không có biển số). Precision cao nghĩa là mô hình ít báo nhầm.
+
+\textbf{Recall (R)} đo tỉ lệ biển số thật được phát hiện trong tổng số biển số thật:
+\begin{equation}
+R = \frac{TP}{TP + FN}
+\end{equation}
+trong đó FN là false negative (bỏ sót biển số). Recall cao nghĩa là mô hình ít bỏ sót.
+
+\textbf{mAP@0.5} là diện tích dưới đường cong Precision-Recall (AP) tính tại ngưỡng IoU = 0,5, trung bình trên tất cả các lớp. Đây là độ đo phổ biến nhất để so sánh detector biển số trong văn liệu.
+
+\textbf{mAP@0.5:0.95} là trung bình của mAP tính tại các ngưỡng IoU từ 0,5 đến 0,95 với bước 0,05, phản ánh chặt chẽ hơn chất lượng định vị hộp bao (bounding box). Độ đo này phạt nặng hơn các dự đoán có IoU thấp, tức là các bounding box lỏng lẻo.
+
+Đề tài lấy epoch 50 làm điểm báo cáo cho mỗi run theo kết quả lưu trong \texttt{results.csv}, với giá trị mỗi epoch được tính trên tập kiểm định (val split). Kết quả trên tập kiểm tra (test split) được báo cáo riêng từ \texttt{experiments.csv}.
+
+\section{Kết Quả Phát Hiện}
+\label{sec:phathien-ketqua}
+
+\subsection{So Sánh Hai Mô Hình trên Ba Seed}
+
+% Nguồn: src/ml/plate_detection_pipeline/output/plate_det_results_20260812_2212/
+%         runs/*/results.csv, epoch 50, cột metrics/mAP50(B) và metrics/mAP50-95(B).
+%         Giá trị val split.
+\begin{table}[htbp]
+\centering
+\caption{Kết quả phát hiện biển số trên tập kiểm định (val split, epoch 50) theo từng seed.}
+% Nguồn: results.csv của 6 run, cột metrics/* tại epoch 50.
+\label{tab:det-results}
+\begin{tabular}{llcccc}
+\toprule
+\textbf{Mô hình} & \textbf{Seed} & \textbf{P} & \textbf{R} & \textbf{mAP@0,5} & \textbf{mAP@0,5:0,95} \\
+\midrule
+\multirow{4}{*}{YOLOv8n} & 0   & 0,988 & 0,987 & 0,994 & 0,867 \\
+                          & 1   & 0,990 & 0,992 & 0,994 & 0,873 \\
+                          & 2   & 0,986 & 0,991 & 0,994 & 0,866 \\
+                          & \textit{Trung bình} & \textit{0,988} & \textit{0,990} & \textit{0,994} & \textit{0,869} \\
+\midrule
+\multirow{4}{*}{YOLO26n}  & 0   & 0,982 & 0,969 & 0,993 & 0,879 \\
+                           & 1   & 0,974 & 0,977 & 0,992 & 0,880 \\
+                           & 2   & 0,969 & 0,988 & 0,993 & 0,884 \\
+                           & \textit{Trung bình} & \textit{0,975} & \textit{0,978} & \textit{0,993} & \textit{0,881} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Kết quả trong Bảng~\ref{tab:det-results} cho thấy cả hai mô hình đạt mAP@0,5 trên 0,99 sau 50 epoch. YOLOv8n có Precision cao hơn (0,988 so với 0,975), trong khi YOLO26n có mAP@0,5:0,95 cao hơn nhẹ (0,881 so với 0,869). Sự chênh lệch mAP@0,5 giữa hai mô hình dưới 0,002, trong phạm vi nhiễu thống kê của ba seed. Đường cong huấn luyện theo epoch được trình bày trong Hình~\ref{fig:det-curves}.
+
+% Nguồn hình: report/figures/plate_det_curves.pdf và .png, dựng từ
+%   src/ml/plate_detection_pipeline/output/.../runs/*/results.csv qua src/ml/figstyle.py.
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.92\textwidth]{plate_det_curves}
+\caption{Đường cong mAP theo epoch trên tập kiểm định, trung bình của ba seed (vùng bóng: độ lệch chuẩn). Trái: mAP@0,5; Phải: mAP@0,5:0,95.}
+% Nguồn: dựng từ results.csv của 6 run trong plate_det_results_20260812_2212 bằng figstyle.py.
+\label{fig:det-curves}
+\end{figure}
+
+Kết quả trên tập kiểm tra (test split) từ \texttt{experiments.csv} (ngày 2026-08-13): YOLOv8n đạt mAP@0,5 = 0,989, mAP@0,5:0,95 = 0,864, P = 0,990, R = 0,982; YOLO26n đạt mAP@0,5 = 0,980, mAP@0,5:0,95 = 0,859. Sự chênh lệch nhỏ giữa val và test là bình thường.
+
+\subsection{Đánh Giá Sau Khử Trùng Lặp Gần}
+
+Phân tích phash (perceptual hash) trên bộ dữ liệu A1 (kết quả trong \texttt{data/processed/a1\_det/phash\_report.txt}) phát hiện 230 cặp ảnh train và test có khoảng cách Hamming $\leq 5$, tức là các khung hình gần như trùng nhau từ cùng một luồng camera. Đây là dấu hiệu rò rỉ tập huấn luyện sang tập kiểm tra (data leakage): mô hình đã "thấy" ảnh gần giống ảnh kiểm tra trong quá trình huấn luyện, nên mAP gốc có thể bị thổi phồng.
+
+Để đo mức độ ảnh hưởng, đề tài tiến hành lại đánh giá trên YOLOv8n (seed 0) sau khi loại bỏ 230 ảnh kiểm tra có near-duplicate trong tập huấn luyện, sử dụng module khử trùng lặp tại \texttt{src/ml/plate\_detection\_pipeline/plate\_detect/data/dedup.py} (thuật toán average hash kết hợp khoảng cách Hamming). Kết quả được ghi vào \texttt{src/ml/experiments/a1\_dedup\_eval.csv}.
+
+% Nguồn: src/ml/experiments/a1_dedup_eval.csv (đo ngày 2026-09-12).
+%         Module dedup: src/ml/plate_detection_pipeline/plate_detect/data/dedup.py.
+%         230 cặp train-test từ data/processed/a1_det/phash_report.txt.
+\begin{table}[htbp]
+\centering
+\caption{Hiệu năng YOLOv8n (seed 0) trên tập kiểm tra trước và sau khi khử trùng lặp gần (Hamming $\leq 5$).}
+% Nguồn: src/ml/experiments/a1_dedup_eval.csv, đo 2026-09-12 trên CPU Apple M1.
+\label{tab:det-dedup}
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{Tập kiểm tra} & \textbf{Số ảnh} & \textbf{P} & \textbf{R} & \textbf{mAP@0,5} & \textbf{mAP@0,5:0,95} \\
+\midrule
+Gốc (có near-dup) & 572 & 0,989 & 0,986 & 0,989 & 0,864 \\
+Đã khử trùng lặp  & 342 & 0,983 & 0,980 & 0,983 & 0,834 \\
+\midrule
+\textit{Chênh lệch}  & \textit{$-$230} & \textit{$-$0,006} & \textit{$-$0,006} & \textit{$-$0,006} & \textit{$-$0,030} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Bảng~\ref{tab:det-dedup} cho thấy sau khi loại bỏ các ảnh kiểm tra trùng lặp gần với tập huấn luyện, mAP@0,5 giảm nhẹ từ 0,989 xuống 0,983 (giảm 0,006), còn mAP@0,5:0,95 giảm nhiều hơn từ 0,864 xuống 0,834 (giảm 0,030). Mức giảm của mAP@0,5:0,95 lớn hơn gợi ý rằng near-duplicate đặc biệt ảnh hưởng đến chất lượng định vị hộp bao: mô hình học được vị trí chính xác của biển số trong các khung gần trùng từ train, nên đạt IoU cao hơn khi gặp lại chúng ở test. Sau khi khử trùng lặp, mAP@0,5 = 0,983 là ước lượng bảo thủ và đáng tin hơn trên dữ liệu thực tế chưa thấy.
+
+Lưu ý: bộ A1 có đặc thù là ảnh từ camera bãi xe chụp liên tục, nên tỉ lệ near-duplicate tương đối cao (230 trong 572 ảnh test, khoảng 40\%). Đây là cảnh báo về cách xây dựng tập dữ liệu từ video, không phải lỗi của mô hình.
+
+\section{Thảo Luận}
+\label{sec:phathien-thaoluan}
+
+\subsection{Đánh Đổi Độ Chính Xác và Kích Thước}
+
+YOLOv8n và YOLO26n cho kết quả tương đương về mAP@0,5, với chênh lệch dưới 0,002. Về mAP@0,5:0,95, YOLO26n nhỉnh hơn nhẹ (0,881 so với 0,869 trên val), gợi ý rằng việc loại bỏ DFL và sử dụng STAL giúp cải thiện chất lượng định vị bounding box. Tuy nhiên, YOLOv8n có Precision cao hơn (0,988 so với 0,975), tức là ít báo nhầm hơn, điều có lợi trong bối cảnh bãi xe khi một detection nhầm có thể dẫn đến lỗi tra biển số.
+
+Cả hai mô hình đều rất nhẹ so với các biến thể lớn hơn trong cùng họ kiến trúc. YOLOv8n có khoảng 3,2 triệu tham số và 8,7 GFLOPs~\autocite{jocher2023yolov8}, phù hợp với bộ nhớ hạn chế của Raspberry Pi 5 và cho phép chạy hai lần cascade trong pipeline (một lần phát hiện xe, một lần phát hiện biển số trên vùng cắt) mà không vượt ngân sách latency.
+
+\subsection{Ảnh Hưởng của Augmentation}
+
+Bộ augmentation mặc định của Ultralytics, đặc biệt là Mosaic, đóng vai trò quan trọng trong việc mô hình đạt hội tụ tốt ngay từ epoch 10 đến 15 (quan sát từ Hình~\ref{fig:det-curves}). Sự biến thiên nhỏ giữa ba seed (độ lệch chuẩn mAP@0,5 dưới 0,001 cho cả hai mô hình) cho thấy quá trình huấn luyện ổn định và kết quả không phụ thuộc vào khởi tạo ngẫu nhiên cụ thể.
+
+Tuy nhiên, bộ augmentation chuẩn không bao gồm biến đổi góc chụp cực độ hay giả lập nhiễu camera an ninh DVR (như timestamp cháy vào góc ảnh, phổ biến trong A1). Đây là hướng augmentation tiếp theo có thể cải thiện độ bền của mô hình theo điều kiện thực tế.
+
+\subsection{Lựa Chọn Mô Hình cho Tích Hợp}
+
+Đề tài chọn YOLOv8n (seed 0) làm mô hình mặc định cho toàn bộ pipeline, đồng nhất với biến \texttt{\_DEFAULTS["plate\_weights"]} trong \texttt{src/ml/pipeline/onnx\_pipeline.py}. Lý do chính là: (i) hệ sinh thái Ultralytics cho YOLOv8 trưởng thành hơn, có nhiều tài liệu hướng dẫn xuất ONNX và lượng tử hóa INT8 trên CPU ARM; (ii) Precision cao hơn YOLO26n giảm thiểu trường hợp phát hiện nhầm; (iii) hai mô hình có mAP@0,5 gần như tương đương sau khi khử near-duplicate (0,983 cho YOLOv8n trên test đã lọc).
+
+YOLO26n vẫn là ứng viên cho pha tối ưu thiết bị biên (Chương~\ref{ch:trienkhai}) nhờ đồ thị tính toán gọn hơn (không có bước NMS, không có softmax 16-bin DFL), thuận tiện hơn khi lượng tử hóa ONNX INT8. Việc so sánh hai mô hình trực tiếp trên Raspberry Pi 5 thật được trình bày trong Chương~\ref{ch:trienkhai}.

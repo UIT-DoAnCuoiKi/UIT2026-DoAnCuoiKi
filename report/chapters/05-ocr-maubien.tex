@@ -1,0 +1,625 @@
+% =====================================================================
+%  CHƯƠNG 5. NHẬN DẠNG KÝ TỰ VÀ MÀU NỀN BIỂN SỐ   | Nhật (OCR) + Đức (màu)
+%  Ngân sách: mục tiêu 12 trang, trần 14 trang
+%  Nguồn: src/ml/experiments/ocr_full_progression.csv          (Bảng 5.2),
+%         src/ml/experiments/ocr_comparison.csv                (Bảng 5.3),
+%         src/ml/experiments/ocr_vnplate_results.csv           (Bảng 5.4),
+%         docs/report/tuan-07.md                               (mục 5.5, 5.6),
+%         docs/research/2026-08-21-sua-loi-phan-loai-mau-bien-so.md (mục 5.7)
+% =====================================================================
+\chapter{Nhận Dạng Ký Tự và Màu Nền Biển Số}
+\label{ch:ocr}
+
+Chương này trình bày hai module: đọc chuỗi ký tự trên crop biển số và nhận diện màu nền
+biển. Phần OCR (Mục~\ref{sec:ocr-dulieu} đến \ref{sec:ocr-thao-luan}) trình bày kiến trúc,
+dữ liệu, ba vòng cải tiến dựa trên số liệu đo được, mở rộng bảng ký tự lên 37 ký tự,
+và hậu xử lý theo quy định biển số Việt Nam. Phần màu nền (Mục~\ref{sec:mau-bien}) trình
+bày phương pháp dùng không gian màu HSV kết hợp ngưỡng Otsu và phát hiện contour để tách
+vùng nền biển khỏi nhiễu viền.
+
+% =====================================================================
+\section{Dữ Liệu OCR}
+\label{sec:ocr-dulieu}
+% =====================================================================
+
+\subsection{Dữ Liệu Huấn Luyện}
+
+Nguồn dữ liệu chính là tập \textbf{topkek\_plate\_ocr}~\autocite{topkek2024vnplateocr}
+(Kaggle, giấy phép Apache-2.0), gồm 6.643 crop biển thật và 5.547 crop biển sinh tổng hợp,
+nhãn là chuỗi ký tự đi kèm từng ảnh (ví dụ \texttt{30F\ 11292}).
+
+Bố cục biển không có nhãn sẵn nên được suy từ tỉ lệ khung ảnh (rộng/cao nhỏ hơn 2,0 coi
+là biển hai dòng), dùng chung ngưỡng và tên lớp (\texttt{bien\_1hang}/\texttt{bien\_2hang})
+với module phát hiện, để dữ liệu đánh giá và dữ liệu suy luận thống nhất một quy ước.
+
+Tập được chia 80/10/10 phân tầng theo bố cục, giữ crop sinh tổng hợp riêng và chỉ dùng
+khi huấn luyện (Bảng~\ref{tab:ocr-split}):
+
+\begin{table}[htbp]
+\centering
+\caption{Phân chia tập dữ liệu OCR theo split và bố cục biển.}
+
+{\footnotesize Nguồn: tập topkek\_plate\_ocr~\autocite{topkek2024vnplateocr}, chia phân tầng theo tỉ lệ bố cục.}
+\label{tab:ocr-split}
+\begin{tabular}{lrrr}
+\toprule
+Split & Biển 1 dòng & Biển 2 dòng & Tổng \\
+\midrule
+train & 1.496 & 3.817 & 5.313 \\
+val   & 187   & 477   & 664   \\
+test  & 188   & 478   & 666   \\
+train\_synthetic & \multicolumn{2}{c}{(không tách theo bố cục)} & 5.547 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Phân bố theo split và bố cục biển được minh họa trong Hình~\ref{fig:ocr-data-dist}.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.85\textwidth]{plate_ocr_data_distribution}
+\caption{Phân bố dữ liệu OCR theo split và bố cục biển.}
+
+{\footnotesize Nguồn: phân tích từ tập topkek\_plate\_ocr~\autocite{topkek2024vnplateocr}.}
+\label{fig:ocr-data-dist}
+\end{figure}
+
+\subsection{Tập Test Độc Lập}
+
+Tập test của topkek có cùng nguồn gốc với tập huấn luyện nên chưa đủ để đánh giá khả năng
+tổng quát hoá. Đề tài xây thêm một tập test độc lập từ \textbf{vn\_plate}
+(Roboflow ``Vietnam license-plate'', giấy phép CC BY 4.0, 1.005 ảnh), bộ này có sẵn bounding
+box biển nhưng không có nhãn chuỗi ký tự.
+
+Quy trình gán nhãn: cắt biển theo bounding box có sẵn, chọn ngẫu nhiên 100 biển (seed cố
+định), xuất thành lưới ảnh không kèm bất kỳ dự đoán nào của model, rồi đọc và gán nhãn
+thủ công. Kết quả: \textbf{96/100 biển đọc được}, gồm 45 biển 1 dòng và 51 biển 2 dòng.
+Bốn biển còn lại (4,0\%) quá mờ hoặc bị cắt mất ký tự, loại khỏi tập test thay vì đoán.
+
+Điểm quan trọng nhất của tập này là phân bố độ phân giải sát điều kiện triển khai hơn hẳn,
+như trình bày trong Bảng~\ref{tab:ocr-resolution}:
+
+\begin{table}[htbp]
+\centering
+\caption{So sánh độ phân giải giữa tập huấn luyện topkek và tập test độc lập vn\_plate.}
+
+{\footnotesize Nguồn: đo bằng mắt trên mẫu ngẫu nhiên từ mỗi tập.}
+\label{tab:ocr-resolution}
+\begin{tabular}{lrr}
+\toprule
+Nguồn & px/dòng ký tự (trung vị) & Tỉ lệ đạt 40 px/dòng trở lên \\
+\midrule
+topkek (huấn luyện và test chính) & 19 & 21,9\% \\
+\textbf{vn\_plate (test độc lập)} & \textbf{52} & \textbf{88,0\%} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% =====================================================================
+\section{Kiến Trúc}
+\label{sec:ocr-kientruc}
+% =====================================================================
+
+Đề tài so sánh model tự huấn luyện với hai engine OCR pretrained làm mốc:
+
+\begin{itemize}
+\item \textbf{RapidOCR}~\autocite{rapidocr}: model PP-OCRv3 nhận dạng ký tự, chạy qua ONNX
+  Runtime thuần. Ban đầu dự định dùng PaddleOCR trực tiếp, nhưng gói
+  \texttt{paddlepaddle} chưa hỗ trợ Python 3.14 của môi trường huấn luyện; RapidOCR đóng
+  gói lại cùng dòng model PP-OCR để chạy thuần ONNX Runtime nên thay thế được mà vẫn giữ
+  đúng tinh thần khuyến nghị.
+
+\item \textbf{EasyOCR}~\autocite{easyocr}: model CRNN pretrained (PyTorch), charset tiếng Anh.
+
+\item \textbf{CRNN riêng} (\texttt{src/ml/training/ocr\_model.py}): CNN năm lớp
+  (32, 64, 96, 96, 96 kênh) cộng một lớp BiLSTM (96 chiều ẩn) cộng đầu ra CTC~\autocite{graves2006ctc}.
+  Ảnh đầu vào một kênh xám, kích thước 48 nhân 128 px; chuỗi đặc trưng đầu ra 32 bước thời gian,
+  dư so với nhãn dài nhất khoảng 9 ký tự để CTC có chỗ chèn ký tự blank. Tổng 424.933
+  tham số, nhỏ nhờ bảng ký tự được thu hẹp đúng theo cấu trúc biển số Việt Nam.
+  Kiến trúc CRNN và CTC dựa trên công trình của Shi và cộng sự~\autocite{shi2017crnn}
+  và Graves và cộng sự~\autocite{graves2006ctc}.
+\end{itemize}
+
+Cả ba dùng chung luồng xử lý tại \texttt{src/ml/pipeline/ocr.py} theo thứ tự: chỉnh hình
+học, tách dòng nếu là biển 2 dòng, OCR từng dòng, ghép chuỗi, chuẩn hoá theo quy tắc
+biển số Việt Nam. Thiết kế này cho phép hoán đổi ba phương pháp qua cùng một hàm
+\texttt{read\_plate()}.
+
+\subsection{Nắn Phối Cảnh Thay Cho Xoay Phẳng}
+
+Bản đầu chỉ chỉnh nghiêng bằng \texttt{minAreaRect} (xoay trong mặt phẳng ảnh). Thử
+nghiệm trên biển cắt từ tập A1 (ảnh cổng bãi xe thật) cho thấy cách này không xử lý được
+biến dạng phối cảnh, vốn thường gặp ở bãi giữ xe: camera gắn cao và lệch bên nên hầu như
+luôn nhìn chéo vào biển.
+
+Đề tài bổ sung hàm \texttt{perspective\_correct()}: nắn 4 góc biển về hình chữ nhật phẳng
+bằng \texttt{cv2.getPerspectiveTransform}. Toạ độ 4 góc lấy từ nhãn polygon của A1, và khi
+tích hợp thật được lấy từ đầu ra segmentation của model phát hiện.
+
+Đếm tay trên các biển đọc được bằng mắt trong tập A1 (Bảng~\ref{tab:ocr-perspective}):
+
+\begin{table}[htbp]
+\centering
+\caption{So sánh hai cách xử lý hình học trên tập A1 (ảnh cổng bãi xe thật).}
+
+{\footnotesize Nguồn: đếm tay trên biển đọc được bằng mắt trong tập A1.}
+\label{tab:ocr-perspective}
+\begin{tabular}{lr}
+\toprule
+Cách xử lý hình học & Đọc đúng \\
+\midrule
+Xoay phẳng (\texttt{deskew}) & 8/18 (44\%) \\
+\textbf{Nắn phối cảnh 4 điểm} & \textbf{13/17 (76\%)} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Một chi tiết kỹ thuật đáng lưu ý: cách sắp xếp 4 góc theo tổng và hiệu toạ độ (cách
+thường gặp) chọn trùng điểm khi biển nghiêng gần 45 độ, làm ma trận biến đổi suy biến và
+ảnh nắn ra trống trơn. Bản hiện tại sắp góc theo góc quay quanh tâm tứ giác, luôn cho đủ 4
+điểm phân biệt với tứ giác lồi.
+
+% =====================================================================
+\section{Huấn Luyện và Các Vòng Cải Tiến (Giai Đoạn 36 Ký Tự)}
+\label{sec:ocr-caitien}
+% =====================================================================
+
+Cấu hình chung: Adam, learning rate 1e-3, batch size 64, 40 epoch, \texttt{CTCLoss}, chạy
+trên GPU NVIDIA RTX 4070. Mỗi mẫu huấn luyện là \textbf{một dòng ký tự đơn}: biển 2 dòng
+được tách thành 2 mẫu bằng hàm \texttt{split\_rows()} dùng lúc suy luận. Augmentation gồm
+xoay cộng/trừ 4 độ, biến dạng phối cảnh nhẹ ngẫu nhiên, chỉnh sáng tối cộng/trừ 25 và
+làm mờ Gauss.
+
+Trong giai đoạn này, bảng ký tự là \textbf{36 ký tự} (chữ số 0 đến 9 và chữ cái A đến Z).
+Ba vòng cải tiến dưới đây được thực hiện trên nền model 36 ký tự và tạo thành câu chuyện
+dẫn tới model nền trước khi mở rộng charset.
+
+\subsection{Vòng 1: Hạ Cấp Dữ Liệu Sinh Tổng Hợp}
+
+Đo trực tiếp cho thấy ảnh sinh tổng hợp và crop thật có phân phối độ phân giải rất khác nhau
+(Bảng~\ref{tab:ocr-resolution-compare}):
+
+\begin{table}[htbp]
+\centering
+\caption{So sánh phân phối độ phân giải giữa ảnh sinh tổng hợp và crop thật trong tập topkek.}
+
+{\footnotesize Nguồn: đo trên mẫu ngẫu nhiên từ tập topkek~\autocite{topkek2024vnplateocr}.}
+\label{tab:ocr-resolution-compare}
+\begin{tabular}{lrr}
+\toprule
+& Ảnh sinh tổng hợp & Crop thật \\
+\midrule
+px/dòng ký tự (trung vị) & 45 đến 50 & 19 \\
+Tỉ lệ từ 40 px/dòng trở lên & 100\% & 7,0\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Ảnh sinh tổng hợp là biển render sắc nét, không nhiễu và không nghiêng, chiếm khoảng một
+nửa dữ liệu huấn luyện. Ba hướng xử lý được thí nghiệm có kiểm soát (chỉ khác nhau ở cách
+dùng ảnh sinh tổng hợp, mọi yếu tố khác giữ nguyên): giữ nguyên (V0), bỏ hẳn (V1), và
+\textbf{hạ cấp có chủ đích} cho khớp phân phối ảnh thật bằng cách thu nhỏ về mức px/dòng
+lấy ngẫu nhiên theo phân phối thực nghiệm rồi thêm nhiễu Gauss và nén JPEG chất lượng thấp
+(V2), kết quả ở Bảng~\ref{tab:ocr-v0v2}:
+
+\begin{table}[htbp]
+\centering
+\caption{Accuracy theo biến thể xử lý dữ liệu sinh tổng hợp (giai đoạn 36 ký tự).}
+
+{\footnotesize Nguồn: \texttt{src/ml/experiments/ocr\_full\_progression.csv}.}
+\label{tab:ocr-v0v2}
+\begin{tabular}{lrr}
+\toprule
+Biến thể & topkek test & vn\_plate test \\
+\midrule
+V0 nguyên bản & 51,1\% & 62,5\% \\
+V1 chỉ ảnh thật & 49,5\% & 51,0\% \\
+\textbf{V2 hạ cấp} & \textbf{54,2\%} & \textbf{64,6\%} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+V2 cho kết quả tốt hơn trên cả hai tập test. V1 kém nhất, xác nhận rằng bỏ bớt dữ liệu
+là hướng sai kể cả khi dữ liệu đó lệch phân phối. Kết luận này khớp với thí nghiệm lọc bỏ
+crop dưới 25 px/dòng khi huấn luyện: model bị mất 36\% dữ liệu, overfit rõ (train loss
+giảm sâu hơn nhưng CER validation lại xấu đi), và kém hơn ở mọi dải độ phân giải kể cả
+dải được huấn luyện riêng cho. Bài học chung: với bài toán này, số lượng dữ liệu quan
+trọng hơn độ đồng nhất của phân phối.
+
+\subsection{Vòng 2: Sửa Lỗi Chia Nhãn Biển 2 Dòng}
+
+Nhãn biển 2 dòng trong tập dữ liệu chỉ là một chuỗi ghép (ví dụ \texttt{68P27299}), không
+có thông tin đâu là dòng trên, đâu là dòng dưới, trong khi ảnh đã bị tách vật lý thành
+2 nửa để đưa vào model. Bản đầu dùng một hàm suy đoán: thử cắt 3 ký tự đầu trước, nếu
+phần còn lại có độ dài 4 hoặc 5 thì chấp nhận.
+
+Kiểm tra lại bằng nhãn gốc (\texttt{label\_raw}) mới phát hiện topkek giữ nguyên dấu cách
+đúng ở ranh giới 2 dòng thật (ví dụ \texttt{"60F1\ 64727"}), chỉ bị xoá mất khi làm sạch
+dữ liệu ban đầu. Đối chiếu hàm đoán cũ với ranh giới thật:
+\textbf{sai 405/3.817 = 10,6\% nhãn biển 2 dòng}. Cơ chế lỗi: nhãn 8 ký tự có thể là 3+5
+hoặc 4+4, cả hai đều hợp lệ về độ dài nên hàm đoán không phân biệt được, và luôn chọn
+nhầm 3+5 trong các trường hợp đúng ra phải là 4+4. Hậu quả: model được xem nửa ảnh trên
+chứa 4 ký tự nhưng bị dạy đáp án chỉ có 3, nên học thói quen bỏ mất ký tự cuối dòng trên.
+
+Đây là lỗi dữ liệu huấn luyện, không phải giới hạn kiến trúc: biển 1 dòng (không qua bước
+chia nhãn) vẫn đạt kết quả tốt, trong khi biển 2 dòng bị kéo xuống thấp hẳn, và sau khi
+sửa thì khoảng cách giữa hai loại biển gần như biến mất.
+
+Cách sửa: thay hàm đoán bằng việc tách nhãn tại đúng dấu cách trong \texttt{label\_raw},
+chỉ lùi về cách đoán cũ cho khoảng 0,03\% nhãn hiếm không có dấu cách.
+
+\subsection{Vòng 3: Kiểm Soát Nhiễu Ngẫu Nhiên Giữa Các Lần Huấn Luyện}
+
+Lần huấn luyện đầu tiên sau khi sửa nhãn (không cố định seed) cho kết quả tốt hơn rõ rệt
+trên cả hai tập test, nhưng khi kiểm tra từng lỗi cụ thể lại phát hiện một lỗi mới: chữ
+cái \texttt{G} ở vị trí seri bị đọc nhầm thành \texttt{D} hoặc \texttt{0} với độ tin cậy
+0,96 đến 0,99, sai 7/13 biển có seri \texttt{G} trong tập vn\_plate, dù trước đó model V2
+đọc đúng cả 13/13.
+
+Vì mã nguồn không cố định seed ngẫu nhiên (khởi tạo trọng số, thứ tự xáo trộn dữ liệu,
+tham số augmentation), không thể kết luận ngay lỗi này do việc sửa nhãn gây ra hay chỉ là
+may rủi giữa các lần train. Đề tài bổ sung tham số \texttt{seed} cho \texttt{train\_crnn()}
+và huấn luyện lại hai lần với seed cố định khác nhau (42 và 123) để kiểm tra độ lặp lại
+(Bảng~\ref{tab:ocr-seed}):
+
+\begin{table}[htbp]
+\centering
+\caption{Kết quả theo seed khởi tạo ngẫu nhiên (giai đoạn 36 ký tự, sau khi sửa nhãn).}
+
+{\footnotesize Nguồn: \texttt{src/ml/experiments/ocr\_full\_progression.csv}.}
+\label{tab:ocr-seed}
+\begin{tabular}{lrr}
+\toprule
+Seed & Lỗi seri G (trên 13 biển) & Accuracy vn\_plate \\
+\midrule
+Không cố định (lần đầu) & 7/13 & 80,2\% \\
+seed 42 & 3/13 & 87,5\% \\
+seed 123 & 1/13 & 92,7\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Cả ba lần dùng đúng một cấu hình và một tập dữ liệu, chỉ khác giá trị khởi tạo ngẫu
+nhiên, mà kết quả dao động 80,2\% đến 92,7\%, biên độ đủ lớn để một kết luận rút ra từ
+một lần train duy nhất không kiểm soát seed có thể sai lệch đáng kể. Lỗi seri G giảm dần
+qua các lần chạy lại chứ không lặp lại ổn định, nên nhiều khả năng là nhiễu ngẫu nhiên
+bị khuếch đại bởi cỡ mẫu nhỏ (chỉ 13 biển có seri G trong tập test) chứ không phải hệ
+quả tất yếu của việc sửa nhãn.
+
+\textbf{Quyết định chọn model:} hai seed 42 và 123 có \texttt{val\_row\_cer} gần như ngang
+nhau (0,2030 so với 0,2054), tức không có căn cứ độc lập với tập test để phân biệt seed nào
+tốt hơn. Chọn seed 123 chỉ vì nó đạt điểm cao nhất trên 96 biển test sẽ biến tập test
+độc lập thành công cụ chọn model, làm mất tính khách quan của số liệu báo cáo. Đề tài
+chốt \textbf{seed 42} (giá trị mặc định, không phải seed chọn sau khi đã biết kết quả
+trên test) làm nền trước bước mở rộng charset, và báo cáo minh bạch cả khoảng dao động
+giữa các lần chạy thay vì chỉ nêu con số đẹp nhất. Hình~\ref{fig:ocr-loss-curves} trình bày
+đường train loss và CER validation tổng hợp ba vòng cải tiến.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.90\textwidth]{plate_ocr_progression}
+\caption{Đường train loss và validation CER/accuracy theo epoch, tổng hợp ba vòng cải tiến.}
+
+{\footnotesize Nguồn: log huấn luyện tại \texttt{src/ml/training/}.}
+\label{fig:ocr-loss-curves}
+\end{figure}
+
+% =====================================================================
+\section{Mở Rộng Bảng Ký Tự Lên 37 Ký Tự và Model Triển Khai}
+\label{sec:ocr-charset37}
+% =====================================================================
+
+\subsection{Ký Tự ``Đ'' và Seri Xe Máy Điện}
+
+Sau khi hoàn thiện ba vòng cải tiến trên nền model 36 ký tự, đề tài thực hiện bước mở rộng
+bắt buộc: thêm ký tự ``Đ'' vào bảng ký tự để hỗ trợ seri MĐ và TĐ của xe máy điện, đúng
+theo quy định biển số của Bộ Công an~\autocite{tt792024bca}. Bảng ký tự model triển khai là
+\textbf{37 ký tự} (chữ số 0 đến 9, chữ cái A đến Z, và Đ).
+
+Nguyên nhân thiếu ``Đ'' ở các phiên bản trước: có 5 vị trí trong mã nguồn dùng chung một
+regex \texttt{[\^{}A-Z0-9]} để xoá các ký tự ngoài bảng, áp dụng cả ở bước chuẩn bị dữ
+liệu lẫn đường suy luận, làm mất ``Đ'' hoàn toàn. Tập topkek\_plate\_ocr đã có sẵn 169 ảnh
+thật và 199 ảnh tổng hợp chứa ``Đ'' nhưng bị chính lỗi này làm sai nhãn từ trước tới giờ.
+Sửa cả 5 vị trí, thêm ``Đ'' vào \texttt{CHARSET}, rồi huấn luyện lại trên nền model đã
+sửa nhãn biển 2 dòng (seed 42).
+
+\subsection{Kết Quả Model 37 Ký Tự và Đóng Góp Của ``Đ''}
+
+Model triển khai (37 ký tự, seed 42) đạt kết quả trên hai tập test (Bảng~\ref{tab:ocr-deployed}):
+
+\begin{table}[htbp]
+\centering
+\caption{Kết quả model triển khai CRNN 37 ký tự trên hai tập test.}
+
+{\footnotesize Nguồn: \texttt{src/ml/experiments/ocr\_vnplate\_results.csv}; \texttt{docs/report/tuan-07.md}.}
+\label{tab:ocr-deployed}
+\begin{tabular}{lrr}
+\toprule
+& topkek (n = 666) & vn\_plate (n = 96) \\
+\midrule
+Accuracy toàn biển & 56,6\% & 80,2\% \\
+Biển 1 dòng & 60,1\% & 75,6\% \\
+Biển 2 dòng & 56,7\% & 84,3\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Đóng góp của ``Đ'' là mở rộng độ phủ, không phải tăng accuracy tổng thể.}
+Đo riêng trên 17 biển có ``Đ'' trong tập test: model 37 ký tự đọc đúng ký tự ``Đ'' ở
+10/17 biển (và khớp toàn bộ chuỗi ở 8/17 biển), trong khi model 36 ký tự cũ rớt hoàn
+toàn 17/17 vì ``Đ'' không có trong bảng ký tự. Đây là đóng góp trực tiếp và có thể kiểm
+chứng: model mới đọc được một lớp biển mà trước đây không thể đọc gì.
+
+Số liệu accuracy tổng thể của model 37 ký tự (56,6\%/80,2\%) thấp hơn model seed 42 trước
+khi thêm ``Đ'' (58,9\%/87,5\%). Mức chênh này chưa xác định rõ nguyên nhân vì không thể
+tách khỏi nhiễu ngẫu nhiên giữa các lần train: Vòng 3 đã ghi nhận dao động 80,2\% đến
+92,7\% giữa ba lần chạy cùng cấu hình khác seed, nghĩa là biên độ nhiễu lớn hơn mức chênh
+cần giải thích. Đề tài không quy mức chênh này cho việc thêm ``Đ'' và không có thêm dữ
+liệu thực nghiệm để khẳng định hướng nào. Điều này nhất quán với đóng góp ``Đ'' đã nêu
+tại Chương~\ref{ch:gioithieu}: mở rộng độ phủ để đọc được seri MĐ/TĐ, không phải tăng
+accuracy trung bình.
+
+\subsection{Xác Nhận Tính Nhất Quán Giữa Bản .pt và .onnx}
+
+Trong quá trình xuất ONNX, phát hiện hàm \texttt{train\_crnn()} lưu file \texttt{.pt} từ
+checkpoint tốt nhất (val CER thấp nhất) nhưng trả về biến \texttt{model} ở epoch cuối
+(thường kém hơn) để các script export \texttt{.onnx} từ đó. Điều này khiến mọi bản
+\texttt{.onnx} OCR trước đó không phải model đã đo accuracy và báo cáo, mà là model khác,
+kém hơn, lệch ở 55/120 biển test.
+
+Sau khi sửa tại gốc (nạp lại checkpoint tốt nhất vào \texttt{model} trước khi trả về), hai
+bản kiểm chứng lại trên toàn bộ 666 biển test: \textbf{666/666 khớp tuyệt đối giữa .pt và
+.onnx}, chênh lệch confidence nhỏ hơn $4 \times 10^{-7}$ (nhiễu số thực bình thường). Đây
+là bằng chứng trực tiếp rằng bản model triển khai đúng là model đã đo và báo cáo.
+
+% =====================================================================
+\section{Kết Quả So Sánh và Phân Tích Độ Phân Giải}
+\label{sec:ocr-ketqua}
+% =====================================================================
+
+\subsection{So Sánh Với Hai Engine Pretrained}
+
+Đánh giá ở mức cả biển số trên tập test topkek (666 crop thật), dùng CRNN 36 ký tự (seed
+42, sau khi sửa nhãn) làm đại diện cho model tự huấn luyện vì đây là điểm đo cùng lúc với
+hai baseline, trong điều kiện bảng ký tự tương đương (Bảng~\ref{tab:ocr-compare}):
+
+\begin{table}[htbp]
+\centering
+\caption{So sánh ba phương pháp OCR trên tập test topkek (666 biển thật). CRNN riêng đo ở giai đoạn 36 ký tự, trước bước mở rộng ``Đ''.}
+
+{\footnotesize Nguồn: \texttt{src/ml/experiments/ocr\_comparison.csv}.}
+\label{tab:ocr-compare}
+\begin{tabular}{lrrrr}
+\toprule
+Phương pháp & Accuracy & CER & Kích thước & CPU inference \\
+\midrule
+RapidOCR~\autocite{rapidocr} & 34,2\% & 34,2\% & 10,7 MB & 7,20 ms \\
+EasyOCR~\autocite{easyocr}   & 11,7\% & 51,9\% & 98,3 MB & 16,65 ms \\
+\textbf{CRNN riêng}         & \textbf{58,9\%} & \textbf{17,4\%} & \textbf{1,7 MB} & \textbf{1,69 ms} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+{\small\textit{Kích thước model là dung lượng cần có để chạy; với EasyOCR gồm cả model phát
+hiện văn bản lẫn model nhận dạng vì API \texttt{readtext()} dùng cả hai. CPU inference đo
+trên máy huấn luyện (không phải Raspberry Pi 5) và tính cho một lần đọc; biển 2 dòng cần
+hai lần đọc.}}
+
+CRNN riêng vượt cả hai baseline trên mọi tiêu chí cùng lúc: chính xác hơn nhiều lần, nhỏ
+hơn RapidOCR khoảng 6 lần và nhỏ hơn EasyOCR khoảng 58 lần, nhanh hơn cả hai trên CPU.
+Nguyên nhân nằm ở phạm vi bài toán: hai model pretrained mang charset tổng quát, trong khi
+CRNN riêng chỉ cần phân biệt đúng 37 ký tự cố định theo cấu trúc biển số Việt Nam.
+Hình~\ref{fig:ocr-compare} trình bày trực quan so sánh accuracy và CER.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.82\textwidth]{plate_ocr_accuracy_comparison}
+\caption{Accuracy toàn biển và CER của ba phương pháp trên tập test topkek.}
+
+{\footnotesize Nguồn: \texttt{src/ml/experiments/ocr\_comparison.csv}.}
+\label{fig:ocr-compare}
+\end{figure}
+
+\subsection{Phân Tích Theo Dải Độ Phân Giải}
+
+Cùng một model (CRNN triển khai), đo trên hai tập test cho hai con số cách nhau tới 24 điểm
+phần trăm (56,6\% so với 80,2\%). Tách theo dải độ phân giải
+(Bảng~\ref{tab:ocr-resolution-band}) cho thấy đây không phải model không ổn định, mà do tỉ
+lệ ảnh khó giữa hai tập rất khác nhau:
+
+\begin{table}[htbp]
+\centering
+\caption{Accuracy theo dải độ phân giải trên tập V3 (sau khi sửa nhãn, 36 ký tự). Tập vn\_plate không có ảnh dưới 20 px/dòng.}
+
+{\footnotesize Nguồn: \texttt{src/ml/experiments/ocr\_vnplate\_results.csv}.}
+\label{tab:ocr-resolution-band}
+\begin{tabular}{lrrrr}
+\toprule
+Dải độ phân giải & Tỉ lệ trong topkek & Accuracy (topkek) & Tỉ lệ trong vn\_plate & Accuracy (vn\_plate) \\
+\midrule
+Dưới 20 px/dòng & 52,3\% & 46,6\% & 0\% & n/a \\
+20 đến 30 px    & 25,8\% & 61,6\% & 1,0\% & 100\% \\
+30 đến 40 px    & 14,6\% & 80,4\% & 11,5\% & 100\% \\
+\textbf{Từ 40 px trở lên} & 7,4\% & \textbf{93,9\%} & 87,5\% & 85,7\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Ở đúng dải ảnh đủ nét (từ 40 px/dòng trở lên), model đạt 93,9\% trên topkek, vượt mục tiêu
+trên 90\% của đề cương. Nhưng dải đó chỉ chiếm 7,4\% tập test topkek; hơn nửa tập test
+(52,3\%) rơi vào dải dưới 20 px, nơi nhiều ảnh gần như không đọc được kể cả bằng mắt người,
+kéo accuracy trung bình toàn tập xuống. Tập vn\_plate có phân bố ngược lại (87,5\% ảnh đã
+ở dải từ 40 px trở lên) nên accuracy trung bình toàn tập cao hơn hẳn dù dùng chung một
+model.
+
+Kết luận: \textbf{con số accuracy toàn tập chỉ có ý nghĩa khi đọc kèm phân bố độ phân giải
+của tập đó}. Bảng phân tầng theo độ phân giải là số liệu đáng tin hơn để đánh giá năng lực
+thật của model, và là căn cứ kỹ thuật để xác định yêu cầu camera lắp đặt. Một số mẫu dự
+đoán cụ thể được minh họa trong Hình~\ref{fig:ocr-samples}.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.82\textwidth]{plate_ocr_sample_predictions}
+\caption{Mẫu dự đoán của model CRNN 37 ký tự trên tập test.}
+
+{\footnotesize Nguồn: suy luận model \texttt{src/ml/weights/plate-ocr-crnn.onnx} trên tập test.}
+\label{fig:ocr-samples}
+\end{figure}
+
+% =====================================================================
+\section{Hậu Xử Lý Theo Quy Định Biển Số Việt Nam}
+\label{sec:ocr-hauxy}
+% =====================================================================
+
+Sau khi ghép chuỗi, kết quả được chuẩn hoá theo quy tắc định dạng biển số: sửa nhầm lẫn
+ký tự theo vị trí kỳ vọng (vị trí số quy về chữ số: O thành 0, I thành 1, B thành 8, S
+thành 5, Z thành 2; vị trí seri quy về chữ cái), rồi kiểm tra khớp định dạng.
+
+\textbf{Seri có thể gồm một hoặc hai chữ cái.} Điểm này quan trọng hơn dự kiến ban đầu vì
+bối cảnh pháp lý thay đổi ngay trong thời gian thực hiện đồ án. Theo Thông tư
+79/2024/TT-BCA~\autocite{tt792024bca} có hiệu lực từ 01/01/2025, biển số xe máy được thống
+nhất seri \textbf{hai chữ cái} kèm 5 chữ số, không phân biệt dung tích; biển seri cũ dạng
+một chữ một số chỉ được sử dụng đến hết 31/12/2025. Ngoài ra còn các ký hiệu đặc biệt hai
+chữ cái vẫn lưu hành như LD (xe liên doanh), DA (xe dự án), NG và QT (ngoại giao, tổ chức
+quốc tế). Đo trên dữ liệu hiện có, tỉ lệ biển seri hai chữ cái đã chiếm 15\% đến 19\% tập
+topkek (ví dụ 60AA, 29BF, 36BC, 51ZA, 50LD, 15HC).
+
+Biểu thức kiểm tra định dạng nhận cả hai trường hợp: mã tỉnh 2 chữ số, seri 1 hoặc 2 chữ
+cái, rồi 4 đến 6 chữ số.
+
+\textbf{Xác định chỗ ngắt khi hiển thị.} Chuỗi ghép từ biển 2 dòng có thể mơ hồ: chuỗi
+\texttt{60F21234} vừa có thể là 60F2-1234 vừa có thể là 60F-2123.4, cả hai đều hợp lệ về
+định dạng. Bố cục ảnh gốc giải quyết được điều này: với biển 2 dòng, dòng trên chính là
+phần mã tỉnh cộng seri, nên độ dài dòng trên mà OCR đọc được cho biết chính xác chỗ ngắt,
+không cần suy đoán. Khi không có thông tin bố cục (biển 1 dòng) thì mới suy đoán theo độ
+dài phần số.
+
+% =====================================================================
+\section{Nhận Diện Màu Nền Biển Số}
+\label{sec:mau-bien}
+% =====================================================================
+
+\subsection{Đặt Vấn Đề và Vai Trò Trong Hệ Thống}
+
+Màu nền biển số là thông tin phân loại pháp lý quan trọng: biển trắng dành cho phương tiện
+cá nhân, biển vàng cho xe kinh doanh vận tải, biển xanh dương cho cơ quan nhà nước, và
+biển đỏ cho xe quân sự và ngoại giao~\autocite{luatttatgt2024}. Hệ thống quản lý bãi xe
+dùng màu biển để phân nhóm xe và áp biểu phí tương ứng (xem Chương~\ref{ch:hethong}).
+Module nhận màu nhận đầu vào là crop biển số đã cắt từ bước phát hiện
+(Chương~\ref{ch:phathien}) và trả về nhãn màu cùng điểm tin cậy.
+
+Phân bố màu biển trong tập 599 crop thu thập được: trắng 372 (62,1\%), vàng 115 (19,2\%),
+xanh dương 57 (9,5\%), đỏ 37 (6,2\%) và các màu khác 18 (3,0\%). Đề tài tập trung phân
+biệt trắng và vàng vì đây là hai màu chiếm đa số và cũng là ranh giới phân loại phương
+tiện cá nhân và xe kinh doanh thực tế tại các bãi giữ xe đô thị.
+
+\subsection{Không Gian Màu HSV và Ngưỡng Hue/Saturation}
+
+Đề tài dùng không gian màu HSV thay vì RGB vì kênh Hue và Saturation trong HSV tách rõ màu
+sắc khỏi độ sáng, giảm ảnh hưởng của biến thiên ánh sáng. Bốn màu biển số tách thành các
+cụm hue/saturation riêng biệt:
+
+\begin{itemize}
+\item \textbf{Trắng}: Saturation thấp (dưới ngưỡng cấu hình), không phụ thuộc Hue.
+\item \textbf{Vàng}: Hue trong khoảng 20 đến 35 (theo thang OpenCV 0 đến 179).
+\item \textbf{Xanh dương}: Hue trong khoảng 100 đến 130.
+\item \textbf{Đỏ}: Hue gần 0 hoặc gần 179 (vì đỏ nằm hai đầu vòng tròn Hue).
+\end{itemize}
+
+Thuật toán đếm số pixel nền thuộc từng cụm rồi chọn nhãn có pixel chiếm đa số. Để đánh
+giá độ tin cậy, tỉ lệ pixel nền thực sự được coi (tổng pixel trong tất cả cụm màu xác định
+chia tổng pixel vùng nền) được trả về kèm nhãn.
+
+\subsection{Khử Nhiễu Viền Bằng Otsu và Phát Hiện Contour}
+
+Trong quá trình cắt biển, bước phát hiện áp dụng padding cố định 4 pixel xung quanh
+bounding box YOLO. Với crop nhỏ (30 đến 100 px), phần viền thừa này chiếm tỷ lệ không nhỏ
+trong tổng thể ảnh và thường lẫn màu sơn xe, viền đen của biển, hoặc quang sai màu ở rìa.
+Kết quả: một trường hợp thực tế ghi nhận biển trắng bị phân loại nhầm thành xanh với độ
+tin cậy 0,55; khi cắt bớt viền, số pixel xanh giảm từ 1.669 xuống 388 trong khi số pixel
+trắng gần như giữ nguyên ở mức 1.354, xác nhận tín hiệu sai lệch tập trung ở dải viền.
+
+Để giải quyết, đề tài bổ sung bước tiền xử lý tự động tách vùng nền biển trước khi đếm
+màu:
+
+\begin{enumerate}
+\item \textbf{CLAHE} (Contrast Limited Adaptive Histogram Equalization): tăng tương phản cục
+  bộ cho ảnh xám, giúp phân biệt nền biển với chữ và viền trong điều kiện chiếu sáng kém.
+\item \textbf{Ngưỡng Otsu}: tự động tính ngưỡng độ sáng tối ưu để phân tách ảnh thành vùng
+  sáng và vùng tối, không dùng ngưỡng cố định thủ công.
+\item \textbf{Phát hiện contour}: tìm đường viền các vùng liền khối trên ảnh phân ngưỡng;
+  vùng sáng có diện tích lớn nhất là nền biển thực tế.
+\item \textbf{Cắt động theo contour}: trích xuất bounding box của contour lớn nhất để làm
+  vùng đếm màu thực tế, loại bỏ phần viền thừa.
+\end{enumerate}
+
+Cơ chế an toàn: nếu diện tích contour lớn nhất tìm được nhỏ hơn 30\% diện tích crop ban
+đầu, đánh giá độ tin cậy thấp và giữ nguyên ảnh crop gốc thay vì ép cắt. Ngưỡng 30\% này
+là hằng số cấu hình tại \texttt{plate\_color/color/thresholds.py}.
+
+\subsection{Kết Quả Định Tính}
+
+Chưa có tập test có nhãn màu chuẩn được gán độc lập, nên không báo cáo accuracy định lượng
+cho module này. Phân tích định tính trên các crop thu thập: bốn màu biển tách thành cụm
+hue/saturation riêng biệt và module phân biệt đúng trường hợp trắng và vàng trong đa số
+tình huống ánh sáng ban ngày. Điểm yếu còn lại là biển vàng dưới ánh đèn huỳnh quanh có
+thể bị phân loại thành trắng vì saturation giảm, và biển đỏ ở góc chiếu sáng đặc biệt có
+thể lẫn với cam. Thu thập tập test có nhãn màu chuẩn và đo accuracy định lượng là việc
+\ph{còn lại cho giai đoạn đánh giá chính thức (Chương~\ref{ch:danhgia})}.
+
+% =====================================================================
+\section{Thảo Luận}
+\label{sec:ocr-thao-luan}
+% =====================================================================
+
+\textbf{Ba nguyên nhân đã xác định, ba cách xử lý khác nhau.} Accuracy thấp không phải một
+vấn đề duy nhất mà là tổng của nhiều nguyên nhân độc lập: chất lượng ảnh đầu vào (xử lý
+bằng cách thêm dữ liệu đúng phân phối, không phải lọc bớt), góc chụp chéo (xử lý bằng hình
+học, nắn phối cảnh 4 điểm), và lỗi ở khâu chuẩn bị nhãn (xử lý bằng cách quay lại nguồn
+dữ liệu gốc, không phải đổi kiến trúc). Bài học: trước khi kết luận model chưa đủ tốt,
+cần loại trừ khả năng dữ liệu huấn luyện hoặc quy trình đánh giá đang có lỗi.
+
+\textbf{Nhiễu ngẫu nhiên giữa các lần train là nguồn sai số cần kiểm soát tường minh}, đặc
+biệt khi tập test chỉ có quy mô nhỏ. Chênh lệch 80,2\% đến 92,7\% giữa các lần chạy cùng
+cấu hình cho thấy nếu chỉ train một lần và báo cáo kết quả, con số đó có thể lạc quan hoặc
+bi quan hơn thực tế khá nhiều. Cố định seed và huấn luyện lặp lại là cách kiểm soát trực
+tiếp; chọn model theo chỉ số độc lập với tập test (ở đây là \texttt{val\_row\_cer}) thay
+vì theo điểm số cao nhất trên tập test tránh việc vô tình biến tập test thành một phần của
+quá trình lựa chọn. Khi cần truyền toạ độ 4 góc biển vào pipeline, việc đảm bảo seed cố
+định và huấn luyện ít nhất hai lần để kiểm tra độ ổn định là khuyến nghị quan trọng trước
+khi công bố bất kỳ con số accuracy nào.
+
+\textbf{Yêu cầu kỹ thuật rút ra cho camera lắp đặt.} Để đạt kết quả tốt, crop biển cần
+đạt tối thiểu khoảng 40 px cho mỗi dòng ký tự. Điều này phụ thuộc vào vị trí và góc nhìn
+của camera chứ không đơn thuần số megapixel: đo trên tập A1 cho thấy ảnh gốc rộng tới
+4.032 px nhưng biển vẫn chỉ chiếm khoảng 31 px/dòng vì xe ở xa. Cần đặt camera gần hơn
+hoặc thu hẹp góc nhìn vào khu vực cổng thay vì mua camera độ phân giải cao hơn.
+
+\textbf{Giới hạn của tập test.} 96 biển là cỡ mẫu nhỏ; kết hợp với phát hiện về nhiễu
+ngẫu nhiên, các con số accuracy trong chương này nên đọc như xu hướng có kiểm chứng chứ
+không phải giá trị tuyệt đối chính xác đến phần trăm lẻ. Nhãn do đề tài tự gán bằng mắt,
+những ảnh không chắc chắn đã được loại thay vì đoán.
+
+\textbf{Chưa kiểm chứng được điều kiện ban đêm.} Toàn bộ dataset công khai đã khảo sát
+gần như chỉ có ảnh ban ngày, trong khi biển số Việt Nam dán màng phản quang nên đèn pha và
+đèn hồng ngoại gây loá mạnh. Không có mẫu nào để đánh giá.
+
+% =====================================================================
+\section{Kết Luận Chương}
+\label{sec:ocr-ketluan}
+% =====================================================================
+
+Chương này trình bày hai module: đọc ký tự biển số (OCR) và nhận diện màu nền biển số.
+
+Đối với OCR, đề tài xây dựng CRNN 37 ký tự (chữ số 0 đến 9, chữ cái A đến Z, và Đ) tự
+huấn luyện trên dữ liệu biển số Việt Nam. Model triển khai đạt 56,6\% trên tập topkek và
+80,2\% trên tập vn\_plate; ở dải ảnh đủ nét (từ 40 px/dòng trở lên), accuracy đạt 93,9\%
+trên topkek, vượt mục tiêu đề cương. Đóng góp của ký tự ``Đ'' là mở rộng độ phủ để đọc
+được seri MĐ và TĐ của xe máy điện: model đọc đúng ``Đ'' ở 10/17 biển (và khớp toàn biển
+ở 8/17 biển), trong khi model 36 ký tự trước đây rớt hoàn toàn. Việc xác nhận 666/666 khớp
+tuyệt đối giữa bản .pt và .onnx cho thấy bản triển khai đúng là model đã đo và báo cáo.
+
+Đối với nhận màu nền, đề tài dùng không gian màu HSV kết hợp CLAHE, ngưỡng Otsu và phát
+hiện contour để tách vùng nền biển khỏi nhiễu viền, phân biệt bốn màu theo cụm hue/saturation
+riêng. Module hoạt động đúng theo định tính trong điều kiện ban ngày; accuracy định lượng
+trên tập test có nhãn chuẩn là việc còn lại của giai đoạn đánh giá.

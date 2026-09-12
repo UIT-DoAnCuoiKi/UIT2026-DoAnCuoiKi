@@ -1,0 +1,16 @@
+main.pdf
+main.docx
+main.aux
+main.bbl
+main.bcf
+main.blg
+main.fdb_latexmk
+main.fls
+main.log
+main.out
+main.run.xml
+main.toc
+main.lof
+main.lot
+# reference.docx KHÔNG gitignore: đó là template style đã chỉnh font bằng tay,
+# là input của build.sh. Bỏ qua nó thì đồng đội build ra docx sai font.

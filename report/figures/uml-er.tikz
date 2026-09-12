@@ -1,0 +1,105 @@
+% figures/uml-er.tikz — Sơ đồ ER các bảng trung tâm
+% Nguồn: src/backend/app/models/{parking_session,plate_reading,payment,
+%         price_rule,image_asset,shift,user}.py
+\begin{tikzpicture}[
+  font=\scriptsize,
+  entity/.style={draw, fill=blue!8, rounded corners=2pt, text centered,
+                 minimum height=0.55cm, minimum width=2.9cm},
+  attrblk/.style={font=\tiny, text=black!70, align=left},
+  fk/.style={->, >=stealth, dashed, thick, color=black!60},
+  rel/.style={->, >=stealth, thick, dotted}
+]
+% Thực thể
+\node[entity] (session)   at (0.0,  0.0) {\textbf{session}};
+\node[attrblk, below=0.05cm of session] {
+  \underline{id}, uuid\\
+  plate\_hash, plate\_ciphertext\\
+  vehicle\_group, status\\
+  entry\_time, exit\_time\\
+  fee\_amount, fee\_rule\_snapshot\\
+  match\_flag
+};
+
+\node[entity] (reading)   at (-5.0, -4.0) {\textbf{plate\_reading}};
+\node[attrblk, below=0.05cm of reading] {
+  \underline{id}, capture\_id, direction\\
+  plate\_hash, plate\_valid\\
+  det\_conf, ocr\_conf, color\\
+  vehicle\_type, vehicle\_style\\
+  review\_state
+};
+
+\node[entity] (payment)   at (4.8,  -4.0) {\textbf{payment}};
+\node[attrblk, below=0.05cm of payment] {
+  \underline{id}, session\_id (FK)\\
+  amount (VND), method\\
+  kind, shift\_id (FK)\\
+  staff\_id (FK), paid\_at
+};
+
+\node[entity] (pricerule) at (0.0,  -8.0) {\textbf{price\_rule}};
+\node[attrblk, below=0.05cm of pricerule] {
+  \underline{id}, vehicle\_group\\
+  mode (flat | block)\\
+  unit\_price, block\_minutes\\
+  grace\_minutes, daily\_cap
+};
+
+\node[entity] (asset)     at (-5.0, -8.0) {\textbf{image\_asset}};
+\node[attrblk, below=0.05cm of asset] {
+  \underline{id}, path, encrypted\\
+  sha256, direction\\
+  retention\_delete\_after
+};
+
+\node[entity] (shift)     at (4.8,  -8.0) {\textbf{shift}};
+\node[attrblk, below=0.05cm of shift] {
+  \underline{id}, staff\_id (FK)\\
+  opened\_at, closed\_at\\
+  opening\_cash, status
+};
+
+\node[entity] (users)     at (0.0, -12.0) {\textbf{users}};
+\node[attrblk, below=0.05cm of users] {
+  \underline{id}, username\\
+  password\_hash, role\\
+  active
+};
+
+% Quan hệ FK
+\draw[fk] (session.west)
+  to ++(-0.5, 0)
+  |- node[pos=0.3, above, font=\tiny]{entry/exit\_reading\_id}
+  (reading.north);
+
+\draw[fk] (session.south)
+  to ++(0, -0.3)
+  -| node[pos=0.1, right, font=\tiny]{created\_by, closed\_by}
+  (users.north);
+
+\draw[fk] (payment.west)
+  to node[above, font=\tiny]{session\_id}
+  (session.east |- payment.west);
+
+\draw[fk] (payment.south)
+  to node[right, font=\tiny]{shift\_id}
+  (shift.north);
+
+\draw[fk] (payment.south)
+  to ++(0, -0.2)
+  -| node[pos=0.15, below, font=\tiny]{staff\_id}
+  (users.east);
+
+\draw[fk] (reading.south)
+  to node[right, font=\tiny]{image/crop\_asset\_id}
+  (asset.north);
+
+\draw[fk] (shift.south)
+  to node[right, font=\tiny]{staff\_id}
+  (users.east |- shift.south);
+
+\draw[rel] (session.south)
+  to ++(0, -0.6)
+  -| node[pos=0.1, left, font=\tiny]{vehicle\_group}
+  (pricerule.north);
+\end{tikzpicture}

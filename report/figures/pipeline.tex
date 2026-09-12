@@ -1,0 +1,57 @@
+% Sơ đồ pipeline nhận diện phương tiện.
+% Dựng theo src/ml/pipeline/onnx_pipeline.py phương thức run():
+%   - nhánh xe:  detect_vehicle_crop (YOLOv8n COCO, .pt)
+%                  -> nếu yolo_class == "car": classifier kiểu dáng (ResNet18, ONNX)
+%   - nhánh biển: PlateDetector (YOLOv8n, .pt)
+%                  -> process_plate (HSV + CLAHE + Otsu) -> màu nền
+%                  -> read_plate (tách dòng) -> CRNN CTC (ONNX) -> chuỗi biển
+% Biên dịch riêng: xelatex pipeline.tex  (xuất pipeline.pdf, rồi sips ra .png)
+\documentclass[border=6pt]{standalone}
+\usepackage{fontspec}
+\setmainfont{Times New Roman}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,shapes.geometric,calc}
+
+\begin{document}
+\begin{tikzpicture}[
+  font=\small,
+  >={Stealth[round]},
+  box/.style={rectangle, rounded corners=2pt, draw=black!70, fill=blue!5,
+              align=center, minimum height=11mm, inner sep=4pt, text width=32mm},
+  dec/.style={diamond, aspect=2.2, draw=black!70, fill=orange!12,
+              align=center, inner sep=0pt, text width=18mm},
+  out/.style={rectangle, rounded corners=2pt, draw=black!70, fill=green!8,
+              align=center, minimum height=14mm, inner sep=4pt, text width=32mm},
+  arr/.style={->, thick, draw=black!75},
+  node distance=9mm and 12mm,
+]
+
+\node[box, fill=black!4] (in) {Khung ảnh BGR};
+
+% nhánh xe (trên)
+\node[box, above right=7mm and 14mm of in] (vdet) {Phát hiện xe\\{\footnotesize YOLOv8n COCO, .pt}};
+\node[dec, right=of vdet] (iscar) {yolo\_class\\= ``car''?};
+\node[box, right=of iscar] (style) {Phân loại kiểu dáng\\{\footnotesize ResNet18, ONNX}};
+
+% nhánh biển (dưới)
+\node[box, below right=7mm and 14mm of in] (pdet) {Phát hiện biển số\\{\footnotesize YOLOv8n, .pt}};
+\node[box, right=of pdet] (proc) {Xử lý biển\\{\footnotesize HSV + CLAHE + Otsu}\\$\rightarrow$ màu nền};
+\node[box, right=of proc] (ocr) {Đọc biển\\{\footnotesize tách dòng, CRNN CTC, ONNX}\\$\rightarrow$ chuỗi biển};
+
+% tổng hợp kết quả, đặt bên phải, giữa hai nhánh
+\node[out] (res) at ($(style.east)!0.5!(ocr.east) + (34mm,0)$)
+  {Kết quả mỗi xe:\\loại xe, kiểu dáng,\\màu nền, chuỗi biển};
+
+\draw[arr] (in.north) |- (vdet.west);
+\draw[arr] (in.south) |- (pdet.west);
+\draw[arr] (vdet) -- (iscar);
+\draw[arr] (iscar) -- node[above, font=\footnotesize] {có} (style);
+\draw[arr] (pdet) -- (proc);
+\draw[arr] (proc) -- (ocr);
+
+\draw[arr] (style.east) -| (res.north);
+\draw[arr] (ocr.east) -| (res.south);
+\draw[arr] (iscar.east) to[out=0,in=180] node[near start, above, font=\footnotesize] {không} (res.west);
+
+\end{tikzpicture}
+\end{document}

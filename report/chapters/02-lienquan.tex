@@ -1,0 +1,172 @@
+% =====================================================================
+%  CHƯƠNG 2. TỔNG QUAN CÔNG TRÌNH LIÊN QUAN       | Phụ trách: Cả 2
+%  Ngân sách: mục tiêu 8 trang, trần 9 trang
+%  Nguồn: docs/research/2026-07-18-yolo-architecture.md            (2.1),
+%         docs/research/khao-sat-he-thong-alpr.md                  (2.2, 2.3),
+%         docs/research/2026-07-19-similar-parking-systems.md      (2.4, 2.5)
+% =====================================================================
+\chapter{Tổng Quan Công Trình Liên Quan}
+\label{ch:lienquan}
+
+\section{Phát Hiện Đối Tượng và Họ Kiến Trúc YOLO}
+
+\subsection{Đối Lập Một Giai Đoạn và Hai Giai Đoạn}
+
+Các phương pháp phát hiện đối tượng (object detection) truyền thống theo kiến trúc hai giai đoạn (two-stage): giai đoạn đầu sinh ra tập hợp các vùng đề xuất ứng viên (region proposal), giai đoạn hai phân loại và tinh chỉnh tọa độ từng vùng đó. Faster R-CNN là đại diện tiêu biểu: mạng đề xuất vùng (Region Proposal Network) dùng chung backbone với nhánh phân loại, khiến việc sinh proposal ``gần như miễn phí'' so với Selective Search nhưng bản chất kiến trúc vẫn tuần tự, báo cáo khoảng năm FPS trên GPU cùng thời~\autocite{ren2015fasterrcnn}. Đối lập với hai giai đoạn, họ YOLO (You Only Look Once) định hình phát hiện đối tượng thành một bài toán regression duy nhất: ảnh đầu vào chia lưới và mạng dự đoán trực tiếp bounding box cùng lớp trong một lần forward pass. Bản gốc YOLOv1 đạt 45 FPS trong khi mAP gần gấp đôi các detector real-time cùng thời, đánh đổi một phần độ chính xác định vị để lấy tốc độ~\autocite{redmon2016yolo}. Đánh đổi đó phù hợp với ràng buộc thời gian thực trên thiết bị biên: nếu dùng detector hai giai đoạn cho pipeline phát hiện xe rồi phát hiện biển số, mỗi lần xử lý một khung ảnh phải chạy hai lần hai giai đoạn liên tiếp trên CPU không GPU, cộng dồn penalty latency đến mức khó đạt mục tiêu dưới hai giây.
+
+\subsection{Diễn Tiến Kiến Trúc từ YOLOv3 đến YOLOv8}
+
+Qua các thế hệ, backbone và neck của dòng YOLO chuyển dần theo hướng tăng khả năng bắt vật thể nhỏ và tái sử dụng đặc trưng. YOLOv3 đưa vào backbone Darknet-53 với residual connection và dự đoán đa tỷ lệ trên ba feature map (13×13, 26×26, 52×52 cho input 416×416) theo kiểu FPN sơ khai, nhắm trực tiếp vào điểm yếu của YOLOv1 và YOLOv2 với vật thể nhỏ. YOLOv4 chuyển backbone sang CSPDarknet53 (Cross-Stage Partial connection giảm gradient dư thừa) kết hợp PANet fuse feature theo cả top-down và bottom-up, đồng thời hệ thống hóa các kỹ thuật ``Bag of Freebies'' như Mosaic augmentation, CIoU loss và label smoothing. YOLOv5 viết lại toàn bộ bằng PyTorch, giữ backbone kiểu CSPDarknet với block SPPF nhanh hơn và neck CSP-PAN, giới thiệu năm biến thể scale n/s/m/l/x khác nhau về width và depth mà YOLOv8 và YOLO26 kế thừa~\autocite{terven2023comprehensive}.
+
+YOLOv8 đánh dấu chuyển biến kiến trúc quan trọng: bỏ hoàn toàn anchor box (anchor-free), chia head detection thành hai nhánh song song tách biệt (decoupled head) cho box regression và class score thay vì một nhánh gộp chung như các phiên bản trước, và áp dụng Task-Aligned Assigner trong gán nhãn huấn luyện. Backbone dùng block C2f (CSP Bottleneck với hai convolution) thay cho C3 của YOLOv5, concatenate tất cả tensor trung gian dọc path split-and-bottleneck để tái sử dụng đặc trưng phong phú hơn. Neck PAN-FPN fuse feature ba tỷ lệ theo top-down rồi bottom-up bằng chính block C2f. Head tổng cộng cho 8400 anchor point trên input 640×640, mỗi point regress bốn khoảng cách cạnh qua Distribution Focal Loss (DFL) với 16 bin xác suất rời rạc thay vì một scalar, cải thiện định vị biên vật thể nhỏ và mờ. Không có nhánh objectness riêng: điểm class sau sigmoid chính là confidence. Sau bước giải mã DFL, Non-Maximum Suppression lọc các detection trùng lặp, đây là bước hậu xử lý tuần tự nằm ngoài graph tensor thuần, thêm latency và phức tạp hóa xuất ONNX~\autocite{jocher2023yolov8,terven2023comprehensive}.
+
+\subsection{YOLO26: Thiết Kế Hướng Đến Edge và Xuất Mô Hình}
+
+YOLO26, ra mắt chính thức tháng 1/2026 với paper arXiv công bố tháng 6/2026, được Ultralytics định vị là thế hệ hiện tại cho deploy CPU và edge. Bốn thay đổi kiến trúc chính so với YOLOv8 đã được xác nhận từ abstract arXiv và trang docs chính thức~\autocite{jocher2026yolo26,chakrabarty2026yolo26nmsfree}:
+
+\begin{itemize}
+  \item \textbf{NMS-free end-to-end:} dual-head cho phép train theo cách gán one-to-many thông thường nhưng export và chạy bằng head one-to-one xuất ra detection cuối trực tiếp, không cần bước NMS hậu xử lý. Điều này đơn giản hóa đáng kể graph ONNX và giảm latency deploy.
+  \item \textbf{Bỏ DFL:} head detection không còn softmax 16-bin cho mỗi cạnh box. Bỏ DFL có hai hệ quả: head nhẹ hơn và graph export INT8 đơn giản hơn vì loại bỏ op Softmax vốn khó lượng tử hóa trên NPU và DSP theo phân tích của Chakrabarty~\autocite{chakrabarty2026yolo26nmsfree}.
+  \item \textbf{MuSGD:} optimizer lai SGD và Muon lấy cảm hứng từ huấn luyện mô hình ngôn ngữ lớn, cải thiện hội tụ lúc huấn luyện.
+  \item \textbf{Progressive Loss và STAL:} Progressive Loss dịch trọng tâm supervision về phía head inference-time (one-to-one). STAL (Small-Target-Aware Label Assignment) đảm bảo độ phủ positive cho vật thể nhỏ, trực tiếp nhắm vào bài toán phát hiện biển số nhỏ trong toàn khung ảnh cảnh xe bãi đỗ.
+\end{itemize}
+
+Trên COCO val với input 640, YOLO26n đạt 40,9 mAP ở 38,9 ms CPU ONNX (Intel Xeon), trong khi YOLOv8n đạt 37,3 mAP ở 80,4 ms cùng điều kiện. Trên Raspberry Pi 5 với ONNX Runtime, hướng dẫn triển khai chính thức của Ultralytics báo cáo YOLO26n ở 130,33 ms và NCNN ở 67,69 ms, nhanh hơn khoảng 15\% so với YOLO11n qua ONNX trên cùng phần cứng~\autocite{ultralytics2026rpiguide}. Các benchmark đa nền tảng trên máy tính đơn bo (SBC) bao gồm Raspberry Pi 4/5 và Jetson Nano xác nhận rằng các biến thể nano và small luôn cho hiệu năng tốt nhất trên SBC, và mô hình thế hệ sau liên tục cải thiện trade-off tốc độ và độ chính xác so với thế hệ trước~\autocite{mdpi2026sbcbenchmark}.
+
+Đề tài dùng YOLOv8n làm mô hình nền cho cả phát hiện xe và phát hiện biển số nhờ trọng số nhẹ và hệ sinh thái Ultralytics thuận tiện cho xuất ONNX, đồng thời khảo sát YOLO26n như ứng viên nâng cấp cho pha tối ưu. Chương~\ref{ch:phathien} so sánh trực tiếp hai mô hình này trên dữ liệu của đề tài.
+
+\section{Nhận Dạng Biển Số Xe Tự Động}
+
+\subsection{Kiến Trúc Ba Tầng trong ALPR}
+
+Nhận dạng biển số xe tự động (Automatic License Plate Recognition, ALPR) thường gồm ba tầng chức năng: phát hiện vùng biển số trong ảnh, chuẩn hóa và tách dòng, rồi đọc ký tự bằng OCR hoặc theo hướng OCR-as-detection (dùng chính detector YOLO phát hiện từng ký tự). Cấu trúc ba tầng tách biệt từng bước, mỗi bước được tối ưu và đánh giá độc lập, là thiết kế phổ biến nhất trong cả nghiên cứu học thuật lẫn mã nguồn mở. Al-batat và cộng sự công bố một pipeline ALPR mã nguồn mở đánh giá minh bạch trên năm bộ dữ liệu nhiều khu vực (Mỹ, EU, Đài Loan, Brazil): detect xe bằng YOLOv2, detect biển bằng YOLOv4-tiny, nhận dạng ký tự bằng YOLOv4-tiny với input 352×128 chọn theo tỷ lệ trung bình của biển số, phân loại loại xe bằng ResNet50. Pipeline đạt 90,3\% ở cấp ký tự trung bình trên cả năm bộ dữ liệu; khi đánh giá từng tầng riêng lẻ thì detect xe đạt 99,71\% precision và nhận dạng ký tự tách riêng đạt 99,68\%, cho thấy khoảng cách lớn giữa kết quả từng tầng và kết quả toàn pipeline~\autocite{albatat2022endtoend,redalb2022alprcode}.
+
+Bằng chứng định lượng rõ ràng nhất cho lợi ích của kiến trúc đa tầng là so sánh trực tiếp của Safran và cộng sự: đa tầng đạt 96,1\% trong khi single-stage chỉ đạt 83,9\% trên cùng bộ dữ liệu và điều kiện đo, tức là thêm tầng phân tách cụ thể làm độ chính xác tăng hơn 12 điểm phần trăm~\autocite{safran2024multistage}. Hệ thống của Safran cũng tích hợp web dashboard trực quan hóa trạng thái chiếm chỗ và luồng xe theo thời gian thực, là một trong số ít công trình kết hợp cả ALPR và nghiệp vụ dashboard.
+
+Moussaoui và cộng sự xác nhận tính khả thi của cặp YOLOv8 và EasyOCR với chuỗi tiền xử lý k-means clustering kết hợp thresholding và phép mở (opening) morphology để làm rõ ký tự trước bước OCR, đạt 99\% detect và 98\% ký tự trên tập 270 ảnh~\autocite{moussaoui2024yolov8ocr}. Tập test nhỏ khiến con số này nhiều khả năng lạc quan so với thực tế đa dạng điều kiện, nhưng chuỗi tiền xử lý là tham chiếu hữu ích cho khâu làm rõ ảnh biển.
+
+\subsection{Bộ Dữ Liệu Quốc Tế và Giới Hạn với Biển Số Việt Nam}
+
+Các benchmark quốc tế cung cấp nền tảng so sánh nhưng không phản ánh đặc thù biển số Việt Nam. CCPD (Chinese City Parking Dataset) gồm khoảng 290 nghìn ảnh chụp tại bãi xe Bắc Kinh với đa dạng điều kiện ánh sáng, góc nghiêng và thời tiết, là benchmark bãi xe lớn nhất tìm được trong văn liệu~\autocite{xu2018ccpd}. UFPR-ALPR gồm 4500 ảnh từ 150 phương tiện tại Brazil với độ phân giải 1920×1080, xe và camera đều đang chuyển động, có gán nhãn vị trí từng ký tự~\autocite{laroca2018ufpr}. Cả hai bộ đều tập trung vào biển một hàng của các quốc gia khác. Biển xe máy Việt Nam hai hàng không xuất hiện trong các bộ này, và bảng ký tự tiếng Anh của các pipeline thông dụng bỏ sót ký tự ``Đ'' trong seri biển xe máy điện Việt Nam. Điều này cho thấy cần hiệu chỉnh cả dữ liệu lẫn bảng ký tự khi áp dụng cho bối cảnh Việt Nam, và không thể so sánh số tuyệt đối giữa kết quả của đề tài với benchmark quốc tế.
+
+\section{Nghiên Cứu trên Biển Số Việt Nam}
+
+\subsection{Các Công Trình Nhận Dạng Biển Số Việt Nam}
+
+Trong nước, một số công trình đã xử lý trực tiếp bối cảnh gần với đề tài và cung cấp baseline quan trọng. Tran và Bui triển khai pipeline SSD-MobileNetV2 phát hiện vùng biển kết hợp YOLOv8-nano nhận dạng ký tự (OCR-as-detection) trên Raspberry Pi 4 Model B với camera 8 MP, đạt độ chính xác nhận dạng trung bình 95,68\% với thời gian xử lý trung bình 0,478 giây mỗi ảnh~\autocite{tran2025vietnamlpr}. Đây là một trong số ít công trình Việt Nam đo đồng thời độ chính xác và thời gian xử lý trực tiếp trên phần cứng edge cùng lớp với Raspberry Pi 5 của đề tài, dù số liệu ở mức thứ cấp vì full text chưa tiếp cận được. Hạn chế chính là công trình dừng ở khâu nhận dạng, không có quản lý phiên hay tính phí.
+
+Dang và cộng sự đề xuất pipeline ba bước: YOLO phát hiện xe, WPOD-NET trích vùng biển (xử lý tốt biển xiên góc), rồi CRNN cải tiến huấn luyện đồng thời với CTC loss và cơ chế attention để đọc ký tự. Thử nghiệm trên dữ liệu tự thu tại bãi đỗ xe trong nhà ở Việt Nam đạt Word Error Rate 0,014, cho thấy tỷ lệ lỗi rất thấp trong điều kiện kiểm soát~\autocite{dang2024vietnamcrnn}. Ngữ cảnh bãi đỗ trong nhà sát với bài toán của đề tài, nhưng cỡ tập test và protocol đo không được công bố trong abstract nên khó đánh giá độ tin cậy số liệu.
+
+Với biển xe máy, Le và cộng sự đề xuất kiến trúc YOLOv8 ba tầng: phát hiện xe máy, phát hiện biển số bên trong bbox xe máy, rồi nhận dạng biển. Pipeline đạt mAP 93\% sau 300 epoch huấn luyện, cung cấp baseline trực tiếp cho biển hai hàng của xe máy Việt Nam, loại biển khó nhất trong bối cảnh của đề tài~\autocite{le2023motorcycleplate}. Nhóm PTIT tiếp cận từ góc độ đa góc nhìn: fuse đặc trưng corner-point qua ba hướng chụp trước khi nhận dạng bằng CnOCR, xây dựng bộ dữ liệu PTITPlates riêng, hướng tới tăng độ bền theo góc camera~\autocite{trananh2023multiangle}. Bộ dữ liệu và cuộc thi UIT MAPR 2018 gồm 3000 ảnh xe máy chụp tại bãi giữ xe khách sạn là nguồn tham chiếu lịch sử cho nhận dạng biển xe máy Việt Nam và ghi nhận nguồn gốc nghiên cứu tại UIT~\autocite{mapr2018challenge}. Dự án mã nguồn mở của mrzaizai2k xử lý cả biển một hàng và hai hàng bằng KNN kết hợp OpenCV với cơ chế căn chỉnh góc nghiêng bằng Hough transform, hướng thẳng tới use-case bãi giữ xe, và là dự án Việt Nam duy nhất có giấy phép MIT rõ ràng và còn được bảo trì~\autocite{mrzaizai2k2025vnplate}.
+
+\subsection{Đặc Điểm Chung và Khoảng Hở của Các Công Trình Việt Nam}
+
+Tổng hợp các công trình trên cho thấy hai điểm chung: phần lớn dừng ở khâu nhận dạng biển số, không mở rộng sang session quản lý hay tính phí; và không công trình nào đo hiệu năng trên Raspberry Pi 5 hoặc phần cứng tương đương cùng điều kiện thực tế cổng bãi xe. Bên cạnh đó, chưa có bộ dữ liệu công khai nào của Việt Nam gán nhãn đồng thời cho biển số, loại xe và màu nền biển, nên phải kết hợp nhiều nguồn và tự gán nhãn bổ sung.
+
+\section{Hệ Thống Quản Lý Bãi Giữ Xe}
+
+\subsection{Các Hệ Thống Đại Diện}
+
+Về hệ thống hoàn chỉnh, Pradhan và cộng sự xây dựng một bãi xe IoT trên Raspberry Pi 4 quản lý bốn camera, chạy YOLO cùng Tesseract OCR với tiền xử lý OpenCV, tích hợp cảm biến IR và ESP32 cho mỗi ô đỗ để xác nhận kép, ghi nhận thời gian vào ra, tính phí động theo giờ cao và thấp điểm, và theo dõi trạng thái chiếm chỗ. Kết quả đo trên 100 test case: khớp biển số tổng thể 88,9\%; theo điều kiện ánh sáng: 95\% ban ngày, 90\% ánh sáng yếu, 93\% góc 45°; sai số theo dõi chiếm chỗ dưới 5\% so với đếm thủ công~\autocite{pradhan2025iotparking}. Đây là một trong số ít hệ thống báo cáo độ chính xác theo điều kiện thay vì một con số đơn lẻ, và là công trình tích hợp trọn vẹn nhất về edge, ALPR, session và tính phí được tìm thấy. Điểm hạn chế là yêu cầu một ESP32 và cảm biến IR cho mỗi ô đỗ, chi phí phần cứng cao và khó bảo trì ở bãi xe có nhiều ô.
+
+Ammar và cộng sự triển khai pipeline năm tầng tại cổng bãi xe của campus Prince Sultan University trên Jetson Xavier AGX: YOLOv4 phát hiện xe và biển số từ RTSP stream, Xception phân loại 196 đời xe, YOLOv4 nhận dạng ký tự theo cặp, DeepSORT tùy biến theo dõi đa khung hình kèm cơ chế voting, tối ưu bằng TensorRT. Đạt 17,1 FPS trung bình trên video thực tế; voting qua nhiều frame tăng độ chính xác biển đầy đủ từ 29\% (một frame) lên 69\% (tối đa 35 frame)~\autocite{ammar2023multistage}. Thêm vào đó, độ phân giải camera ảnh hưởng quyết định: ở 1080p đạt 80\% biển đầy đủ, ở 720p giảm xuống 72\%, và ở 480p chỉ còn 23\%. Khoảng cách giữa kết quả validation cấp ký tự (99,8\%) và thực tế toàn pipeline (74\%) minh chứng rằng cần báo cáo cả hai cấp độ đo thay vì chỉ một con số. Hệ thống dùng Jetson Xavier AGX, phần cứng cao cấp hơn đáng kể so với Raspberry Pi 5 của đề tài.
+
+Rani và cộng sự xây dựng hệ thống bãi xe có quản lý vào ra và tính phí: module vào ghi biển và timestamp, module ra tính phí theo thời lượng và sinh QR code động cho thanh toán không tiếp xúc. Đạt 97,11\% LPR khi không tính khoảng trắng và 91,91\% khi tính cả khoảng trắng, minh họa rõ mức độ phụ thuộc của kết quả vào quy tắc chuẩn hóa chuỗi~\autocite{rani2024ips}. Arukonda và cộng sự dùng YOLOv8 kết hợp EasyOCR và Tesseract với bước validate định dạng biển theo quy tắc quốc gia, đạt 98,5\% detect, latency 50 ms mỗi frame (phần cứng không nêu), nhưng backend chỉ ghi log Excel chứ không có cơ sở dữ liệu thực~\autocite{arukonda2026smartparking}.
+
+\subsection{So Sánh Các Hệ Thống Bãi Giữ Xe}
+
+Bảng~\ref{tab:parking-compare} tổng hợp và so sánh các hệ thống bãi giữ xe tiêu biểu được khảo sát theo các tiêu chí chức năng và triển khai quan trọng.
+
+\begin{table}[htbp]
+\centering
+\caption{So sánh các hệ thống quản lý bãi giữ xe tiêu biểu.}
+
+\footnotesize Nguồn: tổng hợp từ \autocite{pradhan2025iotparking,ammar2023multistage,safran2024multistage,rani2024ips,arukonda2026smartparking,platerecognizer2026alpr,openalpr2016benchmarks}.
+\label{tab:parking-compare}
+\begin{tabular}{p{3.0cm} p{2.4cm} p{1.9cm} p{1.7cm} p{1.4cm} p{1.5cm}}
+\hline
+\textbf{Hệ thống} & \textbf{Nền tảng} & \textbf{Phát hiện biển} & \textbf{Quản lý session} & \textbf{Dashboard} & \textbf{Màu biển} \\
+\hline
+Pradhan 2025~\autocite{pradhan2025iotparking}
+  & Raspberry Pi 4
+  & 88,9\% (n=100)
+  & Có (tính phí động)
+  & Không
+  & Không \\
+Ammar 2023~\autocite{ammar2023multistage}
+  & Jetson Xavier AGX
+  & 74\% (video)
+  & Không
+  & Không
+  & Không \\
+Safran 2024~\autocite{safran2024multistage}
+  & Server
+  & 96,1\%
+  & Không
+  & Có (web)
+  & Không \\
+Rani 2024~\autocite{rani2024ips}
+  & PC
+  & 97,1\%
+  & Có (QR thanh toán)
+  & Không
+  & Không \\
+Arukonda 2026~\autocite{arukonda2026smartparking}
+  & Không rõ
+  & 98,5\%
+  & Không
+  & Không
+  & Không \\
+Plate Recognizer~\autocite{platerecognizer2026alpr}
+  & SDK on-prem (Pi, Jetson)
+  & Không công bố
+  & Có (ParkPow)
+  & Có (ParkPow)
+  & Màu xe \\
+Rekor Scout~\autocite{openalpr2016benchmarks}
+  & Server và edge agent
+  & Không công bố
+  & Không
+  & Có (cloud)
+  & Màu xe \\
+\textbf{Đề tài này}
+  & \textbf{Raspberry Pi 5}
+  & \textbf{Mục tiêu >90\%}
+  & \textbf{Có (CSDL, tính phí)}
+  & \textbf{Có (React)}
+  & \textbf{Màu nền biển} \\
+\hline
+\end{tabular}
+\end{table}
+
+Quan sát đáng chú ý từ bảng: cột ``Màu biển'' trống hoàn toàn ngoài đề tài này. Các sản phẩm thương mại quốc tế như Plate Recognizer và Rekor Scout chỉ nhận diện màu xe (vehicle color), không phải màu nền biển số. Về deploy, chỉ Pradhan 2025 và đề tài này chạy trên phần cứng edge Raspberry Pi; các hệ thống còn lại dùng máy chủ riêng hoặc cloud. Về nghiệp vụ, không hệ thống nào trong số các công trình học thuật khảo sát tích hợp đầy đủ cả ALPR, session với đối chiếu chống gian lận, tính phí và dashboard trên một thiết bị biên duy nhất.
+
+\section{Trí Tuệ Nhân Tạo trên Thiết Bị Biên}
+
+\subsection{Nén Mô Hình và Lượng Tử Hóa}
+
+Triển khai suy luận trên thiết bị biên đòi hỏi nén mô hình (model compression) để phù hợp bộ nhớ và năng lực tính toán hạn chế. Lượng tử hóa INT8 (quantization) là kỹ thuật phổ biến nhất: biểu diễn trọng số và kích hoạt từ dấu phẩy động 32-bit (FP32) về số nguyên 8-bit, giảm kích thước bộ nhớ và tăng tốc tính toán nhờ phép nhân nguyên hiệu quả hơn, đổi lại một phần nhỏ độ chính xác mô hình.
+
+Sonnara và cộng sự với kiến trúc Light-Edge (backbone ResNet-18 cùng FPN, head anchor-free, head nhận dạng CTC) cung cấp bằng chứng định lượng đầy đủ nhất cho câu hỏi INT8 mất bao nhiêu mAP và được bao nhiêu tốc độ: lượng tử hóa INT8 qua TensorRT tăng throughput 4,6 lần từ 3,1 FPS lên 14,2 FPS trên Jetson Nano với input 1280×720, chỉ mất 0,4 điểm phần trăm mAP (từ 90,6\% xuống 90,2\%). Cơ chế giữ lại độ chính xác là giữ lớp đầu và lớp cuối ở FP16 (lượng tử hóa hỗn hợp) thay vì INT8 thuần~\autocite{sonnara2025lightedge}. Kết quả này liên quan trực tiếp tới kế hoạch lượng tử hóa cho Raspberry Pi 5 của đề tài, dù Jetson Nano và Raspberry Pi 5 là hai lớp phần cứng khác nhau và không thể transfer con số trực tiếp.
+
+Chakrabarty phân tích vì sao head DFL-free của YOLO26 thuận lợi hơn cho INT8: DFL dùng Softmax trên 16 bin cho mỗi cạnh box, và ``trên phần cứng NPU và DSP chuyên dụng, các lớp Softmax nổi tiếng khó lượng tử hóa và thường trở thành bottleneck latency chính''~\autocite{chakrabarty2026yolo26nmsfree}. Bỏ DFL cắt đúng op khó quantize, là biện minh kiến trúc trực tiếp cho việc xem xét YOLO26 trong pha tối ưu. Tuy nhiên, bằng chứng định lượng INT8 trên Pi 5 với ONNX Runtime vẫn cần tự đo trong đề tài.
+
+\subsection{Raspberry Pi 5 và Benchmark Thiết Bị Biên}
+
+Raspberry Pi 5 với CPU ARM Cortex-A76, ra mắt cuối 2023, là thế hệ tiếp theo đáng kể về hiệu năng so với Pi 4. Hướng dẫn triển khai chính thức của Ultralytics báo cáo YOLO26n trên Pi 5 ở 130,33 ms qua ONNX Runtime và 67,69 ms qua NCNN FP32 với input 640×640~\autocite{ultralytics2026rpiguide}. Với cascade hai lần detect (xe rồi biển số trên crop), tổng thời gian detection ước tính khoảng 260 ms qua ONNX, để lại hơn 1,5 giây trong ngân sách 2 giây cho OCR, phân loại màu và vào ra. Detection không phải điểm nghẽn chính trên Pi 5 ở FP32.
+
+Benchmark đa SBC bao gồm Pi 4/5, Jetson Nano, Jetson Orin và LattePanda xác nhận rằng YOLOv8n và YOLO11n cạnh tranh tốt trên phần cứng GPU, mô hình nano và small luôn cho hiệu năng tốt nhất trên SBC, và các mô hình thế hệ YOLO thường tiêu tốn 4 đến 12\% RAM khả dụng trên Pi 4/5~\autocite{mdpi2026sbcbenchmark}. Đây là cơ sở để đề tài chọn Raspberry Pi 5 làm nền tảng biên minh họa với biến thể nano cho cả hai detector.
+
+\section{Khoảng Trống Nghiên Cứu và Định Vị Đề Tài}
+
+\subsection{Hai Khoảng Trống Chính}
+
+Từ khảo sát sáu nhóm công trình trên có thể rút ra hai khoảng trống nghiên cứu có căn cứ.
+
+\textbf{Khoảng trống 1: Chưa hệ thống nào tích hợp trọn vẹn trên một thiết bị biên.} Bảng~\ref{tab:parking-compare} cho thấy không công trình học thuật hay sản phẩm thương mại nào kết hợp đồng thời ALPR, backend nghiệp vụ (cơ sở dữ liệu, session vào ra, đối chiếu chống gian lận, tính phí) và dashboard quản lý trực quan trên một thiết bị biên duy nhất. Pradhan 2025 gần nhất về tích hợp nhưng vẫn dùng máy chủ ngoài cho SQL Server và không có dashboard web; Safran 2024 có dashboard nhưng chạy trên server. Khảo sát mã nguồn mở cũng xác nhận: các dự án ALPR là thư viện nhận dạng thuần, các dự án dashboard là demo React không có ALPR, không dự án nào kết hợp hai phần~\autocite{pradhan2025iotparking,ammar2023multistage}. Vận hành mọi thành phần trên một Pi 5 đặt ra bài toán phân bổ tài nguyên: RAM Pi 5 chia sẻ giữa suy luận ONNX, backend FastAPI, PostgreSQL và frontend server, và cần thiết kế ưu tiên rõ để đạt mục tiêu dưới hai giây.
+
+\textbf{Khoảng trống 2: Màu nền biển số chưa được khai thác như tín hiệu phân loại.} Tại Việt Nam, màu nền biển số mang giá trị pháp lý: biển trắng cho xe cá nhân, biển vàng cho xe kinh doanh, biển xanh cho xe cơ quan nhà nước, biển đỏ cho xe ngoại giao. Thông tin này cho phép phân nhóm phương tiện ngay từ tầng thị giác mà không cần tra cứu cơ sở dữ liệu ngoài, hỗ trợ áp dụng biểu phí theo nhóm xe và phát hiện bất thường (xe biển xanh vào bãi thương mại không đúng phân khu). Tuy nhiên, không hệ thống nào trong khảo sát sử dụng màu nền biển làm tín hiệu: các sản phẩm thương mại quốc tế như Plate Recognizer và Rekor Scout chỉ nhận diện màu xe (vehicle color), hoàn toàn khác với màu biển; các hệ thống trong nước phân nhóm xe qua RFID phần cứng bổ sung thay vì tín hiệu thị giác.
+
+\subsection{Định Vị Đề Tài}
+
+Hệ thống đề xuất trong đồ án hướng tới lấp hai khoảng trống này. Một pipeline nhận diện năm thành phần (phát hiện xe, phân loại kiểu dáng, phát hiện biển số, nhận màu nền biển, đọc ký tự) gắn liền với backend FastAPI và PostgreSQL quản lý phiên gửi xe, đối chiếu biển số vào ra để phát hiện gian lận, tính phí theo nhóm phương tiện xác định qua màu biển, cùng dashboard React theo dõi thời gian thực, và toàn bộ vận hành trên một Raspberry Pi 5 duy nhất. Điểm khác biệt kỹ thuật cụ thể so với các công trình được khảo sát là: (a) khai thác màu nền biển số như tín hiệu phân loại pháp lý, (b) hỗ trợ đúng ký tự ``Đ'' trong seri biển xe máy điện Việt Nam, và (c) tích hợp hệ thống quản lý phiên đầy đủ với kiểm soát gian lận trên phần cứng biên không phụ thuộc cloud. Các chương tiếp theo trình bày thiết kế và đánh giá từng thành phần theo thứ tự: dữ liệu (Chương~\ref{ch:dulieu}), phát hiện (Chương~\ref{ch:phathien}), OCR và màu biển (Chương~\ref{ch:ocr}), phân loại phương tiện (Chương~\ref{ch:phanloai}), hệ thống nghiệp vụ (Chương~\ref{ch:hethong}), và triển khai biên (Chương~\ref{ch:trienkhai}).

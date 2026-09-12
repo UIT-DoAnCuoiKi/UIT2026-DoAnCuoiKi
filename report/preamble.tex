@@ -10,6 +10,7 @@
 % Font chính: Times New Roman (có sẵn trên macOS/Windows, đủ glyph tiếng Việt).
 % Linux: cài msttcorefonts hoặc đổi sang "Liberation Serif" / "TeX Gyre Termes".
 \setmainfont{Times New Roman}
+\setmonofont{Menlo}[Scale=0.85]   % đường dẫn, tên file, tên biến
 % \setmainfont{TeX Gyre Termes}    % <- fallback đa nền tảng (cần gói tex-gyre)
 
 % ---------- Trình bày trang ----------
@@ -19,9 +20,18 @@
 \usepackage{indentfirst}           % thụt lề dòng đầu mỗi đoạn (chuẩn VN)
 \setlength{\parindent}{1cm}
 
+% ---------- TikZ (UML diagrams: ER, sequence, use case, class — Ch7) ----------
+\usepackage{tikz}
+\usetikzlibrary{positioning,shapes.geometric,arrows.meta,fit,calc}
+
 % ---------- Đồ họa, bảng, màu ----------
 \usepackage{graphicx}
 \graphicspath{{figures/}}
+% Quy ước ảnh: MỌI \includegraphics viết KHÔNG ĐUÔI, ví dụ
+%   \includegraphics[width=0.8\textwidth]{eda_class_distribution}
+% XeLaTeX bắt .pdf (vector, nét khi in), pandoc bắt .png (nhúng được vào .docx).
+% Thứ tự ưu tiên dưới đây quyết định điều đó cho phía XeLaTeX.
+\DeclareGraphicsExtensions{.pdf,.png,.jpg}
 \usepackage{booktabs}
 \usepackage{multirow}
 \usepackage{array}
@@ -31,17 +41,14 @@
 \usepackage[font=small,labelfont=bf]{caption}
 \usepackage{enumitem}
 \usepackage{amsmath,amssymb}
-% \usepackage{siunitx}             % (tùy chọn) số & đơn vị; đặt output-decimal-marker={,}
-% \sisetup{output-decimal-marker={,}}
+\usepackage{siunitx}               % số & đơn vị, dấu phẩy thập phân theo quy ước VN
+\sisetup{output-decimal-marker={,}, group-separator={.}, group-minimum-digits=4}
 
-% ---------- Hình/bảng đánh số TOÀN CỤC (1,2,3...) như file mẫu ----------
-\usepackage{remreset}
-\makeatletter
-\@removefromreset{figure}{chapter}
-\@removefromreset{table}{chapter}
-\makeatother
-\renewcommand{\thefigure}{\arabic{figure}}
-\renewcommand{\thetable}{\arabic{table}}
+% ---------- Hình/bảng đánh số THEO CHƯƠNG (Hình 3.1, Bảng 3.1) như BieuMau ----------
+\counterwithin{figure}{chapter}
+\counterwithin{table}{chapter}
+\renewcommand{\thefigure}{\thechapter.\arabic{figure}}
+\renewcommand{\thetable}{\thechapter.\arabic{table}}
 
 % ---------- Header / footer 2 bên (fancyhdr) ----------
 \usepackage{fancyhdr}
@@ -61,16 +68,17 @@
   \renewcommand{\headrulewidth}{0.4pt}%
 }
 
-% ---------- Định dạng tiêu đề: "Chương N. Tựa", "N.M. Tựa" ----------
+% ---------- Định dạng tiêu đề: chương ngắt trang, tên IN HOA ----------
 \usepackage{titlesec}
 \titleformat{\chapter}[hang]
-  {\normalfont\Large\bfseries}
-  {\chaptertitlename\ \thechapter.}{0.6em}{}
-\titlespacing*{\chapter}{0pt}{6pt}{18pt}
-\titlelabel{\thetitle.\quad}       % thêm dấu chấm sau số mục: "1.1." , "1.1.1."
+  {\normalfont\fontsize{14}{17}\bfseries}
+  {\chaptertitlename\ \thechapter.}{0.6em}{\MakeUppercase}
+\titlespacing*{\chapter}{0pt}{0pt}{20pt}
+\titlelabel{\thetitle.\quad}       % dấu chấm sau số mục: "1.1.", "1.1.1."
 
 % ---------- Thư mục tài liệu tham khảo IEEE ----------
-\usepackage[backend=biber,style=ieee,sorting=none]{biblatex}
+\usepackage[backend=biber,style=ieee,sorting=nyt]{biblatex}
+\DeclareSourcemap{\maps[datatype=bibtex]{\map{\step[fieldsource=langid, final]\step[fieldset=keywords, origfieldval]}}}
 \addbibresource{refs.bib}
 
 % ---------- Liên kết ----------

@@ -1,0 +1,49 @@
+% figures/uml-usecase.tikz — Sơ đồ use case hệ thống bãi giữ xe
+% Nguồn: src/backend/app/deps.py, routers/{sessions,stats,payments,captures}.py
+\begin{tikzpicture}[
+  font=\small,
+  uc/.style={draw, ellipse, text centered, text width=3.4cm,
+             minimum height=0.9cm, fill=blue!7},
+  arr/.style={->, >=stealth},
+  sys/.style={draw, dashed, rounded corners=5pt, inner sep=10pt}
+]
+% Khung hệ thống
+\node[sys, minimum width=9cm, minimum height=9.5cm,
+      label=above:{\small Hệ thống quản lý bãi giữ xe}]
+      (boundary) at (5.2, -3.8) {};
+
+% Use cases
+\node[uc] (uc1) at (5.2,  -0.4) {Chụp ảnh và nhận diện tại cổng};
+\node[uc] (uc2) at (5.2,  -1.8) {Xác nhận xe vào hoặc xe ra};
+\node[uc] (uc3) at (5.2,  -3.2) {Thu phí và in biên lai};
+\node[uc] (uc4) at (5.2,  -4.6) {Xử lý tranh chấp và nhập tay};
+\node[uc] (uc5) at (5.2,  -6.0) {Tra cứu phiên và lọc đối soát};
+\node[uc] (uc6) at (5.2,  -7.4) {Xem thống kê và xuất CSV};
+
+% Nhân viên
+\node[text centered, text width=1.8cm] (staff) at (-0.6, -2.5)
+  {\footnotesize Nhân viên\\ (\texttt{staff})};
+\draw (-0.6,-1.8) circle (0.28);
+\draw (-0.6,-2.08) to (-0.6,-2.9);
+\draw (-0.6,-2.9) to (-0.85,-3.4);
+\draw (-0.6,-2.9) to (-0.35,-3.4);
+\draw (-0.6,-2.08) to (-0.85,-2.4);
+\draw (-0.6,-2.08) to (-0.35,-2.4);
+
+% Quản lý
+\node[text centered, text width=1.8cm] (mgr) at (-0.6, -6.0)
+  {\footnotesize Quản lý\\ (\texttt{admin})};
+\draw (-0.6,-5.3) circle (0.28);
+\draw (-0.6,-5.58) to (-0.6,-6.4);
+\draw (-0.6,-6.4) to (-0.85,-6.9);
+\draw (-0.6,-6.4) to (-0.35,-6.9);
+\draw (-0.6,-5.58) to (-0.85,-5.9);
+\draw (-0.6,-5.58) to (-0.35,-5.9);
+
+% Kết nối nhân viên (uc1..uc5)
+\foreach \uc in {uc1, uc2, uc3, uc4, uc5}
+  \draw[arr] (staff.east) to (\uc.west);
+% Kết nối quản lý (uc5, uc6)
+\foreach \uc in {uc5, uc6}
+  \draw[arr] (mgr.east) to (\uc.west);
+\end{tikzpicture}

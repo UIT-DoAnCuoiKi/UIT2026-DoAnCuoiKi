@@ -1,21 +1,93 @@
 % =====================================================================
-%  CHƯƠNG 9 — KẾT LUẬN  | Tuần 10 | Phụ trách: Cả 2
+%  CHƯƠNG 9. KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN         | Phụ trách: Cả 2
+%  Ngân sách: mục tiêu 4 trang, trần 4 trang
+%  Số nguồn gốc:
+%    mAP@0,5 detector:    src/ml/experiments/a1_dedup_eval.csv (0,983)
+%    OCR topkek 56,6%:    src/ml/experiments.csv (2026-08-29)
+%    OCR vn_plate 80,2%:  docs/report/tuan-07.md mục 1
+%    OCR band 40px 93,9%: docs/report/tuan-07.md mục 1
+%    Phân loại 89,97%:    src/ml/experiments.csv (resnet18)
+%    INT8 4,0 lần:        src/ml/experiments/int8_quant.csv (2026-09-12)
+%    Pi5 chưa đo:         docs/report/tuan-08.md, Ch8 Sec gialap
 % =====================================================================
 \chapter{Kết Luận và Hướng Phát Triển}
 \label{ch:ketluan}
 
 \section{Tóm Tắt Đóng Góp}
-\wip{Tổng kết: hệ thống end-to-end khả chuyển, chạy biên; số liệu chính đạt được; bộ dữ liệu tự thu thập.}
 
-\section{Sản Phẩm Bàn Giao}
-\wip{Đối chiếu "kết quả mong đợi" (đề cương): phần mềm end-to-end + dashboard; mã nguồn;
-bộ dữ liệu tự thu thập; video demo sản phẩm; báo cáo hoàn chỉnh.}
+Đề tài đã xây dựng và tích hợp một hệ thống quản lý bãi giữ xe thông minh gồm năm thành phần hoạt động liên tục trong một luồng xử lý duy nhất. Bốn đóng góp kỹ thuật chính được trình bày theo thứ tự từ tầng nhận diện tới tầng vận hành.
+
+\textbf{Pipeline nhận diện năm thành phần dùng chung runner.} Phát hiện xe, phân loại kiểu dáng, phát hiện biển số, nhận màu nền biển và đọc ký tự được tích hợp thành một luồng duy nhất trong \texttt{OnnxAlprPipeline}, dùng chung giữa backend và edge worker mà không cần sao chép mã. Kiến trúc này cho phép cùng một checkpoint ONNX chạy trên nhiều nền tảng mà không cần biên dịch lại.
+
+\textbf{Xử lý ký tự ``Đ'' cho xe máy điện.} Đề tài mở bảng ký tự OCR lên 37 ký tự và sửa toàn bộ luồng tiền xử lý lẫn suy luận từng làm rớt ký tự ``Đ''. Kết quả: trên tập test OCR 666 biển, mô hình 37 ký tự đọc đúng 10/17 biển có ``Đ'' trong khi mô hình 36 ký tự cũ rớt hoàn toàn 17/17 (Chương~\ref{ch:ocr}).
+
+\textbf{Hệ thống quản lý bãi xe end-to-end có nghiệp vụ thật.} Backend FastAPI (Chương~\ref{ch:hethong}) triển khai phiên gửi xe, đối chiếu chống gian lận theo hash và Levenshtein, tính phí theo nhóm xe với quy tắc flat, block, grace period và daily cap, phân quyền quản trị viên và nhân viên, cùng cơ chế tự động xóa dữ liệu theo quy định bảo vệ dữ liệu cá nhân. Dashboard tra cứu phiên, thống kê vận hành và xuất CSV hoàn thiện khâu quản trị.
+
+\textbf{Kiến trúc hai đường thu nhận dùng chung một runner.} Backend nhận suy luận từ hai nguồn: worker thiết bị biên gửi kết quả qua \texttt{POST /captures} kèm ảnh JPEG, hoặc client PC gọi trực tiếp pipeline trong process. Backend không suy luận lại trong cả hai trường hợp, đảm bảo tính nhất quán của kết quả nhận diện và giảm tải tính toán cho máy chủ. Tầng tối ưu ONNX và lượng tử hóa INT8 (Chương~\ref{ch:trienkhai}) giảm kích thước hai model từ tổng 44,25 MB xuống 11,14 MB (tỉ lệ nén 4,0 lần), là bước chuẩn bị thiết thực cho thiết bị biên có bộ nhớ hạn chế.
+
+\section{Đối Chiếu Mục Tiêu Đề Cương}
+
+Bảng~\ref{tab:muctieu} đối chiếu năm mục tiêu cụ thể và hai tiêu chí thành công ghi trong đề cương với trạng thái thực tế của đề tài.
+
+\begin{table}[htbp]
+\centering
+\caption{Đối chiếu mục tiêu đề cương với kết quả đạt được.}
+% Nguồn: brief task-4, Ch4--Ch8, experiments.csv, tuan-07.md, tuan-08.md.
+\label{tab:muctieu}
+\begin{tabular}{p{5cm}p{2cm}p{6cm}}
+\toprule
+\textbf{Mục tiêu / Tiêu chí} & \textbf{Trạng thái} & \textbf{Ghi chú} \\
+\midrule
+MT1: Nhận diện biển số (biển 1 hàng và 2 hàng) & Đạt & YOLOv8n mAP@0,5 = 0,983 (Bảng~\ref{tab:det-dedup}, Ch~\ref{ch:phathien}); CRNN tách dòng cả hai bố cục (Ch~\ref{ch:ocr}). \\
+MT2: Phân loại loại xe và nhận màu nền biển & Đạt một phần & ResNet18 accuracy 89,97\% trên B5 (Ch~\ref{ch:phanloai}); màu biển HSV định tính, chưa có accuracy đo được. \\
+MT3: CSDL, logic vào ra, đối chiếu, tính phí & Đạt & Backend đầy đủ: phiên, đối chiếu hash và Levenshtein, phí flat/block/grace/daily cap (Ch~\ref{ch:hethong}). \\
+MT4: Dashboard quản lý và thống kê & Đạt & Màn cổng, tra cứu phiên, thống kê, xuất CSV, phân quyền (Ch~\ref{ch:hethong}). \\
+MT5: Tối ưu ONNX và lượng tử hóa & Đạt một phần & Pipeline chạy ONNX; INT8 giảm kích thước 4,0 lần (Bảng~\ref{tab:quant}, Ch~\ref{ch:trienkhai}); latency trên Raspberry Pi 5 chưa đo. \\
+\midrule
+TC1: Độ chính xác đọc biển $>$\SI{90}{\percent} điều kiện tiêu chuẩn & Đạt có điều kiện & Đạt ở dải ảnh đủ nét ($\geq$\,40\,px/dòng: 93,9\% trên topkek); accuracy toàn tập độc lập vn\_plate 80,2\%, topkek 56,6\% (Ch~\ref{ch:ocr}, Ch~\ref{ch:trienkhai}). \\
+TC2: Độ trễ $<$ \SI{2}{giây}/xe trên Raspberry Pi 5 & Chưa kiểm chứng & Phần cứng Pi 5 thật chưa đo; thử nghiệm mới chạy giả lập trên máy host. Tiêu chí này chưa thể xác nhận (Ch~\ref{ch:trienkhai}). \\
+\bottomrule
+\end{tabular}
+% Nguồn: src/ml/experiments.csv, src/ml/experiments/a1\_dedup\_eval.csv,
+%         docs/report/tuan-07.md, docs/report/tuan-08.md.
+\end{table}
+
+Về sản phẩm bàn giao, phần mềm end-to-end cùng dashboard đã hoàn thiện, mã nguồn được quản lý trên hệ thống kiểm soát phiên bản. Dữ liệu gồm các bộ công khai kết hợp tập vn\_plate 96 biển gán nhãn thủ công và phân tích màu HSV. Video demo sản phẩm chưa được sản xuất trong khuôn khổ đề tài. Báo cáo này là sản phẩm văn bản hoàn thiện của đề tài.
 
 \section{Ứng Dụng Thực Tiễn}
-\wip{Bãi giữ xe trường học/chung cư/thương mại; khả năng mở rộng.}
+
+Hệ thống phù hợp với ba nhóm bãi giữ xe phổ biến tại Việt Nam. Bãi xe trường học và ký túc xá hưởng lợi từ cơ chế tính phí đặc thù theo nhóm xe (xe máy, ô tô) và phân quyền nhân viên cổng riêng biệt. Bãi xe chung cư có thể tận dụng truy vấn lịch sử phiên và xuất CSV để đối chiếu định kỳ với danh sách cư dân. Bãi xe thương mại hưởng lợi từ bảng thống kê vận hành theo giờ và theo ngày trên dashboard.
+
+Khả năng mở rộng của kiến trúc hiện tại được thể hiện ở hai khía cạnh. Theo chiều ngang, thêm cổng nghĩa là thêm worker thiết bị biên mới đăng ký vào cùng một backend mà không sửa mã lõi. Theo chiều dọc, thay detector YOLOv8n bằng YOLO26n hoặc thay OCR CRNN bằng model mạnh hơn chỉ đòi hỏi cập nhật đường dẫn file ONNX trong cấu hình, nhờ pipeline đã tách rời phần ONNX Runtime khỏi logic nghiệp vụ.
 
 \section{Giới Hạn}
-\wip{Nhắc lại giới hạn chính và mức độ ảnh hưởng.}
+
+\textbf{Phạm vi dữ liệu.} Tập huấn luyện toàn hệ thống được thu thập chủ yếu trong điều kiện ban ngày với ánh sáng tự nhiên đủ. Chưa có số liệu định lượng về hiệu năng ban đêm, ngược sáng hoặc biển số cũ mờ. Tập A1 sau khử trùng lặp gần còn 342 ảnh, đủ để ước lượng mAP nhưng nhỏ so với benchmark quốc tế. Chưa có tập test ảnh toàn cảnh cổng bãi xe có nhãn chuỗi ký tự biển để đo accuracy end-to-end toàn luồng.
+
+\textbf{Domain gap phân loại kiểu dáng.} Tập B5 dùng huấn luyện ResNet18 chủ yếu gồm ảnh xe trên nền trắng từ đại lý (dealer images), không phải ảnh từ camera cổng bãi xe thực tế. Accuracy 89,97\% trên tập test B5 có thể không phản ánh đúng hiệu năng trong điều kiện camera thật, góc chụp đa dạng và nền phức tạp.
+
+\textbf{Nhận màu nền biển chỉ định tính.} Mô đun xử lý màu HSV và CLAHE chưa có tập test độc lập có nhãn màu chuẩn, nên không có accuracy đo được. Đây là giới hạn đáng kể vì màu nền biển là tín hiệu phân nhóm loại phí trong nghiệp vụ.
+
+\textbf{Hiệu năng thiết bị biên chưa kiểm chứng.} Raspberry Pi 5 thật chưa được đo trực tiếp trong khuôn khổ đề tài. Mục tiêu độ trễ dưới hai giây mỗi xe chưa thể xác nhận hay bác bỏ. Lượng tử hóa INT8 động trên CPU dev hiện tại không cải thiện latency do thiếu nhân INT8 vector hóa phần cứng; hiệu quả thực tế trên ARM của Pi cần đo riêng.
+
+\textbf{Đánh giá end-to-end chưa thực hiện.} Chưa có tập dữ liệu cổng toàn luồng để đo tỉ lệ đọc biển đúng từ ảnh toàn cảnh qua toàn bộ pipeline tới ghi nhận phiên, cũng như chưa đo phân phối độ trễ thực tế qua nhiều lượt xe liên tiếp.
 
 \section{Hướng Phát Triển}
-\wip{Ngắn hạn (mở rộng dữ liệu, free-flow); trung/dài hạn (tích hợp thanh toán, đa cổng, đa camera).}
+
+\textbf{Ngắn hạn (trong vòng một học kỳ).}
+
+Thu thập ảnh điều kiện khó là bước cấp thiết nhất: bộ ảnh cổng bãi xe ban đêm, ngược sáng và biển cũ sẽ cho phép đo hiệu năng thật của toàn luồng và đào tạo bổ sung nếu cần. Đi kèm với đó, xây dựng tập test ảnh toàn cảnh có nhãn chuỗi ký tự biển số để đo accuracy end-to-end lần đầu tiên.
+
+Benchmark trực tiếp trên Raspberry Pi 5 thật là bước cần thiết để kiểm chứng tiêu chí hai giây mỗi xe: đo latency theo từng thành phần, latency toàn luồng từ trigger tới POST, và hiệu quả thực tế của lượng tử hóa INT8 trên ARM. Kết quả này sẽ quyết định có cần chuyển sang MobileNetV3-Small (6,09 MB) thay ResNet18 (42,63 MB) hay không.
+
+Xây dựng tập test màu nền biển có nhãn chuẩn, từ đó đo accuracy và điều chỉnh ngưỡng HSV theo điều kiện ánh sáng cụ thể tại bãi xe triển khai.
+
+\textbf{Trung hạn (một đến hai năm).}
+
+Nâng cấp detector lên YOLO26n để tận dụng kiến trúc không cần non-maximum suppression và Distribution Focal Loss, giảm độ trễ trên CPU. Bổ sung hàng đợi offline cho worker thiết bị biên: khi mất kết nối về backend, capture được lưu tạm và gửi lại sau khi phục hồi, tăng độ tin cậy trong môi trường mạng không ổn định.
+
+Tích hợp thanh toán điện tử (VNPay, MoMo) vào luồng tính phí hiện có. Thiết kế đã tách nghiệp vụ tính phí thành service độc lập nên điểm tích hợp rõ ràng.
+
+\textbf{Dài hạn (hơn hai năm).}
+
+Mở rộng từ mô hình cổng dừng chờ sang nhận dạng dòng xe di chuyển tốc độ cao (free-flow), đòi hỏi camera tốc độ cao, detector mạnh hơn và cơ chế tracking qua nhiều khung. Triển khai đa cổng đa camera với một backend trung tâm, kèm phân tích lưu lượng theo thời gian thực, mở ra khả năng quản lý bãi xe lớn theo cụm.
