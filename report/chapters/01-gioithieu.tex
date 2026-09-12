@@ -1,0 +1,214 @@
+% =====================================================================
+%  CHƯƠNG 1. GIỚI THIỆU                           | Phụ trách: Cả 2
+%  Ngân sách: mục tiêu 5 trang, trần 6,0 trang
+%  Nguồn: docs/DCDATN_25410104_NguyenMinhNhat_25410034_LeQuangHoaiDuc.pdf,
+%         README.md, src/ml/pipeline/onnx_pipeline.py (mô tả pipeline)
+% =====================================================================
+\chapter{Giới Thiệu}
+\label{ch:gioithieu}
+
+\section{Bối Cảnh và Động Lực}
+
+Nhu cầu quản lý bãi giữ xe tại Việt Nam tăng nhanh theo mật độ phương tiện cá nhân,
+đặc biệt là xe máy vốn chiếm tỷ trọng áp đảo trong cơ cấu phương tiện. Mật độ phương
+tiện cao tạo áp lực lớn lên hạ tầng đỗ xe tại các đô thị lớn như Thành phố Hồ Chí
+Minh và Hà Nội. Phần lớn bãi xe hiện tại vẫn vận hành theo mô hình thủ công hoặc thẻ
+từ: nhân viên kiểm tra thẻ hoặc biển số bằng mắt, ghi chép giấy tờ và thu phí trực
+tiếp. Cách làm này tiêu tốn nhân lực ở cổng, dễ phát sinh sai sót khi đối chiếu xe
+vào ra, và không lưu lại bằng chứng hình ảnh khi có tranh chấp quyền sở hữu phương
+tiện. Không có dữ liệu vận hành có thể truy vấn, người quản lý cũng không thể thống
+kê lưu lượng, doanh thu hay phát hiện bất thường một cách hệ thống.
+
+Thị giác máy tính cùng các mô hình phát hiện đối tượng hiện đại cho phép tự động hóa
+khâu nhận diện phương tiện tại cổng, thay thế toàn bộ quy trình thẻ từ bằng luồng
+chụp ảnh, phân tích và ghi nhận tức thì. Hướng tiếp cận này không chỉ giảm phụ thuộc
+vào thao tác của con người mà còn tạo ra một lớp dữ liệu vận hành liên tục: mỗi lượt
+xe là một bản ghi có thời gian, biển số, loại xe và ảnh toàn cảnh, từ đó mở ra khả
+năng thống kê và phân tích hành vi lưu thông.
+
+Xu hướng đưa suy luận xuống thiết bị biên ngày càng rõ trong các hệ thống bãi xe
+thông minh~\autocite{pradhan2025iotparking,arukonda2026smartparking,rani2024ips}. Mô
+hình vận hành truyền thống yêu cầu video từ camera cổng liên tục được truyền lên máy
+chủ trung tâm hoặc cloud để xử lý, dẫn đến ba nhược điểm: độ trễ tăng khi đường
+truyền tắc nghẽn, chi phí máy chủ và băng thông theo số lượng bãi xe, và hình ảnh
+phương tiện cùng biển số được truyền liên tục ra ngoài mạng nội bộ. Nhược điểm thứ ba
+đặc biệt đáng chú ý khi Luật Bảo vệ dữ liệu cá nhân của Việt Nam, có hiệu lực từ
+ngày 01/01/2026, xếp biển số xe và ảnh nhận dạng cá nhân vào nhóm dữ liệu cá nhân
+cần được bảo vệ, kiểm soát truy cập và hạn chế lưu trữ~\autocite{vn2025lutbvdlcn}.
+Đẩy suy luận xuống thiết bị biên cho phép xử lý và quyết định ngay tại chỗ, chỉ ghi
+nhận thông tin thiết yếu vào cơ sở dữ liệu mà không cần truyền luồng video thô ra
+ngoài.
+
+Kỹ thuật tối ưu mô hình như lượng tử hóa và chuyển đổi sang định dạng ONNX đã thu
+hẹp khoảng cách hiệu năng giữa thiết bị biên và máy chủ~\autocite{mdpi2026sbcbenchmark,sonnara2025lightedge}.
+Raspberry Pi 5 với CPU ARM Cortex-A76 đã đủ khả năng chạy các mô hình phát hiện
+cỡ nano ở tốc độ chấp nhận được khi mô hình được xuất ONNX và tối ưu phù hợp, mở ra
+triển vọng triển khai bãi xe thông minh mà không cần đầu tư vào máy chủ chuyên dụng.
+Đề tài này đặt trọng tâm vào khả năng chạy trọn vẹn một hệ thống quản lý bãi xe trên
+một thiết bị biên đơn lẻ, thay vì chỉ dừng ở khâu nhận dạng như phần lớn công trình
+trước đó.
+
+\section{Vấn Đề Đặt Ra}
+
+\textbf{Đặc thù biển số Việt Nam.}
+Ô tô dùng biển một hàng còn xe máy dùng biển hai hàng, đòi hỏi bước tách dòng trước
+khi đọc ký tự. Đây không phải vấn đề thuần kỹ thuật mà gắn với quy định về biển số
+xe của Bộ Công an Việt Nam: biển hai hàng là đặc trưng riêng của xe
+máy trong nước và gần như không xuất hiện trong các bộ dữ liệu quốc tế, nên các
+pipeline ALPR thông dụng xử lý sai hoặc bỏ sót hoàn toàn. Ngoài ra, seri MĐ và TĐ
+của xe máy điện chứa ký tự ``Đ'' nằm ngoài bảng ký tự của các engine OCR tiếng Anh
+thông dụng, khiến các công cụ có sẵn nhận sai ngay ở tầng dữ liệu~\autocite{tran2025vietnamlpr,le2023motorcycleplate}.
+Mở rộng bảng ký tự và điều chỉnh bước tiền xử lý phải được thực hiện có chủ đích,
+không thể tái sử dụng trực tiếp mô hình huấn luyện cho biển số nước ngoài.
+
+\textbf{Thiếu dữ liệu phù hợp.}
+Chưa có bộ dữ liệu bãi xe Việt Nam nào gán nhãn đồng thời cho biển số, loại xe và
+màu nền biển, nên phải kết hợp nhiều nguồn công khai và tự thu thập bổ sung. Các bộ
+dữ liệu quốc tế như CCPD hay UFPR-ALPR chỉ gán nhãn vùng biển và ký tự, không có
+thông tin màu nền hay loại phương tiện theo phân loại pháp lý Việt Nam. Phần lớn ảnh
+trong bộ công khai trong nước được thu trong điều kiện ánh sáng tốt, không đại diện
+cho môi trường cổng bãi xe thực tế với chiếu sáng ngược, mưa hoặc đêm tối. Bài toán
+ghép nhiều nguồn dữ liệu không đồng nhất đòi hỏi quy trình làm sạch, chuẩn hóa nhãn
+và kiểm soát chất lượng nghiêm ngặt để tránh rò rỉ giữa tập huấn luyện và kiểm tra.
+
+\textbf{Ràng buộc tài nguyên thiết bị biên.}
+Thiết bị biên có bộ nhớ RAM hạn chế và không có GPU rời, buộc các mô hình phải có
+kích thước nhỏ và được tối ưu thì mới đạt độ trễ chấp nhận được trong vận hành thực
+tế~\autocite{mdpi2026sbcbenchmark,sonnara2025lightedge}. Pipeline của đề tài gọi năm
+bước suy luận liên tiếp trên cùng một khung ảnh (phát hiện xe, phân loại kiểu dáng,
+phát hiện biển, nhận màu, đọc ký tự), nên tích lũy độ trễ theo chiều dài pipeline.
+Đạt mục tiêu dưới 2 giây trên Raspberry Pi 5 đòi hỏi lựa chọn cẩn thận kích thước
+mô hình, độ phân giải đầu vào và định dạng tối ưu cho từng bước, chứ không chỉ đơn
+giản là dùng mô hình nhỏ nhất sẵn có.
+
+\textbf{Thiếu hệ thống end-to-end có nghiệp vụ thật.}
+Phần lớn công trình dừng ở nhận dạng biển số, không xử lý phiên gửi xe, đối chiếu
+chống gian lận và tính phí, nên khoảng cách giữa kết quả nghiên cứu và một sản phẩm
+vận hành được vẫn còn lớn. Một hệ thống bãi xe thật cần phân biệt được xe vào và xe
+ra trên cùng biển số, phát hiện trường hợp biển số vào không khớp với biển số ra (xe
+hoán đổi biển), áp dụng biểu phí khác nhau theo nhóm phương tiện, và lưu ảnh toàn
+cảnh làm bằng chứng. Chưa kể, giao diện quản lý và khả năng tra cứu thời gian thực
+là điều kiện thiết yếu để nhân viên vận hành thực sự sử dụng hệ thống thay vì quay
+về quy trình thủ công.
+
+\section{Mục Tiêu, Phạm Vi và Tiêu Chí Thành Công}
+
+\subsection{Mục Tiêu Tổng Quát}
+
+Mục tiêu tổng quát là xây dựng một hệ thống quản lý bãi giữ xe thông minh, tự động
+nhận diện phương tiện gồm biển số, loại xe và màu nền biển, thiết kế theo hướng độc
+lập nền tảng và ưu tiên triển khai trên thiết bị biên. Hệ thống bao gồm cả phần
+suy luận thị giác máy tính lẫn phần nghiệp vụ quản lý vào ra, tính phí và dashboard
+thống kê, vận hành được đồng thời trên máy chủ, PC và thiết bị biên với cùng một bộ
+mã nguồn.
+
+\subsection{Mục Tiêu Cụ Thể}
+
+Năm mục tiêu cụ thể theo đề cương được liệt kê dưới đây.
+
+\textbf{Mục tiêu 1: Mô đun nhận diện biển số.}
+Xây dựng mô đun phát hiện vùng biển số và đọc ký tự (OCR), hỗ trợ cả biển một hàng
+của ô tô và biển hai hàng của xe máy tại Việt Nam, bao gồm xử lý đúng ký tự ``Đ''
+trong seri biển xe máy điện.
+
+\textbf{Mục tiêu 2: Mô đun phân loại phương tiện và nhận màu nền biển.}
+Xây dựng mô đun phân loại loại phương tiện theo bốn lớp (ô tô, xe máy, xe tải, xe
+buýt) và nhận diện màu nền biển số (trắng, vàng, xanh, đỏ) để phân nhóm xe cá nhân,
+kinh doanh và cơ quan nhà nước theo quy định về biển số của Bộ Công an.
+
+\textbf{Mục tiêu 3: Cơ sở dữ liệu và logic quản lý vào ra.}
+Xây dựng cơ sở dữ liệu và lớp nghiệp vụ ghi nhận thời gian vào ra, đối chiếu biển
+số vào ra để phát hiện gian lận, lưu ảnh toàn cảnh làm bằng chứng và tính phí gửi
+xe tự động theo nhóm phương tiện.
+
+\textbf{Mục tiêu 4: Dashboard quản lý và thống kê.}
+Xây dựng giao diện quản lý theo dõi xe ra vào theo thời gian thực, tra cứu phương
+tiện trong bãi, thống kê theo loại xe, màu biển, lưu lượng theo giờ và doanh thu.
+
+\textbf{Mục tiêu 5: Thiết kế khả chuyển và tối ưu cho thiết bị biên.}
+Thiết kế kiến trúc độc lập nền tảng, tối ưu mô hình bằng ONNX và lượng tử hóa
+(quantization), chứng minh khả năng chạy trên thiết bị biên bằng cách minh họa cụ
+thể trên Raspberry Pi 5.
+
+\subsection{Phạm Vi}
+
+Đề tài giới hạn trong mô hình cổng bãi xe, tức là phương tiện dừng tại cổng để xử
+lý thay vì di chuyển tốc độ cao (free-flow). Phương tiện trọng tâm là xe máy và ô
+tô, chiếm tỷ trọng áp đảo tại các bãi xe đô thị Việt Nam; mô hình phân loại vẫn
+hướng tới đủ bốn lớp (ô tô, xe máy, xe tải, xe buýt) nhưng đánh giá sâu tập trung
+vào hai lớp chính. Đề tài không xử lý bài toán nhận diện dòng xe di chuyển tốc độ
+cao, chưa đề cập phân tích nhiều camera đồng thời và không tích hợp hệ thống kiểm
+soát cơ học như barrier hay đèn tín hiệu.
+
+Dữ liệu huấn luyện kết hợp các bộ công khai có nguồn gốc Việt Nam với phần tự gán
+nhãn bổ sung. Hệ thống được thiết kế độc lập nền tảng và minh họa trên một thiết bị
+biên duy nhất là Raspberry Pi 5. Biển số xe và ảnh phương tiện là dữ liệu cá nhân
+theo Luật Bảo vệ dữ liệu cá nhân có hiệu lực từ 01/01/2026; hệ thống thực thi kiểm
+soát truy cập, mã hóa trường nhạy cảm và tự xóa bản ghi sau thời hạn lưu
+trữ~\autocite{vn2025lutbvdlcn}.
+
+\subsection{Tiêu Chí Thành Công}
+
+Hai tiêu chí thành công định lượng theo cam kết đề cương là:
+
+\begin{itemize}
+  \item Độ chính xác đọc biển số đạt trên \SI{90}{\percent} trong điều kiện tiêu
+        chuẩn (cổng bãi xe, ánh sáng đủ, xe dừng hoặc tốc độ thấp).
+  \item Độ trễ end-to-end dưới \SI{2}{giây} mỗi lượt xe khi chạy trên Raspberry Pi 5.
+\end{itemize}
+
+Chương~\ref{ch:ketluan} đối chiếu lại hai con số này với kết quả đo thực nghiệm.
+
+\section{Đóng Góp của Đề Tài}
+
+\textbf{Pipeline nhận diện năm thành phần.}
+Đề tài tích hợp phát hiện xe, phân loại kiểu dáng, phát hiện biển số, nhận màu nền
+biển và đọc ký tự thành một luồng chạy trên cùng một khung ảnh, dùng chung giữa
+backend máy tính và edge worker (Hình~\ref{fig:pipeline}). Thiết kế này giảm số lần
+tải ảnh và đồng bộ bộ nhớ, đồng thời cho phép cùng một runner phục vụ cả hai nền
+tảng mà không cần viết lại mã suy luận.
+
+\textbf{Xử lý ký tự ``Đ''.}
+Đề tài mở bảng ký tự lên 37 ký tự và sửa các điểm trong tiền xử lý cùng suy luận
+từng làm mất ký tự này, nhờ đó đọc đúng biển seri MĐ và TĐ của xe máy điện. Đây là
+điểm khác biệt quan trọng so với các engine OCR tiếng Anh được dùng lại trực tiếp
+mà không điều chỉnh bảng ký tự.
+
+\textbf{Hệ thống quản lý bãi xe end-to-end.}
+Hệ thống không chỉ nhận dạng mà còn có phiên gửi xe, đối chiếu chống gian lận, tính
+phí theo nhóm xe, phân quyền người dùng và tự động xóa dữ liệu theo quy định Luật
+Bảo vệ dữ liệu cá nhân. Đây là điểm mà phần lớn công trình học thuật về ALPR không
+đề cập.
+
+\textbf{Kiến trúc hai đường thu nhận dùng chung một runner.}
+Một runner suy luận duy nhất phục vụ cả máy tính lẫn thiết bị biên, cho phép cùng
+một bộ mã chạy trên nhiều nền tảng mà không cần bảo trì hai codebase song song.
+Chương~\ref{ch:trienkhai} trình bày kết quả đo thực nghiệm trên Raspberry Pi 5 và
+so sánh với kết quả trên PC.
+
+% Nguồn hình: report/figures/pipeline.pdf và pipeline.png, dựng từ TikZ
+% theo src/ml/pipeline/onnx_pipeline.py phương thức run()
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.92\textwidth]{pipeline}
+\caption{Pipeline nhận diện phương tiện, gồm nhánh phân loại xe và nhánh đọc biển số.}
+
+\footnotesize Nguồn: dựng từ \texttt{src/ml/pipeline/onnx\_pipeline.py}.
+\label{fig:pipeline}
+\end{figure}
+
+\section{Cấu Trúc Báo Cáo}
+
+Chương~\ref{ch:lienquan} khảo sát họ kiến trúc YOLO, các hệ thống ALPR và bãi xe
+liên quan, rồi định vị khoảng trống của đề tài. Chương~\ref{ch:dulieu} trình bày
+quy định biển số Việt Nam, các bộ dữ liệu, phân tích khám phá và tiền xử lý.
+
+Chương~\ref{ch:phathien} trình bày huấn luyện và đánh giá detector xe và biển số.
+Chương~\ref{ch:ocr} trình bày mô hình đọc ký tự cùng mô đun nhận màu nền biển.
+
+Chương~\ref{ch:phanloai} trình bày phân loại kiểu dáng phương tiện và lựa chọn mô
+hình cho thiết bị biên. Chương~\ref{ch:hethong} trình bày kiến trúc hệ thống, cơ
+sở dữ liệu, logic vào ra, tính phí và dashboard.
+
+Chương~\ref{ch:trienkhai} trình bày triển khai trên Raspberry Pi 5, đóng gói ONNX
+và so sánh hiệu năng giữa máy tính và thiết bị biên. Chương~\ref{ch:ketluan} tổng
+kết đóng góp, đối chiếu đề cương và nêu hướng phát triển.

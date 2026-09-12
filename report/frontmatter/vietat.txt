@@ -1,0 +1,8 @@
+ALPR = Automatic License Plate Recognition
+CER = Character Error Rate
+CLAHE = Contrast Limited Adaptive Histogram Equalization
+CTC = Connectionist Temporal Classification
+mAP = mean Average Precision
+OCR = Optical Character Recognition
+ONNX = Open Neural Network Exchange
+YOLO = You Only Look Once

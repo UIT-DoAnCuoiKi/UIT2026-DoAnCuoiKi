@@ -1,0 +1,3 @@
+model,acc_fp32,acc_int8,size_fp32_mb,size_int8_mb,cpu_ms_fp32,cpu_ms_int8
+vehicle-style-resnet18,,,42.63,10.71,15.09,41.91
+plate-ocr-crnn,,,1.62,0.43,1.01,2.69

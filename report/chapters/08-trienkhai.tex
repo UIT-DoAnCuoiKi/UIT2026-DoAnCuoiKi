@@ -1,0 +1,234 @@
+% =====================================================================
+%  CHƯƠNG 8 — TRIỂN KHAI THIẾT BỊ BIÊN VÀ ĐÁNH GIÁ
+%  Phụ trách: Nhật (tối ưu mô hình) + Đức (đóng gói, worker, giao thức)
+%  Ngân sách: mục tiêu 11 trang
+%
+%  Số nguồn gốc — ĐỌC TRƯỚC KHI SỬA:
+%    src/ml/experiments/a1_dedup_eval.csv  → tab:eval-components (detector)
+%    src/ml/experiments.csv dòng 2026-08-29 → tab:eval-components (OCR 37 ký tự)
+%    docs/report/tuan-07.md mục 1          → OCR vn_plate 80,2%
+%    src/ml/experiments.csv dòng resnet18  → tab:eval-components (phân loại)
+%    src/ml/experiments/int8_quant.csv     → tab:quant (đo ngày 2026-09-12)
+%    src/edge/worker.py                    → mô tả worker
+%    src/ml/pipeline/onnx_pipeline.py      → mô tả pipeline ONNX
+%    docs/report/tuan-08.md               → trạng thái Pi5 giả lập
+% =====================================================================
+\chapter{Triển Khai Trên Thiết Bị Biên và Đánh Giá}
+\label{ch:trienkhai}
+
+Chương này trình bày việc đóng gói, triển khai và đánh giá hệ thống trên môi trường thiết bị biên, tập trung vào ba nội dung chính: tối ưu mô hình (xuất ONNX và lượng tử hóa INT8), thiết kế worker chạy tại cổng, và đánh giá hiệu năng theo từng thành phần. Phần đo hiệu năng trực tiếp trên Raspberry Pi 5 thật được đánh dấu rõ là chưa thực hiện và sẽ được hoàn thiện trong pha tiếp theo.
+
+\section{Nền Tảng Phần Cứng Mục Tiêu}
+\label{sec:trienkhai-phancung}
+
+Raspberry Pi 5 được chọn làm nền tảng biên minh họa vì ba lý do. Thứ nhất, bộ xử lý ARM Cortex-A76 lõi tứ 2,4 GHz và 8 GB LPDDR4X RAM cùng chip RP1 I/O cho phép chạy các mô hình YOLO cỡ nano với ONNX Runtime mà không cần GPU rời~\autocite{ultralytics2026rpiguide}. Thứ hai, theo benchmark trên nhiều loại máy tính đơn bo (single-board computer), YOLO26n trên Raspberry Pi 5 đạt khoảng 130 ms mỗi ảnh với backend ONNX, để lại ngân sách đủ cho OCR và logic trong giới hạn hai giây~\autocite{mdpi2026sbcbenchmark}. Thứ ba, thiết bị có sẵn trên thị trường Việt Nam, chi phí thấp, hệ sinh thái phần mềm Debian đầy đủ, và tích hợp được camera CSI lẫn GPIO cho cảm biến kích hoạt.
+
+Raspberry Pi 5 phù hợp với bài toán cổng bãi xe kiểu dừng chờ (stop-and-process): xe dừng tại cổng trong vài giây, hệ thống chụp một khung rồi xử lý, khác với bài toán nhận dạng dòng xe tốc độ cao vốn đòi hỏi GPU thật.
+
+\section{Tối Ưu Mô Hình}
+\label{sec:trienkhai-toiuu}
+
+\subsection{Xuất ONNX và Khớp Checkpoint}
+\label{subsec:trienkhai-onnx}
+
+Hệ thống chạy OCR (CRNN, 37 ký tự) và phân loại kiểu dáng (ResNet18) qua ONNX Runtime, không phụ thuộc PyTorch khi suy luận. Detector biển số (YOLOv8n) tiếp tục chạy qua Ultralytics vì file \texttt{.pt} có sẵn trong luồng huấn luyện. Việc tách phần phụ thuộc nặng (PyTorch) ra khỏi đường suy luận chính là bước cần thiết để triển khai trên thiết bị có bộ nhớ hạn chế.
+
+Trong quá trình phát triển, phát hiện một lỗi ảnh hưởng đến tất cả các phiên bản ONNX của OCR trước tuần 7: hàm \texttt{train\_crnn()} lưu checkpoint \texttt{.pt} từ epoch có validation CER thấp nhất, nhưng trả về biến \texttt{model} ở \textbf{epoch cuối} và các script export dùng biến này để sinh \texttt{.onnx}. Kết quả là file \texttt{.onnx} là một model khác, kém hơn, so với model đã đo accuracy. Sau khi sửa tại gốc (nạp lại checkpoint tốt nhất trước khi trả về), kiểm chứng trên toàn bộ 666 biển test cho thấy \textbf{666/666 dự đoán khớp tuyệt đối giữa \texttt{.pt} và \texttt{.onnx}}, chênh lệch confidence ở mức \(4 \times 10^{-7}\) (nhiễu số thực bình thường khi đổi độ chính xác). Đây là bằng chứng xác nhận file ONNX đang được triển khai là đúng model đã báo cáo accuracy.
+
+\subsection{Lượng Tử Hóa INT8}
+\label{subsec:trienkhai-int8}
+
+Lượng tử hóa động INT8 (dynamic quantization) được áp dụng cho cả hai model ONNX bằng \texttt{onnxruntime.quantization.quantize\_dynamic} với \texttt{weight\_type=QInt8}. Phương pháp này lượng tử trọng số tĩnh sang INT8 trong khi activation vẫn tính ở FP32 theo từng lô, không cần tập hiệu chuẩn (calibration set), phù hợp với trường hợp không có GPU~\autocite{sonnara2025lightedge}.
+
+% Nguồn số: src/ml/experiments/int8_quant.csv, đo ngày 2026-09-12 trên CPU macOS ARM
+% (Apple M-series), không phải trên Raspberry Pi 5; số latency KHÔNG dùng để suy ra
+% Pi5. Kích thước file là kết quả chắc chắn, phản ánh đúng trên mọi nền tảng.
+\begin{table}[htbp]
+\centering
+\caption{Kết quả lượng tử hóa INT8 động cho hai model ONNX của hệ thống.}
+% Nguồn: src/ml/experiments/int8\_quant.csv (đo ngày 2026-09-12, CPU Apple ARM).
+% Cột latency đo trên máy dev (không phải Pi5) — chỉ để tham khảo xu hướng.
+\label{tab:quant}
+\begin{tabular}{lrrrr}
+\toprule
+\textbf{Mô hình} & \textbf{Kích thước FP32 (MB)} & \textbf{Kích thước INT8 (MB)} & \textbf{Tỉ lệ nén} & \textbf{Ghi chú} \\
+\midrule
+vehicle-style-resnet18 & 42,63 & 10,71 & 4,0 lần & Latency CPU: xem bên dưới \\
+plate-ocr-crnn         &  1,62 &  0,43 & 3,8 lần & \\
+\midrule
+\textbf{Tổng hai model} & 44,25 & 11,14 & 4,0 lần & \\
+\bottomrule
+\end{tabular}
+% Nguồn: đo bằng onnxruntime.quantization.quantize\_dynamic, weight\_type=QInt8.
+\end{table}
+
+Kết quả đo (Bảng~\ref{tab:quant}) cho thấy kích thước hai model giảm từ tổng 44,25 MB xuống còn 11,14 MB, tỉ lệ nén trung bình 4,0 lần. Đây là lợi ích thiết thực cho thiết bị biên: bộ nhớ tải model nhỏ hơn và thời gian khởi động nhanh hơn.
+
+Tuy nhiên, trên môi trường đo hiện tại (CPU ARM không có nhân INT8 vector hóa phần cứng cho ONNX Runtime dynamic quantization), latency của bản INT8 \textit{cao hơn} bản FP32 (resnet18: 41,91 ms so với 15,09 ms; CRNN: 2,69 ms so với 1,01 ms). Đây là hành vi đã biết của \texttt{quantize\_dynamic} trên CPU mà không có OpenBLAS hoặc ACL (Arm Compute Library): dequantization theo lô xảy ra mỗi inference thay vì được cache lại~\autocite{sonnara2025lightedge}. Cải thiện latency thực tế trên Raspberry Pi 5 phụ thuộc vào backend ONNX Runtime được biên dịch cho ARM, cần đo trực tiếp trên phần cứng đích. Accuracy của model INT8 chưa đo được do cần môi trường đầy đủ với tập test OCR trên cùng phiên; hai cột \texttt{acc\_fp32}/\texttt{acc\_int8} được giữ trống trong CSV thực nghiệm.
+
+\subsection{Khả Chuyển Đa Nền Tảng}
+\label{subsec:trienkhai-khachuyển}
+
+Thiết kế pipeline suy luận (\texttt{OnnxAlprPipeline} trong \texttt{src/ml/pipeline/onnx\_pipeline.py}) độc lập với nền tảng theo hai cách: không ràng buộc vào hệ điều hành cụ thể và không phụ thuộc GPU. ONNX Runtime hỗ trợ \texttt{CPUExecutionProvider} trên tất cả nền tảng từ Linux ARM (Raspberry Pi) đến macOS và Windows, nên cùng một file \texttt{.onnx} chạy được trên máy tính và thiết bị biên mà không cần biên dịch lại.
+
+Khi nâng cấp lên phần cứng mạnh hơn (như NVIDIA Jetson), TensorRT cung cấp khả năng lượng tử hóa tĩnh INT8/FP16 với calibration set và nhân GPU tối ưu, cho tốc độ vượt trội so với ONNX Runtime CPU. Kiến trúc pipeline hiện tại có thể chuyển sang \texttt{TensorrtExecutionProvider} hoặc \texttt{CUDAExecutionProvider} mà không thay đổi logic nghiệp vụ, vì toàn bộ xử lý hậu kỳ (hậu xử lý bounding box, đọc biển, tính màu) nằm ngoài vòng ONNX Runtime.
+
+\section{Đóng Gói và Triển Khai Tại Cổng}
+\label{sec:trienkhai-donggoi}
+
+Worker thiết bị biên (\texttt{src/edge/worker.py}) được thiết kế theo nguyên tắc tách biệt phần cứng và logic, gồm bốn thành phần giao tiếp qua Protocol:
+
+\textbf{Trigger} nhận tín hiệu có xe: \texttt{KeyTrigger} chờ Enter từ stdin (chế độ phát triển) và \texttt{GpioTrigger} chờ cạnh lên của nút hoặc cảm biến hồng ngoại qua thư viện \texttt{gpiozero} (trên Raspberry Pi). Import \texttt{gpiozero} được bảo vệ bằng \texttt{try/except ImportError}, nên môi trường phát triển không có thư viện này không bị crash.
+
+\textbf{Camera} đọc khung ảnh: \texttt{OpenCvCamera} bọc \texttt{cv2.VideoCapture}, nhận index thiết bị (số nguyên), đường dẫn file hoặc URL RTSP, phù hợp với cả camera USB lẫn camera CSI trên Pi.
+
+\textbf{Pipeline} chạy suy luận: kết nối tới \texttt{OnnxAlprPipeline.run(image\_bgr)}, trả về dict trùng schema \texttt{PipelinePayload} của backend, gồm loại xe, kiểu dáng, danh sách biển số kèm màu và chuỗi ký tự.
+
+\textbf{CapturePoster} gửi kết quả về backend qua \texttt{POST /captures}: đính kèm ảnh JPEG và payload JSON trong multipart request, xác thực bằng header \texttt{X-Edge-Key}. Lỗi mạng hoặc phản hồi 5xx kích hoạt retry tối đa 3 lần với backoff tuyến tính; lỗi 4xx (cấu hình sai) không retry. Backend nhận payload này \textbf{không suy luận lại} mà chỉ ghi nhận và tạo phiên gửi xe, đảm bảo kết quả nhận dạng đến từ đúng model trên thiết bị biên.
+
+Vòng lặp worker hoạt động như sau: chờ trigger, đọc frame, chạy pipeline, mã hóa JPEG, gửi POST. Mỗi bước lỗi chỉ bỏ capture đó và tiếp tục vòng lặp, không sập worker. Tính năng hàng đợi offline (ghi tạm và gửi lại khi kết nối phục hồi) được thiết kế sẵn trong kiến trúc nhưng chưa triển khai, dự kiến cho pha sau.
+
+\section{Chạy Thử Trên Môi Trường Giả Lập}
+\label{sec:trienkhai-gialap}
+
+\wip{Phần này sẽ được hoàn thiện khi có Raspberry Pi 5 thật. Hiện tại môi trường thử nghiệm chạy trực tiếp trên máy host thay vì trong container (container trên macOS gặp lỗi EINTR khi đọc thư mục bind mount từ libkrun). Toàn tuyến từ worker đến backend đã kiểm tra được trên host, xác nhận backend nhận payload đã suy luận kèm ảnh JPEG mà không suy luận lại. Chờ phần cứng Raspberry Pi 5 để đo độ trễ thật.}
+
+\section{Giao Thức Đánh Giá}
+\label{sec:trienkhai-giaothuc}
+
+Đánh giá hiệu năng theo thành phần được thực hiện trên máy tính phát triển (CPU, không GPU) để phản ánh điều kiện gần nhất với thiết bị biên. Mỗi thành phần được đánh giá độc lập trên tập kiểm tra tương ứng, sau đó kết quả được tổng hợp vào một bảng chung.
+
+Tập kiểm tra cho từng thành phần:
+
+\begin{itemize}[noitemsep]
+  \item \textbf{Detector biển số:} 342 ảnh từ tập A1 sau khử trùng lặp gần (pHash Hamming $\leq 5$), loại 230 ảnh gần trùng với tập train. Nguồn: \texttt{src/ml/experiments/a1\_dedup\_eval.csv}.
+  \item \textbf{OCR:} 666 biển từ tập \texttt{topkek\_plate\_ocr} test split và 96 biển từ tập \texttt{vn\_plate} được gán nhãn thủ công. Nguồn: \texttt{src/ml/experiments.csv} và \texttt{docs/report/tuan-07.md}.
+  \item \textbf{Phân loại kiểu dáng:} 987 ảnh từ tập test B5 (Vehicle Body Style Dataset). Nguồn: \texttt{src/ml/experiments.csv} dòng resnet18.
+  \item \textbf{Màu nền biển:} chưa có tập test độc lập có nhãn màu đo được; xem ghi chú tại Bảng~\ref{tab:eval-components}.
+\end{itemize}
+
+So sánh giữa PC và Raspberry Pi 5 sẽ thực hiện sau khi có phần cứng đích. Số lần lặp cho đo latency: 30 lần sau 5 lần khởi động (warmup), lấy trung bình trên CPU.
+
+\section{Đánh Giá Theo Thành Phần}
+\label{sec:trienkhai-thanhphan}
+
+Bảng~\ref{tab:eval-components} tổng hợp kết quả đánh giá từng thành phần của pipeline nhận diện. Tất cả các số đã được kiểm chứng từ file nguồn ghi trong phần tiêu đề chương; số chưa có tập test đo được ghi rõ bằng nhãn chờ.
+
+% Nguồn từng dòng:
+%   Detector:      src/ml/experiments/a1_dedup_eval.csv (model=yolov8n_s0, run_date=2026-09-12)
+%   OCR topkek:    src/ml/experiments.csv dòng 2026-08-29, model=crnn_ctc, acc=0.5661
+%   OCR vn_plate:  docs/report/tuan-07.md mục 1 (80,2%, model 37 ký tự)
+%   Phân loại:     src/ml/experiments.csv dòng resnet18 (acc=0.8997, f1_macro=0.9012)
+%   Màu biển:      chưa có số đo được
+\begin{table}[htbp]
+\centering
+\caption{Tổng hợp hiệu năng các thành phần của pipeline nhận diện phương tiện.}
+% Nguồn: xem comment ở phần tiêu đề bảng trên.
+\label{tab:eval-components}
+\begin{tabular}{llll}
+\toprule
+\textbf{Thành phần} & \textbf{Mô hình} & \textbf{Chỉ số} & \textbf{Kết quả} \\
+\midrule
+Phát hiện biển số & YOLOv8n (A1, sau dedup)
+  & mAP@0,5        & 0,983 \\
+  & & mAP@0,5:0,95   & 0,834 \\
+\midrule
+OCR biển số & CRNN 37 ký tự (có ``Đ'')
+  & Accuracy (topkek, 666 biển)  & 56,6\% \\
+  & & Accuracy (vn\_plate, 96 biển) & 80,2\% \\
+\midrule
+Phân loại kiểu dáng & ResNet18 (B5, 3 lớp)
+  & Accuracy       & 89,97\% \\
+  & & F1-macro       & 90,12\% \\
+\midrule
+Màu nền biển số & HSV + ngưỡng màu
+  & Accuracy       & \ph{Chưa có tập test có nhãn màu} \\
+\bottomrule
+\end{tabular}
+% Nguồn: a1\_dedup\_eval.csv; experiments.csv; tuan-07.md.
+\end{table}
+
+\textbf{Nhận xét về kết quả phát hiện biển.} Giá trị mAP@0,5 = 0,983 trên tập 342 ảnh sau khử trùng lặp gần thấp hơn một chút so với 0,989 trên tập đầy đủ 572 ảnh (trước khử trùng). Mức giảm nhỏ (0,6 điểm) cho thấy phần lớn ảnh train không trùng lặp với test, nhưng vẫn tồn tại khoảng 40\% ảnh trong tập test có ảnh gần trùng trong tập train (Hamming $\leq 5$). Số 0,983 là ước lượng đáng tin hơn cho khả năng tổng quát hóa của mô hình (xem thêm Chương~\ref{ch:phathien}, Bảng~\ref{tab:det-dedup}).
+
+\textbf{Nhận xét về OCR.} Khoảng cách lớn giữa accuracy trên topkek (56,6\%) và vn\_plate (80,2\%) phản ánh sự khác biệt về nguồn gốc tập test: topkek cùng nguồn phân phối với tập train, còn vn\_plate là tập độc lập được gán nhãn thủ công từ ảnh thực tế với điều kiện gần hơn với triển khai. Phân tích lỗi trên tập train (4.167 ký tự) cho thấy 64\% lỗi là nhầm lẫn giữa các chữ số (1 và 7, 6 và 8, 8 và 9), phù hợp với ảnh hưởng của độ phân giải thấp đã ghi nhận trong Chương~\ref{ch:ocr}. Mô hình 37 ký tự (có ``Đ'') đọc đúng 10/17 ký tự ``Đ'' trên tập kiểm tra, trong khi mô hình 36 ký tự cũ rớt hoàn toàn 17/17.
+
+\textbf{Nhận xét về phân loại kiểu dáng.} ResNet18 đạt F1-macro 90,12\% trên ba lớp, so với MobileNetV3-Small đạt 90,69\% (xem Chương~\ref{ch:phanloai}). ResNet18 được chọn triển khai vì kích thước ONNX (42,63 MB) vẫn trong ngưỡng chấp nhận được với RAM thiết bị biên và latency tuyệt đối thấp đủ cho ngân sách hai giây. MobileNetV3-Small (6,09 MB) là ứng viên thay thế nếu cần giảm thêm footprint.
+
+\section{Đánh Giá Toàn Hệ Thống End-to-End}
+\label{sec:trienkhai-e2e}
+
+\wip{Tập dữ liệu cần thiết để đánh giá end-to-end là ảnh toàn cảnh cổng bãi xe kèm nhãn chuỗi ký tự biển số ground truth. Hiện tại đề tài chưa có tập này: bộ A1 chỉ có nhãn bounding box, không có nhãn text biển; bộ topkek và vn\_plate là ảnh crop biển, không phải ảnh toàn cảnh. Đánh giá end-to-end (tỉ lệ đọc biển đúng toàn luồng, tỉ lệ vào ra khớp, độ trễ mỗi lượt xe) sẽ thực hiện khi thu thập được tập ảnh cổng có nhãn text, hoặc khi triển khai thật trên Raspberry Pi 5 và đo trực tiếp.}
+
+\section{Hiệu Năng Suy Luận Trên Thiết Bị Biên}
+\label{sec:trienkhai-hieunang}
+
+\wip{Phần này chờ kết quả đo trực tiếp trên Raspberry Pi 5: thời gian suy luận theo từng model (detector, OCR, classifier), thời gian toàn luồng từ khi trigger tới khi POST xong, sử dụng RAM và CPU, phân phối độ trễ qua nhiều lượt xe. Số liệu hiện tại từ môi trường giả lập trên máy host không đại diện cho thiết bị biên.}
+
+\section{So Sánh PC và Thiết Bị Biên}
+\label{sec:trienkhai-sosanh-pc-bien}
+
+\wip{So sánh đa nền tảng chờ kết quả đo trên Raspberry Pi 5 thật: bảng đối chiếu độ trễ, FPS, RAM giữa máy tính (CPU) và thiết bị biên; ảnh hưởng của lượng tử hóa INT8 lên latency thực tế trên Pi (khác với kết quả đo trên CPU x86/ARM dev hiện tại).}
+
+\section{Đánh Giá Đa Điều Kiện Ánh Sáng}
+\label{sec:trienkhai-anhsang}
+
+Dữ liệu huấn luyện của toàn bộ pipeline (bộ A1, topkek\_plate\_ocr, B5) được thu thập chủ yếu trong điều kiện ban ngày với ánh sáng tự nhiên đủ. Chưa có số liệu định lượng về hiệu năng trong điều kiện ban đêm hoặc ngược sáng. Từ phân tích dữ liệu định tính có thể nhận thấy hai kịch bản thách thức chính: biển số phản quang bão hòa khi đèn flash chiếu thẳng, làm mất chi tiết ký tự; và ánh sáng yếu ban đêm khiến độ tương phản ký tự giảm, đặc biệt trên biển hai hàng nhỏ.
+
+Mô đun xử lý màu biển dùng CLAHE (Contrast Limited Adaptive Histogram Equalization) và không gian màu HSV giúp cải thiện phần nào trong điều kiện ánh sáng không đều, nhưng hiệu quả cần kiểm chứng bằng tập test đêm thật. Hướng cải thiện đề xuất bao gồm thu thập ảnh bổ sung ban đêm hoặc tổng hợp có kiểm soát (augmentation ánh sáng mạnh) và đánh giá trên tập đêm độc lập.
+
+\section{So Sánh Với Công Trình Liên Quan}
+\label{sec:trienkhai-sosanh-lienquan}
+
+Bảng~\ref{tab:compare-related} đối chiếu kết quả của đề tài với ba công trình đã khảo sát ở Chương~\ref{ch:lienquan}.
+
+% Nguồn số các công trình liên quan:
+%   pradhan2025iotparking: độ chính xác 88,9%, Pi4, Tesseract OCR
+%   ammar2023multistage:   17,1 FPS trên Jetson Xavier AGX, voting qua khung hình
+%   tran2025vietnamlpr:    95,68%, Pi4, SSD-MobileNetV2 + YOLOv8-nano, 0,478 s/ảnh
+%   Đề tài: OCR 37 ký tự, Pi5 (chưa đo); accuracy topkek 56,6% / vn_plate 80,2%
+\begin{table}[htbp]
+\centering
+\caption{So sánh đề tài với các công trình liên quan về ALPR và bãi giữ xe.}
+\label{tab:compare-related}
+
+{\footnotesize Nguồn: số các công trình liên quan từ \autocite{tran2025vietnamlpr,pradhan2025iotparking,ammar2023multistage}; số của đề tài từ \texttt{src/ml/experiments.csv}, \texttt{a1\_dedup\_eval.csv} và \texttt{docs/report/tuan-07.md}.}
+\begin{tabular}{p{3cm}p{2.5cm}p{2.5cm}p{3.5cm}}
+\toprule
+\textbf{Công trình} & \textbf{Nền tảng} & \textbf{Độ chính xác biển} & \textbf{Phạm vi hệ thống} \\
+\midrule
+Tran và Bui~\autocite{tran2025vietnamlpr}
+  & Raspberry Pi 4
+  & 95,68\%, 0,478 s/ảnh
+  & Nhận dạng biển, không có nghiệp vụ bãi xe \\
+Pradhan và cộng sự~\autocite{pradhan2025iotparking}
+  & Raspberry Pi 4
+  & 88,9\% tổng thể
+  & Bãi xe IoT đầy đủ: phiên, phí, chỗ trống \\
+Ammar và cộng sự~\autocite{ammar2023multistage}
+  & Jetson Xavier AGX
+  & 69\% (sau voting)
+  & Đa khung, đa camera, không có dashboard \\
+Đề tài (PC, tập vn\_plate)
+  & CPU (dev)
+  & 80,2\% (OCR crop), detector mAP@0,5 = 0,983
+  & Đầy đủ: nhận diện, phiên, phí, dashboard; màu biển \\
+Đề tài (Raspberry Pi 5)
+  & \ph{Chờ đo}
+  & \ph{Chờ đo}
+  & Cùng hệ thống, thêm worker tại cổng \\
+\bottomrule
+\end{tabular}
+% Nguồn: \autocite{tran2025vietnamlpr,pradhan2025iotparking,ammar2023multistage} và
+%         experiments.csv/a1\_dedup\_eval.csv/tuan-07.md (đề tài).
+\end{table}
+
+So với Tran và Bui~\autocite{tran2025vietnamlpr}, đề tài xử lý bộ ký tự rộng hơn (37 ký tự, có ``Đ'' cho xe máy điện seri MĐ và TĐ) và tích hợp toàn bộ nghiệp vụ bãi xe, nhưng chưa đo latency trực tiếp trên phần cứng đích. So với Pradhan và cộng sự~\autocite{pradhan2025iotparking}, đề tài bổ sung phân loại kiểu dáng xe và nhận màu nền biển làm tín hiệu phân nhóm, hai tính năng không có trong hệ thống đó. So với Ammar và cộng sự~\autocite{ammar2023multistage}, đề tài nhắm vào phần cứng thương mại phổ thông (Raspberry Pi 5) thay vì Jetson chuyên dụng, và có dashboard tra cứu phiên đầy đủ.
+
+\section{Giới Hạn}
+\label{sec:trienkhai-gioihan}
+
+\textbf{Dữ liệu.} Tập huấn luyện OCR thiếu ảnh điều kiện ban đêm, ngược sáng và biển cũ mờ, khiến các số đánh giá chỉ đại diện cho điều kiện ban ngày trong nhà hoặc ngoài trời với ánh sáng tốt. Tập A1 có khoảng 40\% ảnh gần trùng giữa train và test trước khi khử trùng lặp; sau khử trùng tập test còn 342 ảnh. Chưa có tập test ảnh toàn cảnh cổng bãi xe có nhãn chuỗi ký tự biển để đo accuracy end-to-end toàn luồng.
+
+\textbf{Phần cứng.} Đề tài chưa triển khai được trên Raspberry Pi 5 thật do hạn chế về thời gian và thiết bị trong giai đoạn thực hiện. Toàn bộ thử nghiệm trên môi trường giả lập chạy trên máy host với CPU mạnh hơn đáng kể, nên số latency đo được không ánh xạ được sang latency thực tế của Pi5. Mục tiêu hai giây mỗi xe chưa được kiểm chứng trực tiếp.
+
+\textbf{Phạm vi đánh giá.} Đánh giá màu nền biển chỉ định tính do thiếu tập test có nhãn màu chuẩn. Lượng tử hóa INT8 đo được kích thước file nhưng không đo được accuracy sau lượng tử vì chưa chạy được pipeline đánh giá đầy đủ trong phiên thực nghiệm. Latency INT8 trên CPU dev hiện tại cho thấy dynamic quantization chưa cải thiện tốc độ khi thiếu nhân INT8 vector hóa phần cứng.

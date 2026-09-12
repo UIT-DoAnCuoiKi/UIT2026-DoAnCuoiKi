@@ -1,0 +1,495 @@
+% =====================================================================
+%  CHƯƠNG 3. DỮ LIỆU                              | Phụ trách: Cả 2
+%  Ngân sách: mục tiêu 9 trang, trần 10 trang
+%  Nguồn: docs/research/quy-dinh-bien-so-xe-vn.md            (mục 3.1),
+%         src/ml/notebooks/eda-plate-datasets.ipynb           (mục 3.2),
+%         docs/research/eda_outputs/eda_summary.csv           (Bảng 3.4),
+%         data/processed/a1_det/phash_report.txt              (mục 3.5)
+% =====================================================================
+\chapter{Dữ Liệu}
+\label{ch:dulieu}
+
+Chương này trình bày toàn bộ lớp dữ liệu của đề tài, bao gồm: khung pháp lý quy định
+cấu trúc và màu sắc biển số xe Việt Nam, quá trình khảo sát và đánh giá các bộ dữ liệu
+công khai, kết quả phân tích khám phá, bộ dữ liệu bổ sung cho OCR và phân loại xe, và
+phân tích trùng lặp gần giữa tập huấn luyện và tập kiểm tra.
+
+% =====================================================================
+\section{Quy Định Biển Số Xe Việt Nam}
+\label{sec:quydinhbienso}
+% =====================================================================
+
+Hiểu rõ cấu trúc pháp lý của biển số là điều kiện tiên quyết để thiết kế nhãn
+dữ liệu, xây dựng bộ ký tự OCR và lập quy tắc hậu xử lý. Mục này tổng hợp các
+điểm quan trọng cho bài toán thị giác máy tính.
+
+\subsection{Căn Cứ Pháp Lý Hiện Hành}
+
+Kể từ ngày 01/01/2025, bộ quy định biển số xe cơ giới tại Việt Nam được điều chỉnh
+đồng bộ bởi bốn văn bản pháp lý~\autocite{luatttatgt2024,tt792024bca,tt812024bca,tt242023bca}:
+
+\begin{itemize}
+  \item \textbf{Luật Trật tự, an toàn giao thông đường bộ 2024} (Quốc hội thông qua
+        ngày 27/06/2024, hiệu lực 01/01/2025): lần đầu tiên đưa quy định màu nền biển
+        số vào luật thay vì chỉ quy định ở cấp thông tư như trước.
+  \item \textbf{Thông tư 79/2024/TT-BCA} (Bộ Công an): quy định việc cấp, thu hồi
+        chứng nhận đăng ký xe và biển số xe cơ giới; bao gồm bộ seri hợp lệ, số lượng
+        ký tự và kích thước chữ số theo từng loại xe. Thay thế Thông tư 58/2020/TT-BCA.
+  \item \textbf{Thông tư 81/2024/TT-BCA} (ban hành QCVN 08:2024/BCA): quy chuẩn kỹ
+        thuật quốc gia về biển số xe, quy định kích thước biển, chất liệu nền nhôm hợp
+        kim A1100H14 dày 1 mm, màng phản quang có hoa văn bảo mật và chữ dập nổi cao
+        1,7 mm.
+  \item \textbf{Thông tư 24/2023/TT-BCA}: quy định quản lý biển số theo mã số định
+        danh cá nhân hoặc tổ chức của chủ xe (biển gắn theo chủ, không theo xe khi
+        chuyển nhượng).
+\end{itemize}
+
+\subsection{Cấu Trúc Chuỗi Ký Tự}
+
+Định dạng tổng quát của biển số xe cơ giới Việt Nam là:
+
+\begin{center}
+\texttt{[Mã tỉnh 2 chữ số][gạch ngang][Seri 1 chữ cái] [Số thứ tự 5 chữ số, nhóm 3.2]}
+\end{center}
+
+\noindent Ví dụ dạng biển một dòng (ô tô): \texttt{30A-123.45}; dạng biển hai dòng
+(xe máy): dòng trên \texttt{59N}, dòng dưới \texttt{187.51}.
+
+Ba thành phần chính có hệ quả trực tiếp với thiết kế OCR:
+
+\begin{itemize}
+  \item \textbf{Mã tỉnh}: 2 chữ số từ 11 đến 99, gắn với địa phương đăng ký xe.
+        Từ ngày 01/07/2025, Việt Nam sáp nhập từ 63 xuống còn 34 tỉnh thành phố (Thông
+        tư 51/2025/TT-BCA), nhưng xe đăng ký trước ngày sáp nhập giữ nguyên biển số
+        cũ, nên nhiều mã tỉnh cũ tiếp tục lưu hành song song trong nhiều năm.
+  \item \textbf{Seri}: chọn trong tập \textbf{20 chữ cái}:
+        A, B, C, D, E, F, G, H, K, L, M, N, P, S, T, U, V, X, Y, Z.
+        Sáu chữ I, J, O, Q, R, W không dùng cho biển dân sự (dễ nhầm với
+        chữ số 0 và 1, hoặc dành riêng cho biển chuyên dụng). Bộ 20 chữ cái này
+        được áp dụng trực tiếp để ràng buộc kết quả hậu xử lý OCR, loại bỏ nhầm
+        lẫn O với 0 và I với 1.
+  \item \textbf{Số thứ tự}: 5 chữ số hiển thị nhóm 3.2, từ 000.01 đến 999.99. Riêng
+        seri MĐ và TĐ của xe máy điện chứa ký tự ``Đ'', nằm ngoài bảng ký tự các
+        engine OCR tiếng Anh thông thường~\autocite{tran2025vietnamlpr,le2023motorcycleplate}.
+\end{itemize}
+
+\subsection{Bố Cục Biển Theo Loại Xe}
+
+Điểm dễ nhầm nhất khi thiết kế dữ liệu: biển dài một dòng và biển ngắn hai dòng không
+phải hai kiểu biển thay thế nhau. Với ô tô, đây là hai biển bắt buộc gắn đồng thời
+trên cùng một xe (Bảng~\ref{tab:bienso-bocuc}):
+
+\begin{table}[htbp]
+\centering
+\caption{Bố cục biển số theo loại phương tiện.}
+
+{\footnotesize Nguồn: \autocite{tt792024bca,tt812024bca}.}
+\label{tab:bienso-bocuc}
+\small
+\begin{tabular}{p{3.2cm} p{1.6cm} p{3.0cm} p{3.0cm}}
+\toprule
+\textbf{Loại xe} & \textbf{Số biển} & \textbf{Bố cục} & \textbf{Kích thước (mm)} \\
+\midrule
+Ô tô (con, tải, khách) & 2 biển & Biển trước: 1 dòng 520$\times$110; biển sau: 2 dòng 330$\times$165 & 2 kích thước khác nhau \\
+\addlinespace
+Mô tô, xe gắn máy (kể cả xe máy điện) & 1 biển (sau) & Luôn 2 dòng & 190$\times$140 \\
+\addlinespace
+Máy kéo, rơ-moóc & 1 biển (sau) & 2 dòng & 330$\times$165 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Hệ quả thực tế cho pipeline phát hiện và OCR: camera cổng bãi xe có thể thu biển một
+dòng hoặc biển hai dòng của cùng một ô tô tùy góc đặt camera (trước hay sau xe). Dữ
+liệu huấn luyện cần cân bằng cả hai bố cục.
+
+\subsection{Màu Nền Biển và Ý Nghĩa Phân Loại Phí}
+
+Màu nền biển số phản ánh nhóm chủ sở hữu theo pháp luật và là cơ sở để hệ thống quản
+lý bãi xe áp dụng biểu phí phù hợp (xem Chương~\ref{ch:hethong}). Bảng~\ref{tab:maubienso}
+tổng hợp bốn màu chính được quy định tại Luật Trật tự, an toàn giao thông đường bộ
+2024~\autocite{luatttatgt2024}:
+
+\begin{table}[htbp]
+\centering
+\caption{Màu nền biển số xe và nhóm chủ sở hữu theo quy định hiện hành.}
+
+{\footnotesize Nguồn: \autocite{luatttatgt2024,tt792024bca}.}
+\label{tab:maubienso}
+\begin{tabular}{p{2.2cm} p{4.8cm} p{3.6cm}}
+\toprule
+\textbf{Màu nền} & \textbf{Đối tượng} & \textbf{Ưu tiên đề tài} \\
+\midrule
+Trắng (chữ đen) & Cá nhân, tổ chức dân sự trong nước & Bắt buộc (chiếm đa số) \\
+Vàng (chữ đen) & Xe kinh doanh vận tải: taxi, xe khách, xe tải kinh doanh & Bắt buộc \\
+Xanh dương (chữ trắng) & Cơ quan Đảng, Nhà nước, đơn vị sự nghiệp công lập & Tùy chọn \\
+Đỏ (chữ trắng) & Xe quân sự (Bộ Quốc phòng) & Tùy chọn \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Lưu ý: xe điện và xe năng lượng sạch không có màu biển riêng. Biển vẫn theo màu của
+nhóm chủ sở hữu, chỉ được dán thêm tem nhận diện màu xanh lá nhỏ. Màu sắc thực tế
+trên ảnh camera có thể lệch so với giá trị chuẩn hóa theo tọa độ CIE trong quy chuẩn,
+đặc biệt dưới đèn flash hồng ngoại ban đêm, nên cần xử lý CLAHE trước khi phân
+loại màu biển (trình bày tại Chương~\ref{ch:ocr}).
+
+% =====================================================================
+\section{Khảo Sát Bộ Dữ Liệu Công Khai}
+\label{sec:khaosatdataset}
+% =====================================================================
+
+Đề tài khảo sát 14 bộ dữ liệu công khai, chia làm ba nhóm: (A) biển số Việt Nam
+(Bảng~\ref{tab:dataset-a}), (B) phương tiện và bối cảnh đường phố Việt Nam
+(Bảng~\ref{tab:dataset-b}), (C) các bộ ALPR và bãi xe nước ngoài để đối chiếu
+(Bảng~\ref{tab:dataset-c}). Mỗi bộ được kiểm tra trực tiếp trên trang nguồn (giấy
+phép, mô tả, ngày kiểm tra) trước khi đưa vào bảng so sánh.
+
+\subsection{Nhóm A: Biển Số Việt Nam}
+
+\begin{table}[htbp]
+\centering
+\caption{Các bộ dữ liệu nhóm A: biển số xe Việt Nam.}
+
+{\footnotesize Nguồn: kiểm tra trực tiếp trên Kaggle và Roboflow Universe, tháng 7 năm 2026. Xem mục~\ref{sec:edabienso} để biết kết quả EDA thực tế.}
+\label{tab:dataset-a}
+\small
+\begin{tabular}{p{0.8cm} p{3.2cm} p{1.4cm} p{1.6cm} p{1.6cm} p{2.0cm}}
+\toprule
+\textbf{Ký hiệu} & \textbf{Tên bộ dữ liệu} & \textbf{Host} & \textbf{Số ảnh} & \textbf{Giấy phép} & \textbf{Biển 1 hàng/2 hàng} \\
+\midrule
+A1 & Vietnam License Plate Segment (duydieunguyen)~\autocite{duydieunguyen2023vnplatesegment} & Kaggle & khoảng 5.000 & Không rõ & Có, tách rõ số lượng \\
+A2 & Vietnamese Car License Plate (Cuong Ta)~\autocite{cuongta2021vnplate} & Roboflow & 8.255 & CC0 1.0 & Không rõ tỷ lệ \\
+A3 & vietnamese-license-plate-tptd0 (school-fuhih)~\autocite{schoolfuhih2023vnplate} & Roboflow & 8.397 & CC BY 4.0 & Không rõ tỷ lệ \\
+A4 & Motorcycle License Plate (HaUI)~\autocite{haui2023motorcycleplate} & Roboflow & 1.748 & MIT & Thiên về xe máy (2 hàng) \\
+A5 & greenParking (thaiphung) & Roboflow & 1.748 & CC BY 4.0 & Không xác định \\
+A6 & Viet Nam OCR plate (license-plate-reg)~\autocite{licenseplatereg2025ocrplate} & Roboflow & 3.819 & CC0 1.0 & Không rõ tỷ lệ \\
+A7 & VNLicensePlate\_yolov7 (bomaich)~\autocite{bomaich2022vnlicenseplate7} & Kaggle & 1.000 & Không rõ & Có, không tách số \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Không bộ nào trong nhóm A ghi rõ điều kiện ánh sáng hay bối cảnh chụp trong mô tả
+trang nguồn. A1 được ưu tiên vì có hai lớp biển số tách biệt: biển một hàng (BSD) và
+biển hai hàng (BSV), phản ánh đúng hai loại biển phổ biến nhất tại Việt Nam theo quy
+định ở mục~\ref{sec:quydinhbienso}. Sau khi xem trực tiếp ảnh mẫu, A2 (Cuong Ta) cũng
+có độ đa dạng tốt về loại xe, không chỉ giới hạn ở ô tô như tên gợi ý. Cùng với A1,
+đây là hai bộ được xem xét ưu tiên cho bài toán phát hiện vùng biển số.
+
+\subsection{Nhóm B: Phương Tiện và Bối Cảnh Đường Phố Việt Nam}
+
+\begin{table}[htbp]
+\centering
+\caption{Các bộ dữ liệu nhóm B: phương tiện và bối cảnh Việt Nam.}
+
+{\footnotesize Nguồn: kiểm tra trực tiếp trên Roboflow Universe và GitHub, tháng 7 năm 2026.}
+\label{tab:dataset-b}
+\small
+\begin{tabular}{p{0.8cm} p{3.4cm} p{1.4cm} p{1.3cm} p{1.4cm} p{2.5cm}}
+\toprule
+\textbf{Ký hiệu} & \textbf{Tên bộ dữ liệu} & \textbf{Host} & \textbf{Số ảnh} & \textbf{Giấy phép} & \textbf{Ghi chú} \\
+\midrule
+B1 & Vietnamese vehicle v3 (car-classification)~\autocite{carclassification2023vnvehicle} & Roboflow & 1.547 & CC BY 4.0 & 4 lớp gốc car/bus/truck/motorcycle, đã được ánh xạ lại thành 8 lớp \\
+B2 & Vehicle Vietnam-CanTho~\autocite{vehicle2022cantho} & Roboflow & 1.110 đến 1.746 & CC BY 4.0 & Chỉ ban ngày, đường phố Cần Thơ \\
+B3 & UIT-CVID21~\autocite{uitcvid21} & GitHub (UIT) & 10.000 (chưa xem được thật) & Không rõ (link 404 khi mở ngày 30/07/2026) & Chụp từ drone, khác góc camera cổng bãi xe \\
+B4 & QuangTranUTE/Vehicle-Detection & GitHub & khoảng 11.000 & Không rõ & Camera giám sát giao thông, không phải bãi xe \\
+B5 & Vehicle Body Style Dataset~\autocite{researchprojects2022vehiclebodystyle} & Roboflow & 10.000 & CC BY 4.0 & 12 kiểu dáng theo phân loại CompCars, gốc Trung Quốc \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Ở nhóm B, B1 đến B4 đều chưa có bộ dữ liệu Việt Nam nào tách phương tiện theo kiểu
+dáng thân xe (sedan, SUV, pickup). Đề tài bổ sung B5 để lấp khoảng trống này. Sau khi
+tải và chạy EDA trên B5: 12 lớp cân bằng gần như tuyệt đối (chênh lệch max/min chỉ
+1,02 lần); tuy nhiên, tỷ lệ diện tích xe trên diện tích ảnh trung bình đạt 0,31, cao
+hơn đáng kể so với ảnh camera giám sát cổng bãi xe ở nhóm A và C (chỉ khoảng 0,03
+đến 0,04), phản ánh phong cách chụp kiểu dealer/showroom. Bộ dữ liệu B5 cũng không có
+lớp xe máy. Đề tài chọn dùng B5 để đánh giá tính khả quan của hướng pretrain trên
+ảnh showroom trước khi fine-tune bằng ảnh thực tế Việt Nam (Chương~\ref{ch:phanloai}).
+
+\subsection{Nhóm C: Bộ Dữ Liệu ALPR và Bãi Xe Nước Ngoài (Đối Chiếu)}
+
+\begin{table}[htbp]
+\centering
+\caption{Các bộ dữ liệu nhóm C: ALPR và bãi xe nước ngoài.}
+
+{\footnotesize Nguồn: kiểm tra trực tiếp trên các trang nguồn, tháng 7 năm 2026. Xem thêm \autocite{xu2018ccpd,almeida2015pklot,amato2017cnrpark,hsu2013aolp,openalpr2016benchmarks}.}
+\label{tab:dataset-c}
+\small
+\begin{tabular}{p{0.8cm} p{3.2cm} p{1.8cm} p{1.4cm} p{2.0cm} p{1.6cm}}
+\toprule
+\textbf{Ký hiệu} & \textbf{Tên bộ dữ liệu} & \textbf{Số ảnh} & \textbf{Giấy phép} & \textbf{Bối cảnh} & \textbf{Ánh sáng} \\
+\midrule
+C1 & CCPD (Trung Quốc)~\autocite{xu2018ccpd} & hơn 300.000 & MIT & Bãi xe Bắc Kinh & 61,4\% ngày, 38,6\% đêm \\
+C2 & PKLot (Brazil)~\autocite{almeida2015pklot} & 12.416 & CC BY 4.0 & Bãi xe ngoài trời & Nhiều thời tiết, không có ảnh đêm \\
+C3 & CNRPark+EXT (Ý)~\autocite{amato2017cnrpark} & 12.000 cộng khoảng 145.000 đến 150.000 patch & Chưa kiểm tra được (lỗi certificate khi truy cập) & Bãi xe ngoài trời & Nhiều thời tiết, có ảnh đêm \\
+C4 & AOLP (Đài Loan)~\autocite{hsu2013aolp} & 2.049 & Chỉ học thuật, không thương mại, phải xin phép bằng văn bản & Cổng ra vào/phạt nguội/tuần tra & 3 kịch bản chụp \\
+C5 & OpenALPR benchmarks (US/EU/BR)~\autocite{openalpr2016benchmarks} & EU 108, US khoảng 222 & AGPL-3.0 & Chỉ đối chiếu, quy mô nhỏ & Không kiểm tra \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Nhóm C dùng biển số nước ngoài nên không dùng để huấn luyện OCR biển số Việt Nam.
+Tuy nhiên, CCPD (C1)~\autocite{xu2018ccpd} có thể tham khảo để pretrain phần phát
+hiện vùng biển số nói chung vì đây là bộ dữ liệu duy nhất trong cả ba nhóm cung cấp
+số liệu ngày/đêm định lượng rõ ràng, điều mà tất cả bộ nhóm A và B đều thiếu.
+
+\subsection{Đánh Giá và Hướng Lựa Chọn}
+\label{sec:chondataset}
+
+Đề tài chọn A1 làm bộ dữ liệu huấn luyện chính cho phát hiện biển số vì đây là bộ
+duy nhất tách rõ biển một hàng (BSD) và biển hai hàng (BSV); A3 và A4 dùng bổ sung.
+Cả ba bộ được tải về và thực hiện EDA tại mục~\ref{sec:edabienso} để xác minh đặc
+tính thực tế, vì mô tả trên trang nguồn không cung cấp thông tin về điều kiện ánh
+sáng hay bối cảnh chụp.
+
+% =====================================================================
+\section{Phân Tích Khám Phá Dữ Liệu Biển Số}
+\label{sec:edabienso}
+% =====================================================================
+
+Đề tài tải ba bộ dữ liệu A1, A3, A4 và tiến hành phân tích khám phá độc lập để xác
+minh chất lượng thực tế. Toàn bộ code EDA nằm tại
+\texttt{src/ml/notebooks/eda-plate-datasets.ipynb}. Kết quả tổng hợp ở
+Bảng~\ref{tab:eda-summary}.
+
+\subsection{Tổng Quan Số Liệu}
+
+\begin{table}[htbp]
+\centering
+\caption{Tổng hợp kết quả EDA trên ba bộ dữ liệu biển số được chọn.}
+
+{\footnotesize Nguồn: notebook EDA \texttt{src/ml/notebooks/eda-plate-datasets.ipynb}. Độ sáng đo trên mẫu ngẫu nhiên $n = 600$ ảnh/bộ, seed cố định 42.}
+\label{tab:eda-summary}
+\begin{tabular}{lrrp{3.4cm}rr}
+\toprule
+\textbf{Bộ dữ liệu} & \textbf{Số ảnh} & \textbf{Số object} & \textbf{Độ phân giải (px)} & \textbf{Độ sáng TB} & \textbf{\% ảnh tối} \\
+\midrule
+A3 & 8.357 & 8.548 & 640$\times$640 (cố định) & 100,7 & 12,8\% \\
+A4 & 1.748 & 1.748 & 472$\times$303 (cố định) & 111,1 & 0,0\% \\
+A1 & 4.578 & 5.200 & 380 đến 4032 $\times$ 285 đến 3024 & 102,1 & 10,7\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Phân Bố Lớp và Kích Thước Biển Số}
+
+Hình~\ref{fig:eda-class} cho thấy phân bố số lượng object gán nhãn theo bộ dữ liệu
+và theo lớp. Ở A1, lớp BSV (biển hai hàng, 3.559 đối tượng) nhiều gấp khoảng 2,2 lần
+lớp BSD (biển một hàng, 1.641 đối tượng). Nếu gộp cả ba bộ dữ liệu để huấn luyện,
+cần xử lý mất cân bằng lớp này để mô hình không thiên về biển hai hàng.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.90\textwidth]{eda_class_distribution}
+\caption{Phân bố số lượng object gán nhãn theo bộ dữ liệu và theo lớp (BSD và BSV).}
+
+{\footnotesize Nguồn: notebook EDA \texttt{src/ml/notebooks/eda-plate-datasets.ipynb}.}
+\label{fig:eda-class}
+\end{figure}
+
+Hình~\ref{fig:eda-arearatio} trình bày phân bố tỷ lệ diện tích biển số trên diện tích
+ảnh. Tỷ lệ diện tích vùng biển số so với toàn bộ ảnh (\texttt{box\_area\_ratio})
+trung bình chỉ khoảng 0,028 đến 0,043 ở cả ba bộ dữ liệu. Phần lớn ảnh chụp toàn
+cảnh đầu xe chứ không phải cận cảnh sát biển số, đặc thù phù hợp với bối cảnh camera
+cổng bãi xe.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.90\textwidth]{eda_plate_area_ratio}
+\caption{Phân bố tỷ lệ diện tích biển số trên diện tích ảnh cho ba bộ dữ liệu.}
+
+{\footnotesize Nguồn: notebook EDA \texttt{src/ml/notebooks/eda-plate-datasets.ipynb}.}
+\label{fig:eda-arearatio}
+\end{figure}
+
+\subsection{Kích Thước Ảnh và Độ Sáng}
+
+Hình~\ref{fig:eda-size} trình bày phân bố kích thước ảnh và độ sáng. Phân tích kích
+thước ảnh cho thấy A3 và A4 đã bị Roboflow resize về một kích thước
+cố định khi xuất (640$\times$640 cho A3, 472$\times$303 cho A4, độ lệch chuẩn kích
+thước bằng không), nên độ phân giải gốc coi như mất. Chỉ A1 tải trực tiếp từ Kaggle
+mà không qua Roboflow là còn giữ được kích thước gốc, dao động từ 380 đến 4032 pixel
+chiều rộng.
+
+Do không bộ nào có nhãn ánh sáng thực tế, độ sáng trung bình ảnh xám (thang 0 đến
+255) được dùng làm proxy tạm: dưới 70 coi là tối/thiếu sáng, trên 190 là quá sáng.
+A4 gần như không có biến thiên (gần 100\% ảnh rơi vào mức bình thường), trong khi
+A3 và A1 có khoảng 11 đến 13\% ảnh rơi vào mức tối. Đây chỉ là proxy dựa trên độ
+sáng pixel, không phải nhãn thực về điều kiện chụp.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.90\textwidth]{eda_size_brightness}
+\caption{Phân bố kích thước ảnh, tỷ lệ khung hình và độ sáng trên ba bộ dữ liệu.}
+
+{\footnotesize Nguồn: notebook EDA \texttt{src/ml/notebooks/eda-plate-datasets.ipynb}.}
+\label{fig:eda-size}
+\end{figure}
+
+\subsection{Xem Mẫu Ảnh để Xác Minh Bối Cảnh}
+
+Hình~\ref{fig:eda-sample} trình bày ảnh mẫu ngẫu nhiên từ ba bộ dữ liệu. Khi mở
+thực tế vài chục ảnh mẫu, cả ba bộ dữ liệu đều là ảnh chụp thật từ camera
+cổng bãi xe hoặc hầm gửi xe, có thanh chắn (boom barrier) trong khung hình, đúng
+bối cảnh đề tài cần. Nhiều ảnh còn có timestamp cháy vào góc theo phong cách camera
+an ninh DVR, và có ảnh chụp trong hầm xe thiếu sáng. Mô tả text trên trang nguồn
+không đủ để đánh giá chất lượng bộ dữ liệu; cần tải và xem ảnh thực tế mới xác minh
+được bối cảnh.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.90\textwidth]{eda_sample_context}
+\caption{Ảnh mẫu ngẫu nhiên từ ba bộ dữ liệu, minh họa bối cảnh camera cổng bãi xe.}
+
+{\footnotesize Nguồn: notebook EDA \texttt{src/ml/notebooks/eda-plate-datasets.ipynb}.}
+\label{fig:eda-sample}
+\end{figure}
+
+% =====================================================================
+\section{Bộ Dữ Liệu Bổ Sung cho OCR, Màu Biển và Phân Loại Xe}
+\label{sec:datasetocrcolor}
+% =====================================================================
+
+Song song với phần khảo sát biển số ở các mục~\ref{sec:khaosatdataset} và
+\ref{sec:edabienso}, đề tài khảo sát và tải thực tế các bộ dữ liệu phục vụ OCR,
+nhận dạng ký tự, phân loại màu biển và phân loại loại xe. Toàn bộ số liệu dưới đây
+lấy từ việc tải và đọc file thực tế (đếm ảnh/box, đọc \texttt{data.yaml}, phân tích
+màu HSV trên crop thật), không suy đoán từ mô tả trang nguồn.
+
+\subsection{Bộ Dữ Liệu Phát Hiện Biển và OCR}
+
+Bảng~\ref{tab:dataset-ocr} liệt kê các bộ dữ liệu đã tải thực tế phục vụ phát hiện
+biển, OCR và ký tự đơn lẻ.
+
+\begin{table}[htbp]
+\centering
+\caption{Các bộ dữ liệu phát hiện biển, OCR và ký tự đơn lẻ đã tải thực tế.}
+
+{\footnotesize Nguồn: xác minh trực tiếp từ Kaggle, tháng 7 đến tháng 8 năm 2026. Xem thêm \autocite{tanhphp2026vnplatedet,bomaich2022vnplateyolov7,topkek2024vnplateocr,dtkngan2024motorbikeocr,kaggle2022vncharplate}.}
+\label{tab:dataset-ocr}
+\small
+\begin{tabular}{p{3.4cm} p{3.0cm} p{2.0cm} p{3.0cm}}
+\toprule
+\textbf{Bộ dữ liệu} & \textbf{Số ảnh (thật)} & \textbf{Định dạng} & \textbf{Ghi chú} \\
+\midrule
+plate\_tanhphp~\autocite{tanhphp2026vnplatedet} & 2.255 (2.998 box) & YOLO bbox, nc=1 & Dùng làm nguồn detect chính bổ sung \\
+plate\_bomaich\_yolov7~\autocite{bomaich2022vnplateyolov7} & 498 (780 box) & YOLO bbox, split sẵn & Ảnh cảnh đầy đủ, dùng bổ sung \\
+plate\_ocr\_topkek~\autocite{topkek2024vnplateocr} & 12.190 (6.643 crop thật cộng 5.547 sinh tổng hợp) & Crop cộng CSV Name/Label/Type & Nguồn OCR chính; cần tách riêng phần sinh tổng hợp khi đánh giá để không thổi phồng accuracy \\
+motorbike\_ocr\_100~\autocite{dtkngan2024motorbikeocr} & 116 & Ảnh cộng chuỗi biển & Tập test cho biển xe máy 2 hàng, chỉ có ảnh ban ngày \\
+char\_nguyenquanglinh~\autocite{kaggle2022vncharplate} & 1.839 & Thư mục theo lớp, ảnh 28$\times$28 & Lệch lớp nặng giữa các ký tự; cần augment mạnh cho ký tự hiếm \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Cùng với A1 (4.578 ảnh, mục~\ref{sec:khaosatdataset}) dùng để tách luồng biển một
+hàng và hai hàng, đây là bộ dữ liệu phát hiện cộng OCR cộng ký tự đầy đủ nhất đề tài
+có được. Không kho lưu trữ nào đi kèm file LICENSE rõ ràng, nên đề tài chỉ dùng để
+huấn luyện nội bộ và không phát hành lại.
+
+\subsection{Phân Tích Màu Biển Số (HSV)}
+\label{sec:hsv}
+
+Để phục vụ mô đun phân loại màu biển (Chương~\ref{ch:ocr}), đề tài chạy phân tích màu
+HSV trên 599 crop biển số thật (từ \texttt{plate\_ocr\_topkek}), tách vùng nền sáng
+khỏi vùng chữ tối. Bảng~\ref{tab:hsv-color} trình bày kết quả phân bố:
+
+\begin{table}[htbp]
+\centering
+\caption{Phân bố màu nền trên 599 crop biển số thực tế.}
+
+{\footnotesize Nguồn: phân tích HSV trực tiếp trên crop từ \texttt{plate\_ocr\_topkek}~\autocite{topkek2024vnplateocr}.}
+\label{tab:hsv-color}
+\begin{tabular}{lrrp{4.5cm}}
+\toprule
+\textbf{Màu nền} & \textbf{Số crop} & \textbf{Tỷ lệ} & \textbf{Ý nghĩa biển số VN} \\
+\midrule
+Trắng & 372 & 62,1\% & Xe cá nhân \\
+Vàng & 115 & 19,2\% & Xe kinh doanh/dịch vụ \\
+Xanh dương & 57 & 9,5\% & Cơ quan nhà nước \\
+Đỏ & 37 & 6,2\% & Quân đội \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Bốn màu chính tách thành các cụm hue/saturation riêng biệt trên không gian HSV, xác
+nhận hướng dùng HSV cộng CLAHE mà không cần CNN riêng cho màu là khả thi. Dữ liệu
+lệch nặng về màu trắng (62,1\%), phản ánh tỷ lệ thực tế của bãi xe dân sự. Đề tài
+tập trung phân loại chính giữa trắng và vàng (xe cá nhân và kinh doanh) vì đây là hai
+màu chiếm đa số, đồng thời có ý nghĩa trực tiếp với nghiệp vụ tính phí.
+
+\subsection{Bộ Dữ Liệu Phân Loại Xe}
+
+Cho mô đun phân loại xe (Chương~\ref{ch:phanloai}), đề tài chọn A1 và B5 làm hai
+nguồn chính. A1 dùng làm proxy cho phân loại hai lớp ô tô và xe máy thông qua nhãn
+biển: BSD (biển một dòng, đặc trưng ô tô) và BSV (biển hai dòng, đặc trưng xe máy).
+B5~\autocite{researchprojects2022vehiclebodystyle} dùng để pretrain phân loại kiểu
+dáng (sedan, SUV, pickup) trước khi fine-tune bằng ảnh thực tế Việt Nam, với đánh
+giá tính khả quan trước khi quyết định bổ sung nguồn dữ liệu khác.
+
+% =====================================================================
+\section{Trùng Lặp Gần giữa Tập Huấn Luyện và Tập Kiểm Tra}
+\label{sec:dedup}
+% =====================================================================
+
+Trong quá trình xây dựng bộ dữ liệu phát hiện biển số từ A1, đề tài thực hiện phân
+tích pHash (perceptual hash) để phát hiện các cặp ảnh gần trùng nhau giữa tập huấn
+luyện và tập kiểm tra trước khi đánh giá mô hình.
+
+\subsection{Phát Hiện Trùng Lặp Gần bằng pHash}
+
+Phân tích pHash trên toàn bộ A1 sau khi chia tập train và test phát hiện 230 cặp ảnh
+có khoảng cách Hamming không vượt quá 5 giữa hai tập. Tập test của A1 gồm 572 ảnh,
+nên 230 cặp trùng lặp gần tương ứng với khoảng 40\% ảnh test có ảnh huấn luyện gần
+trùng trong tập train. Kết quả phân tích lưu tại
+\texttt{data/processed/a1\_det/phash\_report.txt}.
+
+Nguyên nhân cấu trúc: A1 được trích xuất từ luồng video camera bãi xe liên tục, nên
+nhiều khung hình kế tiếp nhau chỉ khác nhau ở mức chi tiết nhỏ (góc ánh sáng thay
+đổi nhẹ, xe dịch chuyển vài pixel). Khi chia tập train/test ngẫu nhiên theo tỷ lệ mà
+không loại bỏ các khung gần trùng trước, một tỷ lệ lớn ảnh test thực chất là phiên
+bản gần giống của ảnh train, tạo ra rò rỉ dữ liệu (data leakage).
+
+\subsection{Tác Động lên Độ Chính Xác Mô Hình}
+
+Rò rỉ dữ liệu làm thổi phồng các chỉ số đánh giá trên tập test so với hiệu năng
+thực tế trên ảnh hoàn toàn mới. Tác động cụ thể lên mô hình phát hiện biển số được
+đo và trình bày chi tiết tại Chương~\ref{ch:phathien}
+(Bảng~\ref{tab:det-dedup}): mAP@0,5 giảm từ 0,989 xuống 0,983 sau khi khử trùng lặp
+và đánh giá lại trên tập test sạch. Chênh lệch 0,006 điểm mAP tuy nhỏ về tuyệt đối,
+nhưng phản ánh đúng hơn khả năng tổng quát hóa của mô hình trên ảnh thực tế bãi xe
+mà mô hình chưa thấy trong quá trình huấn luyện.
+
+\subsection{Bài Học về Xây Dựng Tập Kiểm Tra Từ Dữ Liệu Video}
+
+Trường hợp A1 cho thấy một nguyên tắc quan trọng khi xây dựng tập kiểm tra từ video:
+chia tập theo thời gian (time-based split) thay vì chia ngẫu nhiên theo khung hình.
+Cụ thể, tập train lấy từ các đoạn video trước một mốc thời gian, tập test lấy từ các
+đoạn video sau mốc thời gian đó. Cách này đảm bảo không có khung hình nào trong tập
+test có cảnh quay gần trùng với tập train, phản ánh đúng điều kiện triển khai thực
+tế hơn. Đề tài áp dụng bộ lọc pHash với ngưỡng Hamming không quá 5 để khử trùng lặp
+trước khi đánh giá chính thức, với chi tiết kỹ thuật tại Chương~\ref{ch:phathien}.
+
+% =====================================================================
+\section{Kết Luận}
+\label{sec:dulieu-ketluan}
+% =====================================================================
+
+Bốn nhóm bài toán của đề tài được phục vụ bởi các bộ dữ liệu sau:
+
+\begin{itemize}
+  \item \textbf{Phát hiện biển số:} A1 làm nền chính, A3 và A4 bổ sung, cùng
+        \texttt{plate\_tanhphp} và \texttt{plate\_bomaich\_yolov7}
+        (mục~\ref{sec:datasetocrcolor}).
+  \item \textbf{OCR ký tự:} \texttt{plate\_ocr\_topkek} làm nguồn chính;
+        \texttt{motorbike\_ocr\_100} làm tập test riêng cho biển hai hàng.
+  \item \textbf{Màu biển:} không cần bộ dữ liệu gán nhãn riêng; dùng HSV cộng CLAHE
+        trực tiếp trên crop biển đã có (mục~\ref{sec:hsv}).
+  \item \textbf{Phân loại xe:} B5 làm nguồn pretrain kiểu dáng; A1 dùng làm proxy
+        BSD/BSV cho hai lớp ô tô và xe máy trong giai đoạn đầu.
+\end{itemize}
+
+Tất cả số liệu EDA trong chương này lấy từ dữ liệu tải thực tế và notebook
+\texttt{src/ml/notebooks/eda-plate-datasets.ipynb}, không suy đoán từ mô tả trang
+nguồn. Quá trình khử trùng lặp pHash và tác động lên mAP được trình bày chi tiết
+trong Chương~\ref{ch:phathien}.

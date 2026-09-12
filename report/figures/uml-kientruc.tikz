@@ -1,0 +1,40 @@
+% figures/uml-kientruc.tikz — Sơ đồ khối kiến trúc hệ thống
+% Nguồn: docs/architecture/current-architecture.md, src/backend/app/routers/captures.py
+% XeLaTeX: \input{figures/uml-kientruc.tikz} bên trong môi trường tikzpicture
+% (file này là TOÀN BỘ môi trường tikzpicture)
+\begin{tikzpicture}[
+  font=\small,
+  node distance=1.5cm and 2.2cm,
+  box/.style={draw, rounded corners=3pt, text centered, minimum height=1.0cm, text width=3.6cm},
+  bbox/.style={draw, dashed, rounded corners=5pt, inner sep=8pt},
+  arr/.style={->, >=stealth, thick},
+  note/.style={font=\footnotesize, text=gray!80}
+]
+\node[box, fill=blue!10] (webcam) at (0, 0)
+  {Trình duyệt\\ (webcam máy tính)};
+\node[box, fill=blue!10] (edge) at (0, -2.0)
+  {Edge worker\\ (Raspberry Pi~5)};
+\node[box, fill=green!12] (backend) at (5.5, -1.0)
+  {Backend FastAPI\\ \texttt{:8000}};
+\node[box, fill=yellow!20] (db) at (10.5, -0.4)
+  {PostgreSQL\\ \texttt{:5432}};
+\node[box, fill=yellow!20] (vol) at (10.5, -1.8)
+  {Images volume};
+\node[box, fill=orange!15] (fe) at (5.5, 1.4)
+  {React SPA\\ dashboard};
+\node[box, fill=purple!10] (runner) at (5.5, -3.2)
+  {\texttt{OnnxAlprPipeline}\\ (in-process)};
+
+\node[bbox, fit=(webcam)(edge),
+      label=above:{\footnotesize Nguồn ảnh}] {};
+\node[bbox, fit=(db)(vol),
+      label=above:{\footnotesize Lưu trữ}] {};
+
+\draw[arr] (webcam.east) to node[above, note]{\texttt{/captures/infer}} (backend.west |- webcam.east);
+\draw[arr] (edge.east) to node[below, note]{\texttt{/captures} + \texttt{X-Edge-Key}} (backend.west |- edge.east);
+\draw[arr] (backend.east |- db.west) to (db.west);
+\draw[arr] (backend.east |- vol.west) to (vol.west);
+\draw[arr, <->] (fe.south) to node[right, note]{WebSocket} (backend.north);
+\draw[arr, dashed] (backend.south) to node[right, note]{in-process} (runner.north);
+\draw[arr, dashed] (edge.south east) to[bend right=20] node[below, note]{nạp} (runner.west);
+\end{tikzpicture}

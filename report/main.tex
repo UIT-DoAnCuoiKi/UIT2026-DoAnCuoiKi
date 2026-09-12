@@ -28,7 +28,6 @@
 \pagenumbering{roman}
 \setcounter{page}{1}
 
-\input{frontmatter/loicamon}       % Lời cảm ơn (tùy chọn — có thể xóa)
 \input{frontmatter/abstract}       % Tóm tắt nội dung + Từ khóa
 
 \tableofcontents
@@ -40,18 +39,19 @@
 \pagenumbering{arabic}
 \setcounter{page}{1}
 
-\input{chapters/01-tongquan}       % Tuần 1  — Chương 1: Tổng quan
-\input{chapters/02-dulieu}         % Tuần 2  — Chương 2: Dữ liệu
-\input{chapters/03-phathien}       % Tuần 3  — Chương 3: Phát hiện xe & biển số
-\input{chapters/04-ocr-maubien}    % Tuần 3-4 — Chương 4: OCR & màu biển
-\input{chapters/05-phanloai}       % Tuần 5  — Chương 5: Phân loại phương tiện
-\input{chapters/06-hethong}        % Tuần 4-6 — Chương 6: Hệ thống quản lý
-\input{chapters/07-trienkhai}      % Tuần 7-8 — Chương 7: Triển khai thiết bị biên
-\input{chapters/08-danhgia}        % Tuần 9  — Chương 8: Đánh giá & thảo luận
-\input{chapters/09-ketluan}        % Tuần 10 — Chương 9: Kết luận
+\input{chapters/01-gioithieu}      % Chương 1: Giới thiệu
+\input{chapters/02-lienquan}       % Chương 2: Tổng quan công trình liên quan
+\input{chapters/03-dulieu}         % Chương 3: Dữ liệu
+\input{chapters/04-phathien}       % Chương 4: Phát hiện xe và biển số
+\input{chapters/05-ocr-maubien}    % Chương 5: Nhận dạng ký tự và màu nền biển số
+\input{chapters/06-phanloai}       % Chương 6: Phân loại phương tiện
+\input{chapters/07-hethong}        % Chương 7: Hệ thống quản lý bãi giữ xe
+\input{chapters/08-trienkhai}      % Chương 8: Triển khai thiết bị biên và đánh giá
+\input{chapters/09-ketluan}        % Chương 9: Kết luận và hướng phát triển
 
 % ============================ BACK MATTER ============================
-\printbibliography[title={Tài liệu tham khảo}, heading=bibnumbered]
+\printbibliography[title={Tài liệu tiếng Việt}, heading=bibnumbered, keyword=vietnamese]
+\printbibliography[title={Tài liệu tiếng Anh}, keyword=english]
 
 \appendix
 \input{appendices/A-huanluyen}     % Phụ lục A: thông số huấn luyện chi tiết
