@@ -36,7 +36,7 @@ export const GatePanel = forwardRef<
     onPayOpenChange?: (open: boolean) => void;
     wide?: boolean;
     /** Làn đang trực + camera đã cấu hình. Không cấu hình camera nào (mặc định,
-     * hoặc chưa chọn làn) thì dùng webcam đơn như trước — không đổi hành vi cũ. */
+     * hoặc chưa chọn làn) thì dùng webcam đơn như trước, không đổi hành vi cũ. */
     laneName?: string | null;
     laneCameras?: LaneCameraOut[];
   }
@@ -46,7 +46,7 @@ export const GatePanel = forwardRef<
 ) {
   const { data: toggles } = useGetToggles();
   const devMode = toggles?.dev_mode ?? false;
-  // Tải ảnh thay camera thật chỉ để test — ẩn khỏi vận hành thật trừ khi bật
+  // Tải ảnh thay camera thật chỉ để test, ẩn khỏi vận hành thật trừ khi bật
   // dev_mode ở màn Cấu hình (tránh ai đó thay ảnh gốc bằng ảnh tuỳ ý).
   const allowUpload = devMode;
 
@@ -55,7 +55,7 @@ export const GatePanel = forwardRef<
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const roles = useMemo(() => laneCameras.map((c) => c.role), [laneCameraKey]);
   const multi = useCameras(roles);
-  // "Chụp" chỉ có nghĩa khi có ít nhất 1 camera đang live — nếu cả làn đều
+  // "Chụp" chỉ có nghĩa khi có ít nhất 1 camera đang live, nếu cả làn đều
   // chưa kết nối (đang test bằng tải ảnh tay), nút gửi phải gọi đúng tên việc
   // nó làm (gửi ảnh đã tải), không phải "Chụp" vào chỗ không có camera nào.
   const anyLiveCamera = multi.slots.some((s) => s.status === "streaming");
@@ -120,13 +120,13 @@ export const GatePanel = forwardRef<
     }
   };
 
-  // Ảnh tải tay theo từng ô camera (khi ô đó không có luồng trực tiếp) — giữ lại
+  // Ảnh tải tay theo từng ô camera (khi ô đó không có luồng trực tiếp), giữ lại
   // để gộp cùng ảnh vừa chụp từ các camera khác, không gửi riêng lẻ ngay.
   const [uploadedByRole, setUploadedByRole] = useState<Record<string, File>>({});
 
   /** Gộp ảnh: ưu tiên khung hình trực tiếp vừa chụp, thiếu thì lấy ảnh đã tải
    * tay cho đúng vai trò đó. `requireAllBrowserRoles` bắt chờ đủ ảnh của MỌI
-   * camera nguồn browser của làn rồi mới gửi — dùng cho luồng tải tay, vì tải
+   * camera nguồn browser của làn rồi mới gửi, dùng cho luồng tải tay, vì tải
    * xong 1 ô là 1 lần gọi riêng, gửi ngay theo ô đầu tiên sẽ bỏ sót ô sau (đã
    * xảy ra thật: tải "Trước" trước thì gửi liền với 0 ảnh phụ, tải "Sau" sau
    * đó lại thiếu ảnh chính nên bị treo, không bao giờ gửi). Nút "Chụp (N cam)"
@@ -228,7 +228,7 @@ export const GatePanel = forwardRef<
     </figure>
   );
 
-  // Ảnh của mọi camera đã lưu cùng lượt này (làn đa camera) — trước đây lưu
+  // Ảnh của mọi camera đã lưu cùng lượt này (làn đa camera), trước đây lưu
   // đúng ở DB (đã kiểm tra) nhưng không có chỗ nào hiện ra màn hình, nhân viên
   // tưởng chỉ 1 ảnh được lưu. >1 ảnh thì chia đều (2 cam là đúng tỉ lệ 50/50)
   // thay vì chỉ hiện ảnh chính; ảnh chính vẫn dùng object URL cục bộ sẵn có.

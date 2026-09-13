@@ -192,7 +192,7 @@ def _match_exit(db: Session, reading: PlateReading, in_lot: list[ParkingSession]
     """Khớp reading RA với các phiên đang trong bãi. Chỉ đọc, không ghi gì.
 
     Tách riêng để `confirm_exit` (chốt phiên) và `preview_exit` (xem trước) dùng
-    đúng một logic khớp — nếu để hai bản sao thì màn đối chiếu có thể hiện một
+    đúng một logic khớp, nếu để hai bản sao thì màn đối chiếu có thể hiện một
     phiên còn lúc xác nhận lại chốt sang phiên khác.
     """
     target_norm = (
@@ -229,7 +229,7 @@ def preview_exit(body: ExitRequest, db: Session = Depends(get_db), user: User = 
     """Tính thử lượt RA để nhân viên đối chiếu trước khi thu tiền. KHÔNG ghi DB.
 
     Cần thiết vì `compute_fee` trước đây chỉ chạy bên trong `_complete_session`,
-    tức muốn biết phí bao nhiêu thì phiên đã bị đóng mất rồi — nhân viên không có
+    tức muốn biết phí bao nhiêu thì phiên đã bị đóng mất rồi, nhân viên không có
     cơ hội đối chiếu ảnh vào/ra rồi mới quyết định.
     """
     reading = _exit_reading_or_404(db, body.reading_id)

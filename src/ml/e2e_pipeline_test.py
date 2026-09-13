@@ -1,6 +1,6 @@
 """Chạy pipeline nhận diện bãi xe đầy đủ (xe -> kiểu dáng; biển số -> màu + OCR)
 từ dòng lệnh, trên 1 ảnh hoặc 1 thư mục ảnh. Bản CLI của
-src/ml/notebooks/e2e-pipeline-test.ipynb — cùng logic, không cần Jupyter.
+src/ml/notebooks/e2e-pipeline-test.ipynb, cùng logic, không cần Jupyter.
 
 Ngoài in kết quả ra terminal, mỗi ảnh đầu vào được lưu lại 1 bản có vẽ bounding
 box (xe + biển số) kèm text nhận diện, phục vụ kiểm tra bằng mắt nhanh.
@@ -46,7 +46,7 @@ from plate_detect.inference.plate_detector import PlateDetector  # noqa: E402
 from plate_color import process_plate  # noqa: E402
 from pipeline.ocr import CRNNRecognizer, read_plate  # noqa: E402
 
-# --- Đường dẫn model — cùng cấu hình với notebook e2e-pipeline-test.ipynb ---
+# --- Đường dẫn model, cùng cấu hình với notebook e2e-pipeline-test.ipynb ---
 VEHICLE_STYLE_MODEL = "resnet18"  # hoặc "mobilenet_v3_small"
 # Bản .onnx, xuất từ bản tốt nhất theo src/ml/experiments.csv (mAP50 0.9892,
 # tốt hơn yolo26n_s0_640 0.9801). Đây là bản duy nhất được track trong git

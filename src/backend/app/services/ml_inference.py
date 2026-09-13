@@ -5,7 +5,7 @@ giải mã ảnh thô upload từ màn Trạm cổng, chạy pipeline, ánh xạ
 
 Runner chạy: YOLO định vị xe (mặc định `.pt` qua ultralytics, đổi sang `.onnx`
 qua `ML_COARSE_WEIGHTS` để chạy onnxruntime thuần, không cần torch/ultralytics
-cài đặt — xem `predict_vehicle.CoarseVehicleDetector`), detector biển YOLO
+cài đặt, xem `predict_vehicle.CoarseVehicleDetector`), detector biển YOLO
 (`.pt`/`.onnx` qua ultralytics/onnxruntime), OCR CRNN (`.onnx`), classifier
 loại xe (`.onnx`) và classifier kiểu dáng (`.onnx`) qua onnxruntime. Logic suy
 luận nằm trong `onnx_pipeline`; adapter này chỉ lo phần backend (bytes -> BGR

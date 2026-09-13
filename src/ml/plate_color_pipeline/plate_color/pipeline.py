@@ -2,7 +2,7 @@
 
 ``process_plate`` runs two independent paths on every crop:
 
-Path A — color classification (hue-preserving):
+Path A: color classification (hue-preserving):
     Apply CLAHE on the V channel only (no white balance) so that hue is
     completely untouched.  The color decision is made on this pre-WB crop.
     White balance must NOT run here: gray-world WB collapses a solid yellow
@@ -10,7 +10,7 @@ Path A — color classification (hue-preserving):
     misclassification.  Keeping WB out of path A is what makes the color
     label trustworthy under mixed parking-lot lighting.
 
-Path B — OCR enhancement (full stack):
+Path B: OCR enhancement (full stack):
     Classify the lighting condition on the raw crop, then apply the
     condition-appropriate tone correction followed by gray-world white
     balance.  WB is intentionally confined to this path so it can never
@@ -37,7 +37,7 @@ def process_plate(crop_bgr: np.ndarray, with_color: bool = True) -> PlateAppeara
     ``crop_for_ocr`` pointing to the *original* crop object (no copy).
 
     For valid crops, two isolated processing paths run:
-    - Path A: ``clahe_v(crop_bgr)`` → ``classify_color`` (no WB — hue preserved).
+    - Path A: ``clahe_v(crop_bgr)`` → ``classify_color`` (no WB, hue preserved).
     - Path B: ``classify_lighting(crop_bgr)`` → ``enhance(crop_bgr, condition)``
       (full stack including gray-world WB for OCR readiness).
 
@@ -57,7 +57,7 @@ def process_plate(crop_bgr: np.ndarray, with_color: bool = True) -> PlateAppeara
     # --- Path A: color classification -------------------------------------------
     # CLAHE on V only preserves hue + saturation so the yellow/white/blue
     # decision is not contaminated by gray-world WB (which would shift hue).
-    # White balance is intentionally absent here — it lives only in path B.
+    # White balance is intentionally absent here. It lives only in path B.
     if with_color:
         crop_a = clahe_v(crop_bgr)
         cr = classify_color(crop_a)

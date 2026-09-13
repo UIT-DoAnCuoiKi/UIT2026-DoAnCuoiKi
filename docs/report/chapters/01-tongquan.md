@@ -55,7 +55,7 @@ Trước khi thiết kế pipeline, nhóm đã khảo sát các hệ thống ALP
 - Tác giả: A. Ammar, A. Koubaa, W. Boulila, B. Benjdira, Y. Alhabashi (Prince Sultan University, Ả Rập Xê Út)
 - Năm: 2023
 - Link: [doi.org/10.3390/s23042120](https://doi.org/10.3390/s23042120) (full text mở tại [PMC9966104](https://pmc.ncbi.nlm.nih.gov/articles/PMC9966104/))
-- Tóm tắt: Triển khai thực tế tại cổng bãi xe của Đại học Prince Sultan, dùng pipeline năm tầng (YOLOv4 phát hiện xe/biển, phân loại đời xe, nhận dạng ký tự, DeepSORT theo dõi đa khung hình có voting, tối ưu bằng TensorRT) chạy trên Jetson Xavier AGX ở tốc độ 17,1 FPS. Hai phát hiện định lượng đáng chú ý:
+- Tóm tắt: Triển khai thực tế tại cổng bãi xe của Đại học Prince Sultan, dùng pipeline năm tầng (YOLOv4 phát hiện xe/biển, phân loại đời xe, nhận dạng ký tự, DeepSORT theo dõi đa khung hình có voting, tối ưu bằng TensorRT) chạy trên Jetson Xavier AGX ở tốc độ 17,1 FPS. Hai số liệu dùng được cho đề tài:
   - Voting đa khung hình: độ chính xác nhận dạng biển tăng từ 29% (một khung hình) lên 69% khi voting qua tối đa 35 khung hình liên tiếp
   - Độ phân giải camera: độ chính xác giảm mạnh từ 80% (1080p) xuống 23% (480p), ngưỡng tối thiểu nên từ 720p trở lên
 
@@ -69,7 +69,7 @@ Trước khi thiết kế pipeline, nhóm đã khảo sát các hệ thống ALP
 - Tác giả: M. Safran, A. Alajmi, S. Alfarhood
 - Năm: 2024
 - Link: [doi.org/10.1155/2024/4917097](https://doi.org/10.1155/2024/4917097)
-- Tóm tắt: YOLOv5 phát hiện biển → YOLOv8 phát hiện ký tự → CNN tự thiết kế phân loại ký tự, tận dụng camera giám sát có sẵn trong bãi thay vì lắp phần cứng mới. Cho bằng chứng định lượng rõ ràng về lợi ích kiến trúc đa tầng so với single-stage (96,1% so với 83,9%). Tích hợp dashboard web trực quan hóa occupancy và luồng xe theo thời gian thực.
+- Tóm tắt: YOLOv5 phát hiện biển → YOLOv8 phát hiện ký tự → CNN tự thiết kế phân loại ký tự, dùng camera giám sát có sẵn trong bãi thay vì lắp phần cứng mới. Có số đo so sánh trực tiếp kiến trúc đa tầng với single-stage: 96,1% so với 83,9%. Tích hợp dashboard web trực quan hóa occupancy và luồng xe theo thời gian thực.
 
 **Light-Edge: lượng tử hóa INT8 cho nhận dạng biển số trên thiết bị biên**
 - Tác giả: F. Sonnara, H. Chihaoui, F. Filali
@@ -92,7 +92,7 @@ Trước khi thiết kế pipeline, nhóm đã khảo sát các hệ thống ALP
 **Plate Recognizer + ParkPow**
 - Đơn vị: Plate Recognizer
 - Link: [platerecognizer.com](https://platerecognizer.com/)
-- Tóm tắt: SDK on-prem chạy được trên Jetson, Raspberry Pi, Windows/Linux, độ trễ 50–100 ms/ảnh (SDK) hoặc ~200 ms (cloud), hỗ trợ hơn 90 quốc gia. Dashboard ParkPow có tập tính năng phong phú (log vào/ra, alert quá giờ, tìm theo biển/hãng/model/màu, export CSV/API). Không công bố % độ chính xác.
+- Tóm tắt: SDK on-prem chạy được trên Jetson, Raspberry Pi, Windows/Linux, độ trễ 50–100 ms/ảnh (SDK) hoặc ~200 ms (cloud), hỗ trợ hơn 90 quốc gia. Dashboard ParkPow có log vào/ra, alert quá giờ, tìm theo biển/hãng/model/màu, export CSV/API. Không công bố % độ chính xác.
 
 **Rekor Scout / OpenALPR**
 - Đơn vị: Rekor
@@ -113,11 +113,11 @@ Trước khi thiết kế pipeline, nhóm đã khảo sát các hệ thống ALP
 
 ### 1.1.5 Khoảng trống nghiên cứu và định vị đề tài
 
-Từ toàn bộ khảo sát, có thể rút ra ba khoảng trống chính mà đề tài hướng tới lấp đầy:
+Khảo sát cho thấy hai khoảng trống mà đề tài nhắm tới:
 
 1. **Chưa hệ thống nào tích hợp trọn vẹn trên một thiết bị biên duy nhất.** Kể cả các hệ thống học thuật hoàn chỉnh nhất như Pradhan (2025) hay Ammar (2023) cũng chưa gộp đồng thời phát hiện/nhận dạng, backend (cơ sở dữ liệu, quản lý phiên, tính phí) và dashboard vào một thiết bị biên, vẫn phụ thuộc server ngoài hoặc cloud.
 2. **Chưa hệ thống nào dùng màu nền biển số làm tín hiệu.** Không hệ thống nào trong khảo sát, cả học thuật lẫn thương mại, sử dụng màu nền biển số (trắng/vàng/xanh) để phân loại; các sản phẩm quốc tế như ParkPow hay Rekor chỉ nhận diện màu xe, không phải màu biển.
 
-Đây chính là các điểm khác biệt mà hệ thống đề xuất trong đồ án hướng tới giải quyết: phát hiện, nhận dạng, phân loại màu biển, quản lý phiên/tính phí và dashboard.
+Đồ án nhắm vào đúng hai điểm này: gộp phát hiện, nhận dạng, phân loại màu biển, quản lý phiên/tính phí và dashboard trên cùng một thiết bị biên.
 
 *(Danh sách BibTeX đầy đủ, kèm DOI và ghi chú evidence-level cho từng nguồn, có sẵn tại `docs/research/refs.bib` và `docs/research/2026-07-19-similar-parking-systems.md`.)*

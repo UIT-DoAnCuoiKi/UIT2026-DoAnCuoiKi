@@ -1,5 +1,5 @@
 """recognition_mode="best_of": làn 2 camera, chạy nhận dạng cả 2, lấy ảnh có
-ocr_conf cao hơn làm ảnh chính — vì 1 camera có thể bị khuất/lóa mà camera còn
+ocr_conf cao hơn làm ảnh chính, vì 1 camera có thể bị khuất/lóa mà camera còn
 lại vẫn đọc được. Trước đây chỉ 1 ảnh/lượt, không có gì để so sánh.
 """
 from app.schemas.capture import PipelinePayload, PlateItem
@@ -7,7 +7,7 @@ from app.services.inference import get_inference_engine
 
 
 class _ByBytesEngine:
-    """Fake engine trả payload khác nhau tuỳ nội dung ảnh — để mô phỏng 1 camera
+    """Fake engine trả payload khác nhau tuỳ nội dung ảnh, để mô phỏng 1 camera
     đọc tốt hơn camera kia, khác `FakeInferenceEngine` (luôn trả 1 payload cố định)."""
 
     def __init__(self, mapping: dict[bytes, PipelinePayload]) -> None:
@@ -85,7 +85,7 @@ def test_best_of_keeps_primary_when_it_is_already_better(client, staff_headers, 
 
 
 def test_primary_mode_only_recognizes_the_main_image(client, staff_headers, admin_headers):
-    """Mặc định (primary): ảnh phụ chỉ lưu bằng chứng, không chạy nhận dạng lại —
+    """Mặc định (primary): ảnh phụ chỉ lưu bằng chứng, không chạy nhận dạng lại,
     dù ảnh phụ có "đọc được" tốt hơn cũng không được dùng, đúng ý đồ cấu hình."""
     lane_r = client.post("/lanes", json={"name": "lane-primary"}, headers=admin_headers)
     lane = lane_r.json()["name"]

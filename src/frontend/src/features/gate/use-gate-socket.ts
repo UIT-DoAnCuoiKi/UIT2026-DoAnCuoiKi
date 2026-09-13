@@ -16,7 +16,7 @@ export type GateCapture = {
   plate_valid?: boolean | null;
   image_asset_id?: number | null;
   plate_crop_asset_id?: number | null;
-  // Ảnh của mọi camera đã lưu cho lượt này (làn đa camera) — chỉ có khi capture
+  // Ảnh của mọi camera đã lưu cho lượt này (làn đa camera), chỉ có khi capture
   // đến từ postInfer của chính panel này (không có trên sự kiện WS/edge).
   images?: { role: string; image_asset_id: number; is_primary: boolean }[];
   duplicate?: boolean;
@@ -51,7 +51,7 @@ export function latestByDirection(events: GateCapture[]): { in: GateCapture | nu
 /** Bản có lọc theo làn: chạy nhiều làn thì mỗi panel chỉ nhận capture đúng làn
  * đang trực, không bị làn khác đè lên (trước đây `latestByDirection` gộp mọi
  * làn vào chung 1 "in"/1 "out", 2 làn cùng chiều tranh nhau 1 panel).
- * `lane` rỗng/undefined thì không lọc — giữ đúng hành vi cũ khi chưa cấu hình làn. */
+ * `lane` rỗng/undefined thì không lọc, giữ đúng hành vi cũ khi chưa cấu hình làn. */
 export function latestForDirectionAndLane(
   events: GateCapture[], direction: "in" | "out", lane?: string | null,
 ): GateCapture | null {
@@ -79,7 +79,7 @@ export function useGateSocket(opts?: { lane?: string }): GateState & {
     let ws: WebSocket | null = null;
     let closed = false;
     // Trước đây WS rớt là chuyển hẳn sang polling 3 giây vĩnh viễn, không bao giờ
-    // thử kết nối lại — mất realtime cho tới khi nhân viên tự tải lại trang.
+    // thử kết nối lại, mất realtime cho tới khi nhân viên tự tải lại trang.
     let retry: ReturnType<typeof setTimeout> | null = null;
     let attempt = 0;
 

@@ -1,4 +1,4 @@
-"""Tests for plate_color.lighting.enhance — lighting enhancement stack.
+"""Tests for plate_color.lighting.enhance: lighting enhancement stack.
 
 Each test probes a distinct, observable behaviour (mean V shift, hue
 preservation, channel equalization) rather than implementation internals,
@@ -26,7 +26,7 @@ def _contrast(img):
 
 
 def test_clahe_v_preserves_hue():
-    """CLAHE must only touch the V channel — hue/saturation must be stable.
+    """CLAHE must only touch the V channel. Hue/saturation must be stable.
 
     CLAHE is applied inside HSV so only the brightness (V) is redistribu‐
     ted; converting back to BGR preserves the original hue exactly.
@@ -92,7 +92,7 @@ def test_enhance_low_contrast_expands():
     assertion confirms ``enhance`` still returns a same-shape uint8 BGR image.
     """
     lc = low_contrast_crop()
-    # CLAHE alone must expand contrast — this is what the step guarantees.
+    # CLAHE alone must expand contrast. This is what the step guarantees.
     assert _contrast(clahe_v(lc)) >= _contrast(lc)
     # Full enhance must return a same-shape uint8 BGR image.
     out = enhance(lc, "low_contrast")

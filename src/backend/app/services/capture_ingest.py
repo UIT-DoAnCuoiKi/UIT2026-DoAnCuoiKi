@@ -49,10 +49,10 @@ def ingest_reading(
     primary_role: str = "front",
     extra_images: list[tuple[bytes, str]] | None = None,
 ) -> tuple[PlateReading, str | None, bool]:
-    """`image_bytes` là ảnh của camera CHÍNH — luôn đi qua nhận dạng, luôn ghi vào
+    """`image_bytes` là ảnh của camera CHÍNH, luôn đi qua nhận dạng, luôn ghi vào
     `PlateReading.image_asset_id` để mọi code cũ (chỉ biết 1 ảnh/reading) không
     phải đổi gì. `extra_images` là ảnh của camera phụ (vd camera sau xe khi camera
-    chính là trước xe) — chỉ lưu lại làm bằng chứng, không chạy nhận dạng lại.
+    chính là trước xe), chỉ lưu lại làm bằng chứng, không chạy nhận dạng lại.
     Mỗi ảnh (chính lẫn phụ) đều có 1 dòng `ReadingImage` để truy vấn thống nhất.
     """
     existing = db.scalars(select(PlateReading).where(PlateReading.capture_id == capture_id)).first()

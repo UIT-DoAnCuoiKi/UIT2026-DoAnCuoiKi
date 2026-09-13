@@ -15,7 +15,7 @@ router = APIRouter(tags=["captures"])
 
 
 def _zip_extra_images(extra_images: list[UploadFile], extra_roles: list[str]) -> list[tuple[bytes, str]]:
-    """Ảnh camera phụ (vd cam sau xe) — chỉ lưu làm bằng chứng, không nhận dạng
+    """Ảnh camera phụ (vd cam sau xe), chỉ lưu làm bằng chứng, không nhận dạng
     lại. `extra_images`/`extra_roles` là 2 danh sách multipart song song; lệch
     độ dài là lỗi client (thiếu vai trò cho 1 ảnh nào đó), không nên đoán."""
     if not extra_images:
@@ -59,10 +59,10 @@ def _apply_recognition_mode(
     """Chạy nhận dạng theo cấu hình của làn.
 
     Mặc định (`primary`, hoặc không có ảnh phụ): chỉ nhận dạng ảnh chính, ảnh phụ
-    chỉ lưu làm bằng chứng — đúng hành vi cũ, 1 lần suy luận.
+    chỉ lưu làm bằng chứng, đúng hành vi cũ, 1 lần suy luận.
 
     `best_of`: nhận dạng CẢ ảnh chính lẫn ảnh phụ đầu tiên (vd ô tô có biển cả
-    trước lẫn sau), lấy ảnh cho ocr_conf cao hơn làm ảnh "chính" thật sự — vì
+    trước lẫn sau), lấy ảnh cho ocr_conf cao hơn làm ảnh "chính" thật sự, vì
     một camera có thể bị khuất/lóa mà camera còn lại vẫn đọc được. Trả về đã
     hoán vị đúng: image_bytes/role của ảnh thắng cuộc, phần còn lại dồn vào extras.
     """

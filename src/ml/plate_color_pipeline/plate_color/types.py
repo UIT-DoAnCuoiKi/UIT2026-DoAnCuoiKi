@@ -23,5 +23,5 @@ class PlateAppearance:
     color_features: dict
     # Lighting condition (normal|low_light|overexposed|low_contrast|glare|degenerate).
     lighting: str
-    # CLAHE-enhanced BGR crop ready for OCR — same spatial size as the input crop.
+    # CLAHE-enhanced BGR crop ready for OCR, same spatial size as the input crop.
     crop_for_ocr: np.ndarray

@@ -40,7 +40,7 @@ class PlateDetector:
         self.conf = conf
         self.iou = iou
         # Truyền tay (vd. giới hạn 1 luồng) khi detector chạy chung tiến trình với
-        # nhiều model nhỏ khác — xem onnx_pipeline._single_threaded_session_options.
+        # nhiều model nhỏ khác, xem onnx_pipeline._single_threaded_session_options.
         # None -> onnxruntime tự chọn (mặc định phù hợp cho benchmark/eval độc lập).
         self._sess_options = sess_options
         self._model = None

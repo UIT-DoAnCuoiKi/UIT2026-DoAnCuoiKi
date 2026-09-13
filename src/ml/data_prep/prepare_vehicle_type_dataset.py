@@ -1,45 +1,45 @@
 """Dựng tập dữ liệu phân loại LOẠI XE THÔ (motorbike/car/truck) từ
 `data/raw/kaggle_vn_plate_segment`, thay cho việc dùng thẳng nhãn lớp của
 YOLOv8n pretrained COCO (không train lại, sai nhiều với ảnh cận cảnh kiểu
-camera cổng — xem `predict_vehicle.detect_vehicle_crop`).
+camera cổng, xem `predict_vehicle.detect_vehicle_crop`).
 
-Dataset gốc chia sẵn theo 5 tiền tố tên file, nội dung rất khác nhau — đã xem
+Dataset gốc chia sẵn theo 5 tiền tố tên file, nội dung rất khác nhau, đã xem
 tay xác nhận:
   - `carlong_*`  (989 ảnh, cả train+val gộp): ô tô cận cảnh kiểu camera
     barrier/gờ giảm tốc, thuần 1 loại (xem tay ~15 ảnh rải rác, 15/15 ô tô).
   - `greenpack_*` (1747 ảnh): xe máy cận cảnh kiểu CCTV cổng, thuần 1 loại
     (xem tay ~15 ảnh, 15/15 xe máy).
   - `Dieu_*`/`Hung_*` (925 ảnh gộp): ảnh phố hỗn hợp, nhiều loại xe lẫn hậu
-    cảnh lộn xộn — không có thư mục riêng cho xe tải.
+    cảnh lộn xộn, không có thư mục riêng cho xe tải.
   - `Tgmt_*` (917 ảnh): cắt cực sát chỉ thấy biển + góc ca-lăng, không thấy
-    dáng xe — không dùng được cho phân loại loại xe.
+    dáng xe, không dùng được cho phân loại loại xe.
 
 Xe tải KHÔNG có thư mục riêng, phải lọc từ Dieu_/Hung_. Đã dùng
 YOLOv8n pretrained (predict_vehicle.detect_vehicle_crop) quét toàn bộ 925 ảnh
-để ra 151 ứng viên có nhãn "truck" — rồi xem tay TỪNG ảnh trong 151 ứng viên
+để ra 151 ứng viên có nhãn "truck", rồi xem tay TỪNG ảnh trong 151 ứng viên
 đó, vì độ tin cậy của detector này KHÔNG đáng tin để lọc tự động (dương tính
-giả rải đều mọi mức điểm, kể cả điểm cao — vd 1 ảnh Toyota Camry vẫn ra
+giả rải đều mọi mức điểm, kể cả điểm cao, vd 1 ảnh Toyota Camry vẫn ra
 "truck" 0.79). Tiêu chí nhận: xe tải là chủ thể chính, không phải xe con/SUV/
 van/xe khách, không phải chỉ lấp ló hậu cảnh trong khi chủ thể chính là xe
-khác. Kết quả: 73/151 đạt (danh sách `_TRUCK_ACCEPTED` dưới, cố định — không
+khác. Kết quả: 73/151 đạt (danh sách `_TRUCK_ACCEPTED` dưới, cố định, không
 random để tái lập đúng lần xem tay đã làm, xem thêm biên bản đầy đủ 151 dòng
 tại scratchpad `truck_review_manifest.csv` lúc làm việc này).
 
-QUAN TRỌNG — lỗi đã phát hiện sau lần train đầu: bản đầu chỉ lấy car từ
+Lỗi phát hiện sau lần train đầu: bản đầu chỉ lấy car từ
 carlong_ và motorbike từ greenpack_ (mỗi lớp đúng 1 nguồn/1 kiểu camera).
-Model học theo "phong cách ảnh/camera" thay vì hình dáng xe — mọi ảnh kiểu
+Model học theo "phong cách ảnh/camera" thay vì hình dáng xe, mọi ảnh kiểu
 đường phố (Dieu_/Hung_) đều bị đoán thành "truck" bất kể là xe gì, vì truck
 là lớp DUY NHẤT có ảnh đường phố lúc đó. Kiểm tra thật trên ảnh Dieu_/Hung_
 ngoài tập train: sai 12/13. Để sửa: bổ sung thêm ảnh car/motorbike LẤY TỪ
 Dieu_/Hung_ (đường phố) trộn cùng carlong_/greenpack_ (cận cảnh cổng), để mỗi
-lớp có đủ cả 2 phong cách ảnh — model buộc phải học hình dáng xe thật.
+lớp có đủ cả 2 phong cách ảnh, model buộc phải học hình dáng xe thật.
   - `_CAR_EXTRA_ACCEPTED` (92 ảnh): lấy mẫu 128 ứng viên "car" từ scan
     YOLOv8n trên Dieu_/Hung_ (216 ứng viên gốc), xem tay từng ảnh, tiêu chí
     như xe tải (ô tô là chủ thể chính, không phải chỉ lấp ló hậu cảnh khi
     chủ thể chính là xe máy; loại luôn vài ảnh detector nhầm xe tải/xe đạp
     thành "car"). 92/128 đạt.
   - `_MOTORBIKE_EXTRA_ACCEPTED` (128 ảnh): lấy mẫu 128 ứng viên "motorcycle"
-    (481 ứng viên gốc), xem tay — độ chính xác cao hơn hẳn (128/128 đạt,
+    (481 ứng viên gốc), xem tay, độ chính xác cao hơn hẳn (128/128 đạt,
     không có dương tính giả nào), vì xe máy có hình dáng đặc trưng hơn nhiều
     so với xe tải/van dễ nhầm với ô tô.
 

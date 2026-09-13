@@ -55,7 +55,7 @@ DIGIT_POSITION_CONFUSION = {"O": "0", "I": "1", "B": "8", "S": "5", "Z": "2"}
 LETTER_POSITION_CONFUSION = {"0": "D", "1": "L"}  # O không xuất hiện trong seri nên không map 0->O
 
 # Seri biển số có thể gồm 1 chữ cái (biển thường, vd 51F) hoặc 2 chữ cái (biển
-# seri đặc biệt, vd 50LD-044.11, 80NG-123.45). Cố ý KHÔNG chốt danh sách cứng
+# seri đặc biệt, vd 50LD-044.11, 80NG-123.45). Cố ý không chốt danh sách cứng
 # các seri 2 chữ cái: ngoài LD, DA, NG, QT, NN, MĐ, TĐ còn nhiều ký hiệu khác
 # đang lưu hành, và với một bộ kiểm tra định dạng thì loại nhầm biển hợp lệ
 # gây hại hơn là chấp nhận một seri lạ.

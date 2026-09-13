@@ -31,7 +31,7 @@ const baseSessionData = {
   ],
 };
 // Ghi đè được per-test (vd. thêm entry_reading.images cho lượt đa camera) mà
-// không phải viết lại toàn bộ mock — mặc định trả đúng dữ liệu như trước.
+// không phải viết lại toàn bộ mock, mặc định trả đúng dữ liệu như trước.
 const getSessionDetail = vi.fn().mockReturnValue({ data: baseSessionData, isLoading: false, refetch: vi.fn() });
 vi.mock("@/api/generated/sessions/sessions", () => ({
   useSessionDetail: () => getSessionDetail(),
@@ -79,7 +79,7 @@ test("shows detail fields and retention notice", () => {
 
 test("shows lane for entry and exit, and a receipt-style header line", () => {
   // Dữ liệu này vốn đã có sẵn trên PlateReading.lane, chỉ trước đây không lộ
-  // ra màn chi tiết — nhân viên tưởng hệ thống không lưu lane nào cả.
+  // ra màn chi tiết, nhân viên tưởng hệ thống không lưu lane nào cả.
   render(
     <MemoryRouter initialEntries={["/sessions/9"]}>
       <Routes>

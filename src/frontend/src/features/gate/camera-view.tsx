@@ -16,7 +16,7 @@ export function CameraView({
   onUpload,
   error,
   // Tải ảnh thay camera thật chỉ dành cho test/demo (ảnh đi thẳng vào pipeline
-  // nhận dạng như ảnh chụp thật) — ẩn khỏi vận hành thật trừ khi bật dev_mode
+  // nhận dạng như ảnh chụp thật), ẩn khỏi vận hành thật trừ khi bật dev_mode
   // trong Cấu hình, tránh ai đó thay ảnh gốc bằng ảnh tuỳ ý.
   allowUpload = false,
 }: {

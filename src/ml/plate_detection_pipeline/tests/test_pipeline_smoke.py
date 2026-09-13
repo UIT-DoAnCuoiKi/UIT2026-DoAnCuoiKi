@@ -28,10 +28,10 @@ def test_full_pipeline_cpu(tmp_path):
     best = os.path.join(run_dir, "weights", "best.pt")
     assert os.path.exists(best)
 
-    # 3. inference via PlateDetector (pt backend) — must not crash
+    # 3. inference via PlateDetector (pt backend): must not crash
     from plate_detect.inference.plate_detector import PlateDetector
     val_imgs = sorted((tmp_path / "proc" / "images" / "val").glob("*.jpg"))
-    assert val_imgs, "prepare() produced no val images — check split logic"
+    assert val_imgs, "prepare() produced no val images, check split logic"
     img = cv2.imread(val_imgs[0].as_posix())
     assert img is not None
     assert isinstance(PlateDetector(best, backend="pt", conf=0.01).detect(img), list)

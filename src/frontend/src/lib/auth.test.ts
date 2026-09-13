@@ -1,6 +1,6 @@
 import { saveToken, getToken, clearToken, getRole, isExpired } from "./auth";
 
-// header.payload.signature — payload is base64url of {role, exp}
+// header.payload.signature: payload is base64url of {role, exp}
 function makeJwt(payload: object): string {
   const b64 = (o: object) =>
     btoa(JSON.stringify(o)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
