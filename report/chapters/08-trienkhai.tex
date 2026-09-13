@@ -31,7 +31,7 @@ Raspberry Pi 5 phù hợp với bài toán cổng bãi xe kiểu dừng chờ (s
 \subsection{Xuất ONNX và Khớp Checkpoint}
 \label{subsec:trienkhai-onnx}
 
-Hệ thống chạy OCR (CRNN, 37 ký tự) và phân loại kiểu dáng (ResNet18) qua ONNX Runtime, không phụ thuộc PyTorch khi suy luận. Detector biển số (YOLOv8n) tiếp tục chạy qua Ultralytics vì file \texttt{.pt} có sẵn trong luồng huấn luyện. Việc tách phần phụ thuộc nặng (PyTorch) ra khỏi đường suy luận chính là bước cần thiết để triển khai trên thiết bị có bộ nhớ hạn chế.
+Hệ thống chạy OCR (CRNN, 37 ký tự), phân loại loại xe (ResNet18) và phân loại kiểu dáng (ResNet18) qua ONNX Runtime, không phụ thuộc PyTorch khi suy luận. Detector biển số (YOLOv8n) tiếp tục chạy qua Ultralytics vì file \texttt{.pt} có sẵn trong luồng huấn luyện; YOLOv8n COCO ở bước định vị xe cũng chọn được backend ONNX Runtime khi cần tránh phụ thuộc PyTorch trên thiết bị biên. Việc tách phần phụ thuộc nặng (PyTorch) ra khỏi đường suy luận chính là bước cần thiết để triển khai trên thiết bị có bộ nhớ hạn chế.
 
 Trong quá trình phát triển, phát hiện một lỗi ảnh hưởng đến tất cả các phiên bản ONNX của OCR trước tuần 7: hàm \texttt{train\_crnn()} lưu checkpoint \texttt{.pt} từ epoch có validation CER thấp nhất, nhưng trả về biến \texttt{model} ở \textbf{epoch cuối} và các script export dùng biến này để sinh \texttt{.onnx}. Kết quả là file \texttt{.onnx} là một model khác, kém hơn, so với model đã đo accuracy. Sau khi sửa tại gốc (nạp lại checkpoint tốt nhất trước khi trả về), kiểm chứng trên toàn bộ 666 biển test cho thấy \textbf{666/666 dự đoán khớp tuyệt đối giữa \texttt{.pt} và \texttt{.onnx}}, chênh lệch confidence ở mức \(4 \times 10^{-7}\) (nhiễu số thực bình thường khi đổi độ chính xác). Đây là bằng chứng xác nhận file ONNX đang được triển khai là đúng model đã báo cáo accuracy.
 
@@ -46,8 +46,7 @@ Lượng tử hóa động INT8 (dynamic quantization) được áp dụng cho c
 \begin{table}[htbp]
 \centering
 \caption{Kết quả lượng tử hóa INT8 động cho hai model ONNX của hệ thống.}
-% Nguồn: src/ml/experiments/int8\_quant.csv (đo ngày 2026-09-12, CPU Apple ARM).
-% Cột latency đo trên máy dev (không phải Pi5) — chỉ để tham khảo xu hướng.
+{\footnotesize Nguồn: \texttt{src/ml/experiments/int8\_quant.csv} (đo ngày 12 tháng 9 năm 2026, CPU Apple ARM). Cột latency đo trên máy dev, không phải Raspberry Pi 5, chỉ tham khảo xu hướng.}
 \label{tab:quant}
 \begin{tabular}{lrrrr}
 \toprule
@@ -103,6 +102,7 @@ Tập kiểm tra cho từng thành phần:
 \begin{itemize}[noitemsep]
   \item \textbf{Detector biển số:} 342 ảnh từ tập A1 sau khử trùng lặp gần (pHash Hamming $\leq 5$), loại 230 ảnh gần trùng với tập train. Nguồn: \texttt{src/ml/experiments/a1\_dedup\_eval.csv}.
   \item \textbf{OCR:} 666 biển từ tập \texttt{topkek\_plate\_ocr} test split và 96 biển từ tập \texttt{vn\_plate} được gán nhãn thủ công. Nguồn: \texttt{src/ml/experiments.csv} và \texttt{docs/report/tuan-07.md}.
+  \item \textbf{Phân loại loại xe:} 149 ảnh test từ \texttt{kaggle\_vn\_plate\_segment} (67 \texttt{car}, 71 \texttt{motorbike}, 11 \texttt{truck}). Nguồn: \texttt{src/ml/experiments/type\_resnet18\_history.json}.
   \item \textbf{Phân loại kiểu dáng:} 987 ảnh từ tập test B5 (Vehicle Body Style Dataset). Nguồn: \texttt{src/ml/experiments.csv} dòng resnet18.
   \item \textbf{Màu nền biển:} chưa có tập test độc lập có nhãn màu đo được; xem ghi chú tại Bảng~\ref{tab:eval-components}.
 \end{itemize}
@@ -118,12 +118,13 @@ Bảng~\ref{tab:eval-components} tổng hợp kết quả đánh giá từng th�
 %   Detector:      src/ml/experiments/a1_dedup_eval.csv (model=yolov8n_s0, run_date=2026-09-12)
 %   OCR topkek:    src/ml/experiments.csv dòng 2026-08-29, model=crnn_ctc, acc=0.5661
 %   OCR vn_plate:  docs/report/tuan-07.md mục 1 (80,2%, model 37 ký tự)
-%   Phân loại:     src/ml/experiments.csv dòng resnet18 (acc=0.8997, f1_macro=0.9012)
+%   Loại xe:       src/ml/experiments/type_resnet18_history.json (acc=0.9866, f1_macro=0.9619)
+%   Kiểu dáng:     src/ml/experiments.csv dòng resnet18 (acc=0.8997, f1_macro=0.9012)
 %   Màu biển:      chưa có số đo được
 \begin{table}[htbp]
 \centering
 \caption{Tổng hợp hiệu năng các thành phần của pipeline nhận diện phương tiện.}
-% Nguồn: xem comment ở phần tiêu đề bảng trên.
+{\footnotesize Nguồn: \texttt{src/ml/experiments/a1\_dedup\_eval.csv}; \texttt{src/ml/experiments.csv}; \texttt{docs/report/tuan-07.md}.}
 \label{tab:eval-components}
 \begin{tabular}{llll}
 \toprule
@@ -136,6 +137,10 @@ Phát hiện biển số & YOLOv8n (A1, sau dedup)
 OCR biển số & CRNN 37 ký tự (có ``Đ'')
   & Accuracy (topkek, 666 biển)  & 56,6\% \\
   & & Accuracy (vn\_plate, 96 biển) & 80,2\% \\
+\midrule
+Phân loại loại xe & ResNet18 (car/motorbike/truck)
+  & Accuracy       & 98,66\% \\
+  & & F1-macro       & 96,19\% \\
 \midrule
 Phân loại kiểu dáng & ResNet18 (B5, 3 lớp)
   & Accuracy       & 89,97\% \\
@@ -152,7 +157,7 @@ Màu nền biển số & HSV + ngưỡng màu
 
 \textbf{Nhận xét về OCR.} Khoảng cách lớn giữa accuracy trên topkek (56,6\%) và vn\_plate (80,2\%) phản ánh sự khác biệt về nguồn gốc tập test: topkek cùng nguồn phân phối với tập train, còn vn\_plate là tập độc lập được gán nhãn thủ công từ ảnh thực tế với điều kiện gần hơn với triển khai. Phân tích lỗi trên tập train (4.167 ký tự) cho thấy 64\% lỗi là nhầm lẫn giữa các chữ số (1 và 7, 6 và 8, 8 và 9), phù hợp với ảnh hưởng của độ phân giải thấp đã ghi nhận trong Chương~\ref{ch:ocr}. Mô hình 37 ký tự (có ``Đ'') đọc đúng 10/17 ký tự ``Đ'' trên tập kiểm tra, trong khi mô hình 36 ký tự cũ rớt hoàn toàn 17/17.
 
-\textbf{Nhận xét về phân loại kiểu dáng.} ResNet18 đạt F1-macro 90,12\% trên ba lớp, so với MobileNetV3-Small đạt 90,69\% (xem Chương~\ref{ch:phanloai}). ResNet18 được chọn triển khai vì kích thước ONNX (42,63 MB) vẫn trong ngưỡng chấp nhận được với RAM thiết bị biên và latency tuyệt đối thấp đủ cho ngân sách hai giây. MobileNetV3-Small (6,09 MB) là ứng viên thay thế nếu cần giảm thêm footprint.
+\textbf{Nhận xét về phân loại phương tiện.} Bước loại xe (ResNet18 tự huấn luyện) đạt accuracy 98,66\% và F1-macro 96,19\% trên tập test, cùng 100\% trên bộ kiểm tra ngoài phân phối, cao hơn hẳn phương án dùng thẳng nhãn COCO của YOLO pretrained (xem Chương~\ref{ch:phanloai}). Bước kiểu dáng ResNet18 đạt F1-macro 90,12\% trên ba lớp, so với MobileNetV3-Small đạt 90,69\%. ResNet18 được chọn triển khai cho cả hai bước vì kích thước ONNX (42,63 MB mỗi model) vẫn trong ngưỡng chấp nhận được với RAM thiết bị biên và latency tuyệt đối thấp đủ cho ngân sách hai giây. MobileNetV3-Small (6,09 MB) là ứng viên thay thế nếu cần giảm thêm footprint.
 
 \section{Đánh Giá Toàn Hệ Thống End-to-End}
 \label{sec:trienkhai-e2e}
@@ -167,7 +172,9 @@ Màu nền biển số & HSV + ngưỡng màu
 \section{So Sánh PC và Thiết Bị Biên}
 \label{sec:trienkhai-sosanh-pc-bien}
 
-\wip{So sánh đa nền tảng chờ kết quả đo trên Raspberry Pi 5 thật: bảng đối chiếu độ trễ, FPS, RAM giữa máy tính (CPU) và thiết bị biên; ảnh hưởng của lượng tử hóa INT8 lên latency thực tế trên Pi (khác với kết quả đo trên CPU x86/ARM dev hiện tại).}
+Cột máy tính của bảng đối chiếu đã có: độ trễ phần tính toán của toàn pipeline trên CPU máy dev đạt trung vị 260,2 ms mỗi khung (Chương~\ref{ch:hethong}, Bảng~\ref{tab:e2e-pc-latency}), trong đó phát hiện biển số chiếm 39,1\% và hai bộ phân loại ResNet18 chiếm 31,6\%. Đây là mốc tham chiếu để so với thiết bị biên khi có phần cứng.
+
+\wip{Cột Raspberry Pi 5 của bảng đối chiếu chờ kết quả đo trên phần cứng thật: độ trễ, FPS, RAM tương ứng để đặt cạnh cột máy tính (CPU) ở trên; ảnh hưởng của lượng tử hóa INT8 lên latency thực tế trên Pi (khác với kết quả đo trên CPU x86/ARM dev hiện tại).}
 
 \section{Đánh Giá Đa Điều Kiện Ánh Sáng}
 \label{sec:trienkhai-anhsang}

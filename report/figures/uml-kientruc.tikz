@@ -8,11 +8,11 @@
   box/.style={draw, rounded corners=3pt, text centered, minimum height=1.0cm, text width=3.6cm},
   bbox/.style={draw, dashed, rounded corners=5pt, inner sep=8pt},
   arr/.style={->, >=stealth, thick},
-  note/.style={font=\footnotesize, text=gray!80}
+  note/.style={font=\footnotesize, text=gray!80, fill=white, inner sep=1.5pt}
 ]
-\node[box, fill=blue!10] (webcam) at (0, 0)
+\node[box, fill=blue!10] (webcam) at (-1.6, 0)
   {Trình duyệt\\ (webcam máy tính)};
-\node[box, fill=blue!10] (edge) at (0, -2.0)
+\node[box, fill=blue!10] (edge) at (-1.6, -2.0)
   {Edge worker\\ (Raspberry Pi~5)};
 \node[box, fill=green!12] (backend) at (5.5, -1.0)
   {Backend FastAPI\\ \texttt{:8000}};
@@ -31,7 +31,7 @@
       label=above:{\footnotesize Lưu trữ}] {};
 
 \draw[arr] (webcam.east) to node[above, note]{\texttt{/captures/infer}} (backend.west |- webcam.east);
-\draw[arr] (edge.east) to node[below, note]{\texttt{/captures} + \texttt{X-Edge-Key}} (backend.west |- edge.east);
+\draw[arr] (edge.east) to node[above, note]{\texttt{/captures} + \texttt{X-Edge-Key}} (backend.west |- edge.east);
 \draw[arr] (backend.east |- db.west) to (db.west);
 \draw[arr] (backend.east |- vol.west) to (vol.west);
 \draw[arr, <->] (fe.south) to node[right, note]{WebSocket} (backend.north);

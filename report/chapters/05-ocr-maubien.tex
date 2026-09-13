@@ -57,7 +57,7 @@ Phân bố theo split và bố cục biển được minh họa trong Hình~\ref
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.85\textwidth]{plate_ocr_data_distribution}
+\includegraphics[width=0.85\textwidth]{plate_ocr_data_distribution.png}
 \caption{Phân bố dữ liệu OCR theo split và bố cục biển.}
 
 {\footnotesize Nguồn: phân tích từ tập topkek\_plate\_ocr~\autocite{topkek2024vnplateocr}.}
@@ -297,7 +297,7 @@ giữa các lần chạy thay vì chỉ nêu con số đẹp nhất. Hình~\ref{
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.90\textwidth]{plate_ocr_progression}
+\includegraphics[width=0.90\textwidth]{plate_ocr_progression.png}
 \caption{Đường train loss và validation CER/accuracy theo epoch, tổng hợp ba vòng cải tiến.}
 
 {\footnotesize Nguồn: log huấn luyện tại \texttt{src/ml/training/}.}
@@ -331,7 +331,7 @@ Model triển khai (37 ký tự, seed 42) đạt kết quả trên hai tập tes
 \centering
 \caption{Kết quả model triển khai CRNN 37 ký tự trên hai tập test.}
 
-{\footnotesize Nguồn: \texttt{src/ml/experiments/ocr\_vnplate\_results.csv}; \texttt{docs/report/tuan-07.md}.}
+{\footnotesize Nguồn: vn\_plate và cỡ tập từ \texttt{src/ml/experiments/ocr\_vnplate\_results.csv}; topkek model 37 ký tự từ \texttt{docs/research/2026-08-29-sua-loi-ky-tu-D-bien-may-dien.md}.}
 \label{tab:ocr-deployed}
 \begin{tabular}{lrr}
 \toprule
@@ -413,7 +413,7 @@ Hình~\ref{fig:ocr-compare} trình bày trực quan so sánh accuracy và CER.
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.82\textwidth]{plate_ocr_accuracy_comparison}
+\includegraphics[width=0.82\textwidth]{plate_ocr_accuracy_comparison.png}
 \caption{Accuracy toàn biển và CER của ba phương pháp trên tập test topkek.}
 
 {\footnotesize Nguồn: \texttt{src/ml/experiments/ocr\_comparison.csv}.}
@@ -459,7 +459,7 @@ thật của model, và là căn cứ kỹ thuật để xác định yêu cầu
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.82\textwidth]{plate_ocr_sample_predictions}
+\includegraphics[width=0.82\textwidth]{plate_ocr_sample_predictions.png}
 \caption{Mẫu dự đoán của model CRNN 37 ký tự trên tập test.}
 
 {\footnotesize Nguồn: suy luận model \texttt{src/ml/weights/plate-ocr-crnn.onnx} trên tập test.}
@@ -565,7 +565,7 @@ hue/saturation riêng biệt và module phân biệt đúng trường hợp tr�
 tình huống ánh sáng ban ngày. Điểm yếu còn lại là biển vàng dưới ánh đèn huỳnh quanh có
 thể bị phân loại thành trắng vì saturation giảm, và biển đỏ ở góc chiếu sáng đặc biệt có
 thể lẫn với cam. Thu thập tập test có nhãn màu chuẩn và đo accuracy định lượng là việc
-\ph{còn lại cho giai đoạn đánh giá chính thức (Chương~\ref{ch:danhgia})}.
+còn lại cho giai đoạn đánh giá chính thức (Chương~\ref{ch:danhgia}).
 
 % =====================================================================
 \section{Thảo Luận}

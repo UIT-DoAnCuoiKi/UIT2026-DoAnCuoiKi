@@ -20,30 +20,32 @@
 \node[uc] (uc5) at (5.2,  -6.0) {Tra cứu phiên và lọc đối soát};
 \node[uc] (uc6) at (5.2,  -7.4) {Xem thống kê và xuất CSV};
 
-% Nhân viên
-\node[text centered, text width=1.8cm] (staff) at (-0.6, -2.5)
-  {\footnotesize Nhân viên\\ (\texttt{staff})};
+% Nhân viên (nhãn đặt dưới hình que để không đè lên tay)
 \draw (-0.6,-1.8) circle (0.28);
 \draw (-0.6,-2.08) to (-0.6,-2.9);
 \draw (-0.6,-2.9) to (-0.85,-3.4);
 \draw (-0.6,-2.9) to (-0.35,-3.4);
 \draw (-0.6,-2.08) to (-0.85,-2.4);
 \draw (-0.6,-2.08) to (-0.35,-2.4);
+\node[text centered, text width=2.0cm] (staff) at (-0.6, -3.95)
+  {\footnotesize Nhân viên\\ (\texttt{staff})};
+\coordinate (staffc) at (-0.32,-2.35);
 
-% Quản lý
-\node[text centered, text width=1.8cm] (mgr) at (-0.6, -6.0)
-  {\footnotesize Quản lý\\ (\texttt{admin})};
+% Quản lý (nhãn đặt dưới hình que)
 \draw (-0.6,-5.3) circle (0.28);
 \draw (-0.6,-5.58) to (-0.6,-6.4);
 \draw (-0.6,-6.4) to (-0.85,-6.9);
 \draw (-0.6,-6.4) to (-0.35,-6.9);
 \draw (-0.6,-5.58) to (-0.85,-5.9);
 \draw (-0.6,-5.58) to (-0.35,-5.9);
+\node[text centered, text width=2.0cm] (mgr) at (-0.6, -7.45)
+  {\footnotesize Quản lý\\ (\texttt{admin})};
+\coordinate (mgrc) at (-0.32,-5.85);
 
 % Kết nối nhân viên (uc1..uc5)
 \foreach \uc in {uc1, uc2, uc3, uc4, uc5}
-  \draw[arr] (staff.east) to (\uc.west);
+  \draw[arr] (staffc) to (\uc.west);
 % Kết nối quản lý (uc5, uc6)
 \foreach \uc in {uc5, uc6}
-  \draw[arr] (mgr.east) to (\uc.west);
+  \draw[arr] (mgrc) to (\uc.west);
 \end{tikzpicture}

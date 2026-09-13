@@ -28,7 +28,7 @@ Cả hai đường đều tái dùng \texttt{OnnxAlprPipeline} từ \texttt{src/
 % Hình: TikZ nằm ở figures/uml-kientruc.tikz để tránh cổng dash-ligature
 \begin{figure}[htbp]
 \centering
-\input{figures/uml-kientruc.tikz}
+\includegraphics[width=0.9\textwidth]{uml-kientruc.png}
 \caption{Kiến trúc tổng thể hệ thống: hai đường thu nhận ảnh cùng đổ về backend FastAPI.}
 \label{fig:kientruc}
 
@@ -42,14 +42,15 @@ Cả hai đường đều tái dùng \texttt{OnnxAlprPipeline} từ \texttt{src/
 
 Toàn bộ logic suy luận được gói trong lớp \texttt{OnnxAlprPipeline} (\texttt{src/ml/pipeline/onnx\_pipeline.py}). Lớp này nạp ba mô hình một lần khi khởi động, sau đó phương thức \texttt{run(image\_bgr)} chạy toàn chuỗi trên mỗi khung BGR và trả về dict trùng khớp lược đồ \texttt{PipelinePayload}.
 
-Ba mô hình trong pipeline:
+Bốn mô hình trong pipeline:
 \begin{enumerate}[leftmargin=*, label=(\arabic*)]
   \item \textbf{Detector biển số} (YOLOv8n, trọng số \texttt{.pt} qua Ultralytics): phát hiện và phân loại vùng biển (biển một hàng hoặc hai hàng).
   \item \textbf{OCR biển số} (CRNN \texttt{.onnx} qua ONNX Runtime): đọc ký tự sau khi tách dòng và chuẩn hóa; dùng bảng 37 ký tự hỗ trợ chữ ``Đ'' của biển xe máy điện.
-  \item \textbf{Phân loại kiểu dáng xe} (ResNet18 \texttt{.onnx} qua ONNX Runtime): chỉ kích hoạt khi loại thô từ detector xe COCO là \texttt{car}; không chạy cho xe máy hoặc xe tải.
+  \item \textbf{Phân loại loại xe} (ResNet18 \texttt{.onnx} qua ONNX Runtime): model tự huấn luyện, chạy trên cả khung hình, cho nhãn \texttt{car}/\texttt{motorbike}/\texttt{truck} (chi tiết tại Chương~\ref{ch:phanloai}).
+  \item \textbf{Phân loại kiểu dáng xe} (ResNet18 \texttt{.onnx} qua ONNX Runtime): chỉ kích hoạt khi bước~(3) ra \texttt{car} và có vùng xe đã cắt; không chạy cho xe máy hoặc xe tải.
 \end{enumerate}
 
-Nhánh phát hiện xe dùng YOLOv8n COCO (\texttt{predict\_vehicle.detect\_vehicle\_crop}) để xác định loại thô và cắt vùng xe. Màu nền biển được nhận diện qua \texttt{plate\_color.process\_plate} bằng phân tích không gian màu HSV kết hợp CLAHE (chi tiết tại Chương~\ref{ch:ocr}).
+Model YOLOv8n COCO (\texttt{predict\_vehicle.detect\_vehicle\_crop}) chỉ dùng để định vị và cắt vùng xe cho bước~(4) và làm bằng chứng có xe trong khung hình; nhãn lớp COCO của nó không dùng làm loại xe (lý do đo được trình bày tại Chương~\ref{ch:phanloai}). Màu nền biển được nhận diện qua \texttt{plate\_color.process\_plate} bằng phân tích không gian màu HSV kết hợp CLAHE (chi tiết tại Chương~\ref{ch:ocr}).
 
 Thiết kế tách biệt suy luận khỏi lớp vận chuyển (transport) giúp runner không thay đổi khi chuyển giữa đường A và đường B: backend gọi \texttt{engine.infer(raw)}, edge worker gọi \texttt{pipeline.run(frame)}, kết quả cùng được serialize theo một lược đồ duy nhất trước khi ghi vào cơ sở dữ liệu qua \texttt{ingest\_reading}.
 
@@ -107,7 +108,7 @@ Sơ đồ quan hệ thực thể (entity-relationship) của các bảng trung t
 % Hình ER: TikZ nằm ở figures/uml-er.tikz
 \begin{figure}[htbp]
 \centering
-\input{figures/uml-er.tikz}
+\includegraphics[width=0.9\textwidth]{uml-er.png}
 \caption{Sơ đồ quan hệ thực thể (ER) các bảng trung tâm. Mũi tên nét đứt là khóa ngoại; mũi tên chấm là liên kết qua chuỗi \texttt{vehicle\_group}.}
 \label{fig:uml-er}
 
@@ -155,7 +156,7 @@ Sơ đồ tuần tự cho một lượt xe hoàn chỉnh được trình bày �
 % Hình tuần tự: TikZ nằm ở figures/uml-seq.tikz
 \begin{figure}[htbp]
 \centering
-\input{figures/uml-seq.tikz}
+\includegraphics[width=0.9\textwidth]{uml-seq.png}
 \caption{Sơ đồ tuần tự một lượt xe từ vào đến ra: thu nhận ảnh, tạo phiên, đối chiếu biển, tính phí và ghi thanh toán.}
 \label{fig:uml-seq}
 
@@ -193,7 +194,7 @@ Sơ đồ use case được trình bày ở Hình~\ref{fig:uml-usecase}.
 % Hình use case: TikZ nằm ở figures/uml-usecase.tikz
 \begin{figure}[htbp]
 \centering
-\input{figures/uml-usecase.tikz}
+\includegraphics[width=0.9\textwidth]{uml-usecase.png}
 \caption{Sơ đồ use case hệ thống: nhân viên thực hiện nghiệp vụ cổng; quản lý thêm quyền tra cứu và thống kê.}
 \label{fig:uml-usecase}
 
@@ -236,7 +237,7 @@ Sơ đồ lớp các thành phần suy luận và dịch vụ được trình b�
 % Hình lớp: TikZ nằm ở figures/uml-class.tikz
 \begin{figure}[htbp]
 \centering
-\input{figures/uml-class.tikz}
+\includegraphics[width=0.9\textwidth]{uml-class.png}
 \caption{Sơ đồ lớp các thành phần runner và dịch vụ: \texttt{OnnxAlprPipeline} trong \texttt{src/ml} được \texttt{InferenceEngine} của backend tải và sử dụng in-process.}
 \label{fig:uml-class}
 
@@ -244,5 +245,35 @@ Sơ đồ lớp các thành phần suy luận và dịch vụ được trình b�
 \end{figure}
 
 \subsection{Độ trễ end-to-end trên PC}
+\label{subsec:e2e-pc-latency}
 
-Đề tài đo độ trễ end-to-end theo từng lượt xe trên máy tính (CPU, không GPU). Kết quả đo được báo cáo tại Chương~\ref{ch:trienkhai} cùng với kết quả trên Raspberry Pi~5. \ph{số liệu đo độ trễ PC chờ bổ sung}
+Đề tài đo độ trễ phần tính toán của toàn pipeline suy luận trên máy tính (CPU, không GPU) bằng \texttt{src/ml/benchmark\_pipeline.py}, đúng cách backend và edge worker gọi \texttt{OnnxAlprPipeline.run()}. Phép đo dùng đồng hồ đơn điệu \texttt{time.perf\_counter()}, bỏ 5 lượt làm nóng (warm-up) rồi lấy trung vị của 30 lượt để tránh ảnh hưởng của tiến trình nền. Phạm vi đo chỉ gồm phần suy luận: không tính thời gian truyền HTTP, mã hóa JPEG hay ghi cơ sở dữ liệu (các phần này cộng thêm khi tính độ trễ nhân viên cảm nhận tại màn cổng).
+
+% Nguồn số: chạy src/ml/benchmark_pipeline.py --runs 30 --warmup 5 ngày 13 tháng 9
+% năm 2026 trên máy dev Apple M-series (ARM), 8 lõi logic, macOS; onnxruntime 1.29.0
+% CPUExecutionProvider; ML_INTRAOP_THREADS=1; ảnh 1_bomaich_detect.png (1200x600,
+% phát hiện 12 biển). Trung vị của 30 lượt sau 5 lượt warm-up. KHÔNG phải số Pi 5.
+\begin{table}[htbp]
+\centering
+\caption{Phân rã độ trễ theo bước của pipeline suy luận trên máy tính (CPU dev).}
+{\footnotesize Nguồn: \texttt{src/ml/benchmark\_pipeline.py} chạy ngày 13 tháng 9 năm 2026 trên máy dev CPU Apple ARM (8 lõi logic, \texttt{onnxruntime} 1.29.0 CPUExecutionProvider, \texttt{ML\_INTRAOP\_THREADS=1}); ảnh \texttt{1\_bomaich\_detect.png} (1200$\times$600, phát hiện 12 biển); trung vị 30 lượt sau 5 lượt warm-up. Số latency đo trên máy dev, không phải Raspberry Pi~5.}
+\label{tab:e2e-pc-latency}
+\begin{tabular}{lrr}
+\toprule
+\textbf{Bước trong pipeline} & \textbf{Trung vị (ms)} & \textbf{Tỉ lệ} \\
+\midrule
+Phát hiện biển số (ONNX)          & 119,6 & 39,1\% \\
+Màu biển + OCR (12 biển)          &  56,8 & 18,6\% \\
+Phân loại kiểu dáng (ResNet18)    &  48,9 & 16,0\% \\
+Phân loại loại xe (ResNet18)      &  47,7 & 15,6\% \\
+Định vị + cắt vùng xe (YOLO)      &  29,6 &  9,7\% \\
+Tiền xử lý ảnh cho classifier     &   2,9 &  1,0\% \\
+Chuyển màu BGR sang RGB           &   0,5 &  0,2\% \\
+\bottomrule
+\end{tabular}
+% Nguồn: benchmark_pipeline.py mục 2 (từng bước trong pipeline thật).
+\end{table}
+
+Đo toàn pipeline như một lời gọi tích hợp (Bảng~\ref{tab:e2e-pc-latency} là phép đo từng bước riêng nên phục vụ chẩn đoán, không cộng dồn thành số tích hợp), độ trễ phần tính toán đạt \textbf{trung vị 260,2 ms mỗi khung} (min 256,1 ms; max 335,2 ms). Lượt đầu tiên có nạp trọng số từ đĩa mất 315,9 ms. Tỉ số CPU-time trên thời gian đồng hồ xấp xỉ 1,1, xác nhận pipeline chạy gần như đơn luồng ở cấu hình một luồng mỗi model, không bị toả luồng quá mức.
+
+Phân rã theo bước cho thấy phát hiện biển số chiếm phần lớn nhất (38,8\%), kế đến là hai bộ phân loại ResNet18 (cộng lại 31,6\%). Bước OCR và tính màu tỉ lệ thuận với số biển trên khung: ảnh đo có 12 biển (mật độ cao bất thường so với một lượt xe điển hình chỉ có một biển), nên trên khung cổng thực tế phần này sẽ nhỏ hơn đáng kể. Kết quả này khẳng định phần tính toán trên máy tính nằm rất sâu dưới ngân sách hai giây mỗi lượt xe; tuy nhiên đây là số trên CPU máy dev, không ánh xạ trực tiếp sang Raspberry Pi~5. Độ trễ đo trực tiếp trên thiết bị biên và bảng đối chiếu PC với Pi được trình bày ở Chương~\ref{ch:trienkhai}.

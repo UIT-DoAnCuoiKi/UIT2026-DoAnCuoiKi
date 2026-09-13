@@ -3,103 +3,80 @@
 %         price_rule,image_asset,shift,user}.py
 \begin{tikzpicture}[
   font=\scriptsize,
-  entity/.style={draw, fill=blue!8, rounded corners=2pt, text centered,
-                 minimum height=0.55cm, minimum width=2.9cm},
-  attrblk/.style={font=\tiny, text=black!70, align=left},
+  ttl/.style={font=\bfseries},
+  attrblk/.style={font=\tiny, text=black!70, align=left, inner sep=1pt},
+  ebox/.style={draw, fill=blue!8, rounded corners=2pt, inner sep=5pt},
   fk/.style={->, >=stealth, dashed, thick, color=black!60},
-  rel/.style={->, >=stealth, thick, dotted}
+  rel/.style={->, >=stealth, thick, dotted},
+  elab/.style={font=\tiny, fill=white, inner sep=1.5pt, text=black!75}
 ]
-% Thực thể
-\node[entity] (session)   at (0.0,  0.0) {\textbf{session}};
-\node[attrblk, below=0.05cm of session] {
-  \underline{id}, uuid\\
-  plate\_hash, plate\_ciphertext\\
-  vehicle\_group, status\\
-  entry\_time, exit\_time\\
-  fee\_amount, fee\_rule\_snapshot\\
-  match\_flag
-};
+% --- Thực thể: tiêu đề + khối thuộc tính ---
+\node[ttl] (session-t) at (0,0) {session};
+\node[attrblk, below=3pt of session-t] (session-a) {%
+  \underline{id}, uuid\\ plate\_hash, plate\_ciphertext\\ vehicle\_group, status\\
+  entry\_time, exit\_time\\ fee\_amount, fee\_rule\_snapshot\\ match\_flag};
 
-\node[entity] (reading)   at (-5.0, -4.0) {\textbf{plate\_reading}};
-\node[attrblk, below=0.05cm of reading] {
-  \underline{id}, capture\_id, direction\\
-  plate\_hash, plate\_valid\\
-  det\_conf, ocr\_conf, color\\
-  vehicle\_type, vehicle\_style\\
-  review\_state
-};
+\node[ttl] (reading-t) at (-5.4,-4.6) {plate\_reading};
+\node[attrblk, below=3pt of reading-t] (reading-a) {%
+  \underline{id}, capture\_id, direction\\ plate\_hash, plate\_valid\\
+  det\_conf, ocr\_conf, color\\ vehicle\_type, vehicle\_style\\ review\_state};
 
-\node[entity] (payment)   at (4.8,  -4.0) {\textbf{payment}};
-\node[attrblk, below=0.05cm of payment] {
-  \underline{id}, session\_id (FK)\\
-  amount (VND), method\\
-  kind, shift\_id (FK)\\
-  staff\_id (FK), paid\_at
-};
+\node[ttl] (payment-t) at (5.4,-4.6) {payment};
+\node[attrblk, below=3pt of payment-t] (payment-a) {%
+  \underline{id}, session\_id (FK)\\ amount (VND), method\\
+  kind, shift\_id (FK)\\ staff\_id (FK), paid\_at};
 
-\node[entity] (pricerule) at (0.0,  -8.0) {\textbf{price\_rule}};
-\node[attrblk, below=0.05cm of pricerule] {
-  \underline{id}, vehicle\_group\\
-  mode (flat | block)\\
-  unit\_price, block\_minutes\\
-  grace\_minutes, daily\_cap
-};
+\node[ttl] (pricerule-t) at (0,-9.0) {price\_rule};
+\node[attrblk, below=3pt of pricerule-t] (pricerule-a) {%
+  \underline{id}, vehicle\_group\\ mode (flat | block)\\
+  unit\_price, block\_minutes\\ grace\_minutes, daily\_cap};
 
-\node[entity] (asset)     at (-5.0, -8.0) {\textbf{image\_asset}};
-\node[attrblk, below=0.05cm of asset] {
-  \underline{id}, path, encrypted\\
-  sha256, direction\\
-  retention\_delete\_after
-};
+\node[ttl] (asset-t) at (-5.4,-9.0) {image\_asset};
+\node[attrblk, below=3pt of asset-t] (asset-a) {%
+  \underline{id}, path, encrypted\\ sha256, direction\\ retention\_delete\_after};
 
-\node[entity] (shift)     at (4.8,  -8.0) {\textbf{shift}};
-\node[attrblk, below=0.05cm of shift] {
-  \underline{id}, staff\_id (FK)\\
-  opened\_at, closed\_at\\
-  opening\_cash, status
-};
+\node[ttl] (shift-t) at (5.4,-9.0) {shift};
+\node[attrblk, below=3pt of shift-t] (shift-a) {%
+  \underline{id}, staff\_id (FK)\\ opened\_at, closed\_at\\ opening\_cash, status};
 
-\node[entity] (users)     at (0.0, -12.0) {\textbf{users}};
-\node[attrblk, below=0.05cm of users] {
-  \underline{id}, username\\
-  password\_hash, role\\
-  active
-};
+\node[ttl] (users-t) at (0,-13.2) {users};
+\node[attrblk, below=3pt of users-t] (users-a) {%
+  \underline{id}, username\\ password\_hash, role\\ active};
 
-% Quan hệ FK
-\draw[fk] (session.west)
-  to ++(-0.5, 0)
-  |- node[pos=0.3, above, font=\tiny]{entry/exit\_reading\_id}
-  (reading.north);
+% --- Khung thực thể vẽ dưới nền để chữ nổi lên trên ---
+\begin{scope}[on background layer]
+  \node[ebox, fit=(session-t)(session-a)]     (session)   {};
+  \node[ebox, fit=(reading-t)(reading-a)]     (reading)   {};
+  \node[ebox, fit=(payment-t)(payment-a)]     (payment)   {};
+  \node[ebox, fit=(pricerule-t)(pricerule-a)] (pricerule) {};
+  \node[ebox, fit=(asset-t)(asset-a)]         (asset)     {};
+  \node[ebox, fit=(shift-t)(shift-a)]         (shift)     {};
+  \node[ebox, fit=(users-t)(users-a)]         (users)     {};
+\end{scope}
 
-\draw[fk] (session.south)
-  to ++(0, -0.3)
-  -| node[pos=0.1, right, font=\tiny]{created\_by, closed\_by}
-  (users.north);
-
-\draw[fk] (payment.west)
-  to node[above, font=\tiny]{session\_id}
-  (session.east |- payment.west);
-
-\draw[fk] (payment.south)
-  to node[right, font=\tiny]{shift\_id}
-  (shift.north);
-
-\draw[fk] (payment.south)
-  to ++(0, -0.2)
-  -| node[pos=0.15, below, font=\tiny]{staff\_id}
-  (users.east);
-
-\draw[fk] (reading.south)
-  to node[right, font=\tiny]{image/crop\_asset\_id}
-  (asset.north);
-
-\draw[fk] (shift.south)
-  to node[right, font=\tiny]{staff\_id}
-  (users.east |- shift.south);
-
-\draw[rel] (session.south)
-  to ++(0, -0.6)
-  -| node[pos=0.1, left, font=\tiny]{vehicle\_group}
-  (pricerule.north);
+% --- Quan hệ khóa ngoại (nhãn nền trắng, đi trong khoảng trống) ---
+% session -> reading
+\draw[fk] (session.west) to[out=180,in=90]
+  node[elab,pos=0.55]{entry/exit\_reading\_id} (reading.north);
+% session -> price_rule (quan hệ áp giá theo nhóm xe)
+\draw[rel] (session.south) --
+  node[elab]{vehicle\_group} (pricerule.north);
+% session -> users (người tạo/đóng phiên), vòng phải price_rule
+\draw[fk] (session.east) -- ++(1.5,0) |-
+  node[elab,pos=0.28]{created\_by, closed\_by} (users.east);
+% payment -> session
+\draw[fk] (payment.west) --
+  node[elab]{session\_id} (payment.west -| session.east);
+% payment -> shift
+\draw[fk] (payment.south) --
+  node[elab]{shift\_id} (shift.north);
+% reading -> image_asset
+\draw[fk] (reading.south) --
+  node[elab]{image/crop\_asset\_id} (asset.north);
+% shift -> users (nhân viên mở ca)
+\draw[fk] (shift.south) |-
+  node[elab,pos=0.75]{staff\_id} (users.east);
+% payment -> users (nhân viên thu tiền), vòng phải rồi xuống đáy
+\draw[fk] (payment.east) -- ++(1.2,0) |-
+  node[elab,pos=0.30]{staff\_id} (users.south);
 \end{tikzpicture}

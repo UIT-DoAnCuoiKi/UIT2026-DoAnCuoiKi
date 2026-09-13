@@ -284,6 +284,29 @@ def uppercase_chapter_titles(doc) -> None:
                 r.text = r.text.upper()
 
 
+def carry_images(src_doc, dst_doc) -> None:
+    """Chép mọi image part từ src sang dst và ánh xạ lại r:embed/r:id.
+
+    python-docx gộp phần thân bằng cách append phần tử XML, nhưng không mang
+    theo part ảnh lẫn quan hệ rId. Hàm này thêm từng image part vào dst (nhận
+    rId mới, không đụng rId sẵn có của dst) rồi ghi lại tham chiếu trong thân
+    src trước khi các phần tử đó được chuyển sang dst.
+    """
+    IMG = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
+    id_map = {}
+    for rId, rel in list(src_doc.part.rels.items()):
+        if rel.reltype == IMG and not rel.is_external:
+            id_map[rId] = dst_doc.part.relate_to(rel.target_part, IMG)
+    if not id_map:
+        return
+    body = src_doc.element.body
+    for blip in body.iter(qn("a:blip")):
+        for attr in (qn("r:embed"), qn("r:link")):
+            old = blip.get(attr)
+            if old in id_map:
+                blip.set(attr, id_map[old])
+
+
 def main(argv=None) -> None:
     argv = argv or sys.argv[1:]
     body_docx, main_tex, out_docx = argv[0], argv[1], argv[2]
@@ -306,6 +329,11 @@ def main(argv=None) -> None:
     build_council_page(front)
     build_acknowledgement(front, ack)
     build_toc_lists(front)
+
+    # Chuyển các part ảnh của body sang front và ánh xạ lại rId (nếu không,
+    # các phần tử <w:drawing> chép sang front sẽ trỏ rId không tồn tại và
+    # ảnh biến mất khỏi main.docx).
+    carry_images(doc, front)
 
     # Ghép mọi phần tử body (đã strip) vào cuối front.
     for child in list(doc.element.body):

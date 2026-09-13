@@ -1,303 +1,333 @@
 % =====================================================================
 %  CHƯƠNG 6. PHÂN LOẠI PHƯƠNG TIỆN                | Phụ trách: Nhật
-%  Ngân sách: mục tiêu 1,5 trang, trần 2,0 trang
-%  Nguồn: docs/report/chapters/05-phanloai.md,
-%         src/ml/experiments.csv (hai dòng ngày 2026-08-07, Bảng 5)
-%  LƯU Ý: bản đang triển khai là ResNet18, KHÔNG phải MobileNetV3-Small.
-%         Xem src/ml/pipeline/onnx_pipeline.py _DEFAULTS["style_onnx"].
+%  Nguồn số — ĐỌC TRƯỚC KHI SỬA:
+%    Bước loại xe (car/motorbike/truck):
+%      src/ml/experiments.csv (dòng type, ngày 2026-09-06)
+%      src/ml/experiments/type_resnet18_history.json,
+%        type_mobilenet_v3_small_history.json (accuracy, F1, confusion, train_seconds)
+%      src/ml/experiments/type_run_manifest.json (cấu hình, data_source, note)
+%      src/ml/sanity_check_vehicle_type_ood.py (bộ kiểm tra OOD 12 ảnh)
+%      docs/report/chapters/05-phanloai.md mục 5.4 (đo lại ở mức pipeline)
+%    Bước kiểu dáng (Sedan/Gầm cao/Xe tải):
+%      src/ml/experiments.csv (dòng style, ngày 2026-08-07)
+%      src/ml/experiments/style_resnet18_history.json,
+%        style_mobilenet_v3_small_history.json
+%    Model ĐANG TRIỂN KHAI cho cả hai bước: ResNet18
+%      (src/ml/pipeline/onnx_pipeline.py _DEFAULTS)
 % =====================================================================
 \chapter{Phân Loại Phương Tiện}
 \label{ch:phanloai}
-%% ===== NỘI DUNG NHÁP, chuyển từ Markdown ngày 09/09/2026 =====
-%% Task tương ứng sẽ tái cấu trúc theo sườn trong PLAN.md và nén cho vừa
-%% ngân sách trang. Bảng longtable cần đổi sang tabular kèm booktabs.
 
-Chương này trình bày module phân loại loại xe (Nhật, Tuần 5). Kiến trúc gồm 2 bước:
+Chương này trình bày module phân loại phương tiện trong pipeline nhận diện. Module gồm ba bước nối tiếp:
 
-\begin{enumerate}
-\def\labelenumi{\arabic{enumi}.}
-\tightlist
-\item
-  \textbf{Loại thô} (ô tô/xe máy/xe tải/xe buýt): dùng một model YOLO pretrained (COCO), không huấn luyện thêm.
-\item
-  \textbf{Kiểu dáng xe con} (chỉ chạy khi bước 1 ra ``ô tô''): model tự huấn luyện, 3 lớp: \texttt{Sedan}, \texttt{Gầm\ cao}, \texttt{Xe\ tải}.
+\begin{enumerate}[leftmargin=*, label=(\arabic*)]
+  \item \textbf{Loại xe} (ô tô, xe máy, xe tải): model tự huấn luyện, chạy trên cả khung hình, cho nhãn \texttt{car}/\texttt{motorbike}/\texttt{truck}.
+  \item \textbf{Định vị xe}: model YOLO pretrained (COCO), không huấn luyện thêm, chỉ dùng để tìm và cắt vùng xe phục vụ bước~(3) và trả tọa độ khung xe; \textit{nhãn lớp COCO của bước này không tham gia quyết định loại xe}.
+  \item \textbf{Kiểu dáng xe con} (chỉ chạy khi bước~(1) ra ``ô tô'' và bước~(2) cắt được vùng xe): model tự huấn luyện, ba lớp \texttt{Sedan}, \texttt{Gầm cao}, \texttt{Xe tải}.
 \end{enumerate}
 
-\textbf{Lưu ý về phạm vi so với đề cương:} đề cương ghi ``huấn luyện đủ 4 lớp (ô tô, xe máy, xe tải, xe buýt), đánh giá sâu 2 lớp chính''. Nhóm không huấn luyện riêng model cho 4 lớp này, dùng thẳng model YOLO pretrained, vì có bằng chứng thực nghiệm rõ ràng (mục 5.5) rằng model tự huấn luyện trên dữ liệu công khai hiện có kém hơn hẳn model pretrained khi test trên ảnh thật. Đây là quyết định kỹ thuật có căn cứ nhưng khác chữ ``huấn luyện'' trong đề cương, cần trao đổi lại với giảng viên hướng dẫn.
+Bước~(1) là phần bổ sung sau khi tích hợp pipeline. Bản đầu tiên dùng thẳng nhãn lớp COCO của YOLO pretrained làm loại xe, gộp bước loại xe và bước định vị làm một. Sau khi phát hiện cách này sai nhiều trên ảnh cận cảnh kiểu camera cổng, đề tài huấn luyện riêng một model cho bước loại xe và tách nó khỏi bước định vị; lý do và bằng chứng đo được trình bày tại Phần~\ref{sec:phanloai-ketqua} và Phần~\ref{sec:phanloai-thaoluan}.
 
-\section{Dữ liệu}
+\textbf{Về phạm vi so với đề cương.} Đề cương quy định huấn luyện đủ bốn lớp (ô tô, xe máy, xe tải, xe buýt) và đánh giá sâu hai lớp chính. Sau khi làm lại dữ liệu, đề tài đã huấn luyện được model riêng có accuracy và F1 đo được cho ba trong bốn lớp: \texttt{car}, \texttt{motorbike}, \texttt{truck}. Lớp \texttt{bus} chưa có model riêng do dữ liệu hiện có không đủ ảnh xe khách cận cảnh đúng góc camera cổng; phương án mượn nhãn \texttt{bus} của YOLO pretrained đã được thử nhưng bỏ vì đo được nhãn đó sai (Phần~\ref{sec:phanloai-ketqua}). Khoảng cách với đề cương vì vậy thu hẹp từ bốn trên bốn lớp xuống còn một trên bốn lớp; mức độ hoàn thành lớp \texttt{bus} cần trao đổi thêm với giảng viên hướng dẫn.
+
+\section{Dữ Liệu}
+\label{sec:phanloai-dulieu}
+
+\subsection{Dữ liệu cho bước loại xe}
+
+Nguồn dữ liệu là \texttt{kaggle\_vn\_plate\_segment} (cùng bộ dữ liệu module phát hiện biển số sử dụng), chia sẵn theo năm tiền tố tên file với nội dung khác nhau, đã xem tay xác nhận (Bảng~\ref{tab:vt-sources}).
+
+\begin{table}[htbp]
+\centering
+\caption{Các nhóm ảnh trong \texttt{kaggle\_vn\_plate\_segment} dùng cho bước loại xe.}
+\label{tab:vt-sources}
+{\footnotesize Nguồn: \texttt{src/ml/data\_prep/prepare\_vehicle\_type\_dataset.py} và xem tay mẫu ảnh từng nhóm.}
+\begin{tabular}{lrp{7.2cm}}
+\toprule
+\textbf{Tiền tố} & \textbf{Số ảnh} & \textbf{Nội dung} \\
+\midrule
+\texttt{carlong\_} & 989 & Ô tô cận cảnh kiểu camera barrier, thuần một loại \\
+\texttt{greenpack\_} & 1.747 & Xe máy cận cảnh kiểu CCTV cổng, thuần một loại \\
+\texttt{Dieu\_}/\texttt{Hung\_} & 925 & Ảnh phố hỗn hợp nhiều loại xe, hậu cảnh lộn xộn \\
+\texttt{Tgmt\_} & 917 & Cắt cực sát, chỉ thấy biển số và ca-lăng; không dùng được cho phân loại loại xe \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Lần huấn luyện đầu tiên mắc lỗi học tắt (shortcut learning).} Khi mỗi lớp chỉ lấy từ đúng một nguồn ảnh (\texttt{car} từ \texttt{carlong\_}, \texttt{motorbike} từ \texttt{greenpack\_}, \texttt{truck} từ \texttt{Dieu\_}/\texttt{Hung\_}), model đạt 100\% trên tập test riêng nhưng chỉ đúng 1 trên 13 khi kiểm tra trên ảnh phố thật ngoài tập train, gần như mọi ảnh đều bị đoán thành \texttt{truck}. Nguyên nhân là \texttt{truck} khi đó là lớp duy nhất có ảnh phong cách đường phố, nên model học đặc điểm nguồn ảnh và góc camera thay vì hình dáng xe. Đây là bài học phương pháp quan trọng: accuracy cao trên tập test không chứng minh được gì nếu tập test chia sẻ cùng thiên lệch nguồn với tập train.
+
+\textbf{Cách sửa là trộn phong cách ảnh cho từng lớp}, buộc model học hình dáng xe thay vì học nguồn ảnh. Với hai lớp \texttt{car} và \texttt{motorbike}, đề tài quét YOLOv8n pretrained trên 925 ảnh phố \texttt{Dieu\_}/\texttt{Hung\_} để lấy ứng viên, rồi xem tay từng ảnh mẫu để giữ lại ảnh đạt: bổ sung 92 ảnh phố cho \texttt{car} và 128 ảnh phố cho \texttt{motorbike}, cạnh 350 ảnh cận cảnh gốc mỗi lớp. Lớp \texttt{truck} không có thư mục riêng nên toàn bộ 73 ảnh lấy từ \texttt{Dieu\_}/\texttt{Hung\_}, xem tay toàn bộ 151 ứng viên vì độ tin cậy của detector không đủ đáng tin để lọc tự động (một ảnh Toyota Camry vẫn bị gán nhãn \texttt{truck} với độ tin cậy 0,79).
+
+Tập được chia theo tỉ lệ 70/15/15 với seed cố định để tái lập (Bảng~\ref{tab:vt-split}).
+
+\begin{table}[htbp]
+\centering
+\caption{Số ảnh theo lớp và split của bước loại xe.}
+\label{tab:vt-split}
+{\footnotesize Nguồn: \texttt{src/ml/data\_prep/prepare\_vehicle\_type\_dataset.py}.}
+\begin{tabular}{lrrrr}
+\toprule
+\textbf{Lớp} & \textbf{Train} & \textbf{Valid} & \textbf{Test} & \textbf{Tổng} \\
+\midrule
+\texttt{car} & 309 & 66 & 67 & 442 \\
+\texttt{motorbike} & 335 & 72 & 71 & 478 \\
+\texttt{truck} & 51 & 11 & 11 & 73 \\
+\midrule
+\textbf{Tổng} & 695 & 149 & 149 & 993 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Lớp \texttt{truck} mỏng hơn nhiều (73 ảnh so với từ 442 đến 478 ảnh của hai lớp còn lại); mất cân bằng lớp được xử lý bằng trọng số lớp trong hàm loss.
 
 \subsection{Dữ liệu cho bước kiểu dáng xe con}
 
-B5 (Vehicle Body Style Dataset, Roboflow, CC BY 4.0, 10.000 ảnh: train 7.014 / valid 1.999 / test 987, 12 kiểu dáng gốc) dùng làm nguồn duy nhất cho bước phân loại kiểu dáng xe con.
+Bộ dữ liệu B5 (Vehicle Body Style Dataset, Roboflow, CC BY 4.0) gồm 10.000 ảnh chia sẵn train 7.014, valid 1.999, test 987, với 12 kiểu dáng gốc. Đây là nguồn duy nhất cho bước phân loại kiểu dáng xe con. Mười hai kiểu dáng gốc được gộp thành ba nhóm thực dụng phù hợp nhu cầu vận hành bãi xe (Bảng~\ref{tab:b5-mapping}), thay vì giữ nguyên 12 kiểu dáng chi tiết không có ý nghĩa vận hành rõ ràng.
 
-\textbf{Gộp 12 kiểu dáng gốc còn 3 nhóm thực dụng hơn}, phù hợp nhu cầu vận hành bãi xe (sedan/gầm cao/xe tải), thay vì 12 kiểu dáng chi tiết không có ý nghĩa vận hành rõ ràng:
-
-\begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.5000}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.5000}}@{}}
-\toprule\noalign{}
-\begin{minipage}[b]{\linewidth}\raggedright
-Nhóm mới
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-Kiểu dáng gốc B5 gộp vào
-\end{minipage} \\
-\midrule\noalign{}
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
+\begin{table}[htbp]
+\centering
+\caption{Gộp 12 kiểu dáng gốc B5 thành 3 lớp phân loại.}
+\label{tab:b5-mapping}
+{\footnotesize Nguồn: notebook EDA phân loại kiểu dáng xe, \texttt{src/ml/notebooks/eda-vehicle-body-style.ipynb}.}
+\begin{tabular}{ll}
+\toprule
+\textbf{Lớp mới} & \textbf{Kiểu dáng gốc B5 gộp vào} \\
+\midrule
 \texttt{Sedan} & Sedan, Fastback, Hatchback, Wagon, Convertible, Hardtop Convertible, Sports \\
-\texttt{Gầm\ cao} & SUV, Crossover, MPV, Minibus \\
-\texttt{Xe\ tải} & Pickup Truck \\
-\end{longtable}
+\texttt{Gầm cao} & SUV, Crossover, MPV, Minibus \\
+\texttt{Xe tải} & Pickup Truck \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-Ảnh cắt theo bbox gốc (thêm biên 10\%), giữ nguyên split train/valid/test của Roboflow. Số ảnh sau khi gộp:
+Ảnh được cắt theo bounding box gốc với biên 10\%, giữ nguyên split của Roboflow. Phân bố số ảnh sau khi gộp trình bày trong Bảng~\ref{tab:b5-split} và Hình~\ref{fig:phanloai-phanboo}.
 
-\begin{longtable}[]{@{}lrrr@{}}
-\toprule\noalign{}
-Lớp & Train & Valid & Test \\
-\midrule\noalign{}
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
+\begin{table}[htbp]
+\centering
+\caption{Số ảnh theo lớp và split sau khi gộp từ B5.}
+\label{tab:b5-split}
+{\footnotesize Nguồn: notebook EDA phân loại kiểu dáng xe, \texttt{src/ml/notebooks/eda-vehicle-body-style.ipynb}.}
+\begin{tabular}{lrrr}
+\toprule
+\textbf{Lớp} & \textbf{Train} & \textbf{Valid} & \textbf{Test} \\
+\midrule
 Sedan & 4.102 & 1.166 & 569 \\
 Gầm cao & 2.325 & 670 & 334 \\
 Xe tải & 587 & 163 & 84 \\
-\end{longtable}
+\midrule
+\textbf{Tổng} & 7.014 & 1.999 & 987 \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-Tổng 10.000 ảnh.
-
-\begin{figure}
+\begin{figure}[htbp]
 \centering
-\pandocbounded{\includegraphics[keepaspectratio,alt={Phân bố lớp theo split}]{../figures/vehicle_style_class_distribution.png}}
-\caption{Phân bố lớp theo split}
+\includegraphics[width=0.90\textwidth]{vehicle_style_class_distribution.png}
+\caption{Phân bố lớp theo split trong bộ dữ liệu B5 sau khi gộp.}
+\label{fig:phanloai-phanboo}
+{\footnotesize Nguồn: notebook EDA phân loại kiểu dáng xe, \texttt{src/ml/notebooks/eda-vehicle-body-style.ipynb}.}
 \end{figure}
 
-Lớp \texttt{Xe\ tải} ít nhất nhưng vẫn có 587 ảnh train, đủ để huấn luyện ổn định. Xử lý mất cân bằng lớp bằng trọng số trong hàm loss.
+Lớp \texttt{Xe tải} ít nhất nhưng vẫn có 587 ảnh train, đủ để huấn luyện ổn định; mất cân bằng lớp được xử lý bằng trọng số trong hàm loss. Bộ B5 có hạn chế domain gap: ảnh train chủ yếu là ảnh dealer và showroom, một phần bối cảnh Trung Quốc, không phải ảnh camera giám sát Việt Nam. Hạn chế này được phân tích tại Phần~\ref{sec:phanloai-thaoluan}.
 
-Dữ liệu B5 còn hạn chế domain gap: ảnh train là ảnh dealer/showroom, một phần bối cảnh Trung Quốc, không phải ảnh camera giám sát Việt Nam. Bàn kỹ hơn ở mục 5.5.
+\section{Kiến Trúc Mô Hình}
+\label{sec:phanloai-kientruc}
 
-\section{Kiến trúc mô hình}
+\textbf{Bước loại xe.} So sánh hai kiến trúc fine-tune từ trọng số ImageNet, thay lớp cuối cho ba lớp \texttt{car}/\texttt{motorbike}/\texttt{truck}: ResNet18~\autocite{he2016resnet} với 11.178.051 tham số, và MobileNetV3-Small~\autocite{howard2019mobilenetv3} với 1.520.931 tham số. Đầu vào là \textbf{cả khung hình}, resize 224$\times$224, chuẩn hóa theo thống kê ImageNet. Việc dùng cả khung hình chứ không dùng vùng xe đã cắt là có chủ đích: dữ liệu huấn luyện của bước này là ảnh camera cổng nguyên khung (script chuẩn bị dữ liệu chép thẳng ảnh gốc, không cắt), nên đưa ảnh nguyên vào lúc suy luận mới đúng phân phối lúc train.
 
-\textbf{Bước 1 (loại thô):} một model YOLO pretrained trên COCO, không huấn luyện thêm, tận dụng 4 lớp có sẵn \texttt{car}/\texttt{motorcycle}/\texttt{bus}/\texttt{truck} (id 2/3/5/7). Trong thử nghiệm này nhóm dùng cụ thể YOLOv8n, nhưng thiết kế cho phép thay bằng phiên bản YOLO khác (YOLOv9, YOLO26\ldots) mà không cần đổi logic pipeline. Với 1 ảnh đầu vào, lấy box xe có diện tích lớn nhất, crop kèm biên 10\%, đưa sang bước 2 nếu nhãn là \texttt{car}.
+\textbf{Bước định vị xe.} Một model YOLO pretrained trên COCO~\autocite{jocher2023yolov8}, không huấn luyện thêm, dùng để tìm và cắt vùng xe cho bước kiểu dáng và trả tọa độ khung xe. Đề tài dùng cụ thể YOLOv8n, lấy bounding box xe có diện tích lớn nhất, cắt kèm biên 10\%. Nhãn lớp COCO của bước này (\texttt{car}/\texttt{motorcycle}/\texttt{bus}/\texttt{truck}) từng được dùng thẳng làm loại xe ở bản đầu tiên, nay không còn dùng làm nhãn nữa. Thiết kế cho phép thay phiên bản YOLO khác mà không đổi logic pipeline.
 
-\textbf{Bước 2 (kiểu dáng):} so sánh 2 kiến trúc, fine-tune từ trọng số ImageNet, thay lớp cuối cho 3 lớp:
-- \textbf{ResNet18}: 11.178.051 tham số.
-- \textbf{MobileNetV3-Small}: 1.520.931 tham số, nhẹ hơn ResNet18 khoảng 7,3 lần.
+\textbf{Bước kiểu dáng.} So sánh hai kiến trúc như bước loại xe (ResNet18 và MobileNetV3-Small, nhẹ hơn khoảng 7,3 lần), fine-tune từ ImageNet, thay lớp cuối cho ba lớp. Đầu vào là \textbf{vùng xe đã cắt} 224$\times$224 (không phải cả khung hình), vì model này huấn luyện trên ảnh B5 cắt theo bounding box. Augmentation cho cả hai bước gồm random-resized-crop (scale từ 0,8 đến 1,0), lật ngang, xoay 10 độ và color jitter.
 
-Ảnh vào 224×224, chuẩn hóa theo thống kê ImageNet. Augmentation: random-resized-crop (scale 0,8-1,0), lật ngang, xoay ±10°, color jitter.
+\section{Huấn Luyện}
+\label{sec:phanloai-huanluyen}
 
-\section{Huấn luyện}
+Quá trình huấn luyện thực hiện trên GPU NVIDIA RTX 4070, cấu hình chung cho cả hai bước: Adam, learning rate 1e-4, batch size 32, 15 epoch, \texttt{CrossEntropyLoss} có trọng số lớp. Thời gian huấn luyện từng kiến trúc theo bước ghi trong Bảng~\ref{tab:phanloai-traintime}; bước loại xe nhanh hơn hẳn vì dữ liệu nhỏ hơn nhiều (993 ảnh so với 10.000 ảnh).
 
-Huấn luyện local trên GPU NVIDIA RTX 4070, không dùng Colab để tránh giới hạn phiên free tier. Cấu hình: Adam, learning rate 1e-4, batch size 32, 15 epoch, \texttt{CrossEntropyLoss} có trọng số lớp.
-
-\begin{longtable}[]{@{}lr@{}}
-\toprule\noalign{}
-Model & Thời gian train \\
-\midrule\noalign{}
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-ResNet18 & 6,09 phút \\
-MobileNetV3-Small & 6,09 phút \\
-\end{longtable}
-
-Tổng 12,2 phút cho cả 2 lượt.
-
-\begin{figure}
+\begin{table}[htbp]
 \centering
-\pandocbounded{\includegraphics[keepaspectratio,alt={Tài nguyên hệ thống trong suốt quá trình train}]{../figures/vehicle_style_resource_usage.png}}
-\caption{Tài nguyên hệ thống trong suốt quá trình train}
+\caption{Thời gian huấn luyện theo kiến trúc và theo bước.}
+\label{tab:phanloai-traintime}
+{\footnotesize Nguồn: trường \texttt{train\_seconds} trong \texttt{src/ml/experiments/type\_*\_history.json} và \texttt{style\_*\_history.json}.}
+\begin{tabular}{lrr}
+\toprule
+\textbf{Model} & \textbf{Bước loại xe} & \textbf{Bước kiểu dáng} \\
+\midrule
+ResNet18 & 2,66 phút & 6,09 phút \\
+MobileNetV3-Small & 2,62 phút & 6,09 phút \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.90\textwidth]{vehicle_style_resource_usage.png}
+\caption{Tài nguyên hệ thống trong quá trình huấn luyện bước kiểu dáng.}
+\label{fig:phanloai-resource}
+{\footnotesize Nguồn: log telemetry huấn luyện, \texttt{src/ml/monitor\_resources.py}, 153 mẫu lấy mỗi 5 giây.}
 \end{figure}
 
-Theo dõi tài nguyên thật trong lúc train (lấy mẫu mỗi 5 giây, \texttt{src/ml/monitor\_resources.py}, 153 mẫu): CPU trung bình 11,5\% (đỉnh 31,3\%), GPU trung bình 25,6\% (đỉnh 98\%), VRAM ổn định quanh 3,5GB/12GB. Mô hình nhỏ nên không tận dụng hết GPU.
+Tài nguyên hệ thống trong lúc huấn luyện bước kiểu dáng được ghi nhận qua Hình~\ref{fig:phanloai-resource} (153 mẫu lấy mỗi 5 giây): CPU trung bình 11,5\% (đỉnh 31,3\%), GPU trung bình 25,6\% (đỉnh 98\%), VRAM ổn định quanh 3,5 GB trên 12 GB. Model nhỏ nên không tận dụng hết GPU; bước loại xe dùng cùng cấu hình nên có đặc điểm tương tự.
 
-\begin{figure}
+\begin{figure}[htbp]
 \centering
-\pandocbounded{\includegraphics[keepaspectratio,alt={Đường train loss và validation accuracy theo epoch}]{../figures/vehicle_style_loss_curves.png}}
-\caption{Đường train loss và validation accuracy theo epoch}
+\includegraphics[width=0.90\textwidth]{vehicle_style_loss_curves.png}
+\caption{Đường train loss và validation accuracy theo epoch của hai kiến trúc (bước kiểu dáng).}
+\label{fig:phanloai-losscurves}
+{\footnotesize Nguồn: \texttt{src/ml/experiments/style\_resnet18\_history.json} và \texttt{style\_mobilenet\_v3\_small\_history.json}.}
 \end{figure}
 
-Cả 2 kiến trúc hội tụ nhanh và ổn định. Bài toán 3 lớp dễ hơn hẳn bài toán 12 lớp đã thử trước đó: accuracy epoch 1 đã trên 0,80, so với khoảng 0,4-0,6 ở bản 12 lớp. Khoảng cách giữa ResNet18 và MobileNetV3-Small cũng thu hẹp đáng kể so với bài toán 12 lớp.
+Đường hội tụ của hai kiến trúc (Hình~\ref{fig:phanloai-losscurves}) nhanh và ổn định. Bài toán ba lớp dễ hơn rõ so với bài toán 12 lớp thử trước đó: accuracy ở epoch 1 đã trên 0,80, trong khi bản 12 lớp chỉ đạt từ 0,4 đến 0,6.
 
-\section{Kết quả}
+\section{Kết Quả}
+\label{sec:phanloai-ketqua}
 
-Đánh giá trên tập test (987 ảnh, không dùng khi train hay chọn tham số):
+\subsection{Bước loại xe}
 
-\begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.1304}}
-  >{\raggedleft\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.1739}}
-  >{\raggedleft\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.1739}}
-  >{\raggedleft\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.1739}}
-  >{\raggedleft\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.1739}}
-  >{\raggedleft\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.1739}}@{}}
-\toprule\noalign{}
-\begin{minipage}[b]{\linewidth}\raggedright
-Model
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
-Accuracy
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
-F1-macro
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
-Params
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
-ONNX
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
-CPU inference
-\end{minipage} \\
-\midrule\noalign{}
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
+Đánh giá trên tập test 149 ảnh (67 \texttt{car}, 71 \texttt{motorbike}, 11 \texttt{truck}), tách biệt hoàn toàn khỏi train và valid, sau khi đã sửa lỗi học tắt (Bảng~\ref{tab:vt-results}).
+
+\begin{table}[htbp]
+\centering
+\caption{So sánh ResNet18 và MobileNetV3-Small ở bước loại xe (tập test 149 ảnh).}
+\label{tab:vt-results}
+{\footnotesize Nguồn: \texttt{src/ml/experiments.csv} và \texttt{src/ml/experiments/type\_*\_history.json}. CPU inference đo trên máy huấn luyện, không phải Raspberry Pi~5.}
+\begin{tabular}{lrrrrr}
+\toprule
+\textbf{Model} & \textbf{Accuracy} & \textbf{F1-macro} & \textbf{Params} & \textbf{ONNX} & \textbf{CPU inference} \\
+\midrule
+ResNet18 & 0,9866 & 0,9619 & 11.178.051 & 44,70 MB & 8,19 ms/ảnh \\
+MobileNetV3-Small & 0,9799 & 0,9571 & 1.520.931 & 6,09 MB & 4,22 ms/ảnh \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Ma trận nhầm lẫn (thứ tự lớp \texttt{car}/\texttt{motorbike}/\texttt{truck}) cho thấy: ResNet18 phân loại \texttt{car} và \texttt{motorbike} đúng tuyệt đối (67 trên 67 và 71 trên 71), \texttt{truck} đúng 9 trên 11 (1 ảnh đoán thành \texttt{car}, 1 ảnh thành \texttt{motorbike}); MobileNetV3-Small đúng \texttt{car} tuyệt đối, \texttt{motorbike} 70 trên 71, \texttt{truck} 9 trên 11 như ResNet18. Lớp \texttt{truck} yếu nhất ở cả hai model, hợp lý vì đây cũng là lớp ít ảnh test nhất; nhầm lẫn còn lại phân tán đều sang hai lớp kia chứ không lệch hẳn về một hướng, không cho thấy dấu hiệu học tắt như bản đầu tiên.
+
+\subsection{Kiểm tra ngoài phân phối (out-of-distribution)}
+\label{subsec:phanloai-ood}
+
+Để xác nhận lỗi học tắt đã được sửa tận gốc chứ không chỉ che bằng cách thêm dữ liệu tương tự tập test, đề tài dựng một bộ kiểm tra cố định gồm 12 ảnh thật có nhãn đúng đã biết, không nằm trong bất kỳ tập train, valid hay test nào, giữ lại vĩnh viễn làm bài kiểm tra hồi quy (\texttt{src/ml/sanity\_check\_vehicle\_type\_ood.py}). Kết quả: ResNet18 đúng 12 trên 12 (100\%), MobileNetV3-Small đúng 11 trên 12 (92\%). So với 1 trên 13 của lần huấn luyện đầu tiên, đây là bằng chứng trực tiếp cho thấy việc trộn phong cách ảnh đã giải quyết đúng nguyên nhân gốc. Bài học phương pháp rút ra: khi nghi ngờ model học tắt, cách kiểm chứng đáng tin là một tập ngoài phân phối nhỏ nhưng chắc chắn tách biệt nguồn với tập train, không phải chia lại một tập test lớn hơn từ cùng nguồn dữ liệu.
+
+\subsection{Đo lại ở mức pipeline}
+\label{subsec:phanloai-pipeline}
+
+Accuracy 98,66\% ở trên là của riêng model, đo bằng cách nạp thẳng ảnh vào model. Khi ghép vào pipeline thật, kết quả người dùng nhận được có thể khác hẳn. Bản ghép đầu tiên đặt bước định vị YOLO làm điều kiện chạy của model loại xe: nếu YOLO không tìm được xe thì bỏ qua, không phân loại. Chạy lại chính tập test loại xe qua pipeline đầy đủ cho thấy hậu quả: YOLOv8n pretrained COCO chỉ nhận ra xe trên 64 trên 149 ảnh, bỏ sót 85 ảnh (57\%) vì không quen ảnh cận cảnh kiểu camera cổng. Ví dụ cụ thể là một ảnh xe máy chụp từ phía sau bị YOLO đoán thành \texttt{person} (62,5\%) và \texttt{handbag} (18,4\%), không có lớp xe nào, trong khi model loại xe chạy thẳng trên đúng ảnh đó cho \texttt{motorbike} 99,9\%.
+
+Cách sửa là bỏ hẳn sự phụ thuộc này: model loại xe chạy trên cả khung hình đúng như dữ liệu lúc train, YOLO chỉ còn phục vụ bước kiểu dáng. Điều kiện an toàn duy nhất còn giữ là phải có bằng chứng thật sự có xe trong khung hình (YOLO thấy xe \textit{hoặc} module biển số đọc được biển), tránh khung hình trống bị ép về một trong ba lớp. Kết quả trước và sau khi sửa trình bày ở Bảng~\ref{tab:vt-pipeline}.
+
+\begin{table}[htbp]
+\centering
+\caption{Chất lượng ở mức pipeline trước và sau khi tách bước loại xe khỏi bước định vị (tập test 149 ảnh).}
+\label{tab:vt-pipeline}
+{\footnotesize Nguồn: \texttt{docs/report/chapters/05-phanloai.md} mục 5.4, đo trên tập test bước loại xe qua pipeline đầy đủ.}
+\begin{tabular}{lrr}
+\toprule
+\textbf{Chỉ số} & \textbf{Trước khi sửa} & \textbf{Sau khi sửa} \\
+\midrule
+Ảnh có ra được loại xe & 64 / 149 (43\%) & 149 / 149 (100\%) \\
+Đúng end-to-end & 62 / 149 (41,6\%) & 147 / 149 (98,7\%) \\
+Xe máy bị bỏ sót & 48 / 71 (68\%) & 0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Sau khi sửa, độ chính xác end-to-end 98,7\% khớp đúng accuracy 98,66\% của bản thân model, tức pipeline không còn làm mất chất lượng của model; 2 ảnh sai còn lại chính là 2 ảnh \texttt{truck} đã thấy trong ma trận nhầm lẫn. Nhân đây, đề tài cũng bỏ luôn việc dùng nhãn \texttt{bus} của COCO làm phương án dự phòng cho lớp xe khách: đo trên tập test, YOLO gọi \texttt{bus} đúng 2 lần và sai cả 2 (đều là ô tô con), một lần ở mức tin cậy 0,781 nên đặt ngưỡng lọc cũng không cứu được. Xe khách hiện là hạn chế đã biết, xử lý bằng thao tác sửa tay của nhân viên tại màn cổng.
+
+\subsection{Bước kiểu dáng}
+
+Đánh giá trên tập test 987 ảnh, tách biệt hoàn toàn khỏi tập train và tập chọn tham số (Bảng~\ref{tab:phanloai-sosanh}, Hình~\ref{fig:phanloai-sosanh}).
+
+\begin{table}[htbp]
+\centering
+\caption{So sánh ResNet18 và MobileNetV3-Small ở bước kiểu dáng (tập test B5, 987 ảnh).}
+\label{tab:phanloai-sosanh}
+{\footnotesize Nguồn: \texttt{src/ml/experiments.csv}, đánh giá trên tập test B5.}
+\begin{tabular}{lrrrrr}
+\toprule
+\textbf{Model} & \textbf{Accuracy} & \textbf{F1-macro} & \textbf{Params} & \textbf{ONNX} & \textbf{CPU inference} \\
+\midrule
 ResNet18 & 0,8997 & 0,9012 & 11.178.051 & 44,70 MB & 8,57 ms/ảnh \\
 MobileNetV3-Small & 0,9007 & 0,9069 & 1.520.931 & 6,09 MB & 4,82 ms/ảnh \\
-\end{longtable}
+\bottomrule
+\end{tabular}
+\end{table}
 
-\emph{(CPU inference đo trên máy train, không phải Raspberry Pi 5. Số Pi 5 thật để dành Tuần 7-8.)}
-
-So với bài toán 12 lớp đã thử trước đó, accuracy cải thiện rõ rệt (ResNet18 từ 0,768 lên 0,900, MobileNetV3-Small từ 0,701 lên 0,901). Với chỉ 3 lớp, MobileNetV3-Small gần như ngang bằng ResNet18 về accuracy dù nhẹ hơn 7,3 lần, khác hẳn khoảng cách lớn ở bài toán 12 lớp.
-
-\begin{figure}
+\begin{figure}[htbp]
 \centering
-\pandocbounded{\includegraphics[keepaspectratio,alt={So sánh ResNet18 vs MobileNetV3-Small}]{../figures/vehicle_style_comparison.png}}
-\caption{So sánh ResNet18 vs MobileNetV3-Small}
+\includegraphics[width=0.90\textwidth]{vehicle_style_comparison.png}
+\caption{So sánh tổng quan hai kiến trúc ResNet18 và MobileNetV3-Small theo các chỉ số đánh giá (bước kiểu dáng).}
+\label{fig:phanloai-sosanh}
+{\footnotesize Nguồn: \texttt{src/ml/experiments.csv}, đánh giá trên tập test B5.}
 \end{figure}
 
-\begin{figure}
+Lưu ý về đơn vị: ResNet18 44,70 MB (hệ thập phân) tương ứng 42,63 MiB (hệ nhị phân); Chương~\ref{ch:trienkhai} dùng con số 42,63 MiB khi báo cáo kích thước model ONNX FP32 này. CPU inference đo trên máy huấn luyện, không phải Raspberry Pi~5; số trên thiết bị biên báo cáo trong Chương~\ref{ch:trienkhai}.
+
+So với bài toán 12 lớp thử trước đó, accuracy cải thiện rõ rệt (ResNet18 từ 0,768 lên 0,900; MobileNetV3-Small từ 0,701 lên 0,901). Với chỉ ba lớp, MobileNetV3-Small gần như ngang bằng ResNet18 về accuracy dù nhẹ hơn 7,3 lần.
+
+\begin{figure}[htbp]
 \centering
-\pandocbounded{\includegraphics[keepaspectratio,alt={Ma trận nhầm lẫn trên tập test}]{../figures/vehicle_style_confusion_matrices.png}}
-\caption{Ma trận nhầm lẫn trên tập test}
+\includegraphics[width=0.90\textwidth]{vehicle_style_confusion_matrices.png}
+\caption{Ma trận nhầm lẫn trên tập test của ResNet18 và MobileNetV3-Small (bước kiểu dáng).}
+\label{fig:phanloai-confusion}
+{\footnotesize Nguồn: \texttt{src/ml/experiments.csv}, đánh giá trên tập test B5 (987 ảnh).}
 \end{figure}
 
-Ma trận nhầm lẫn cho thấy \texttt{Sedan} và \texttt{Xe\ tải} được phân loại tốt (93,1-96,4\% đúng tùy model). Nhầm lẫn tập trung ở \texttt{Gầm\ cao}, là lớp yếu nhất ở cả 2 model (79,6\% với ResNet18, 83,2\% với MobileNetV3-Small), chủ yếu bị đoán nhầm thành \texttt{Sedan} (18,3\% và 15,0\% số ảnh tương ứng). Điều này hợp lý vì crossover cỡ nhỏ đôi khi có dáng gần sedan, ranh giới giữa 2 nhóm này vốn không tuyệt đối rõ ràng kể cả với người quan sát.
+Ma trận nhầm lẫn (Hình~\ref{fig:phanloai-confusion}) cho thấy \texttt{Sedan} và \texttt{Xe tải} được phân loại tốt (từ 93,1\% đến 96,4\% đúng tùy model). Nhầm lẫn tập trung ở \texttt{Gầm cao}, là lớp yếu nhất ở cả hai model (79,6\% với ResNet18, 83,2\% với MobileNetV3-Small), chủ yếu bị đoán nhầm thành \texttt{Sedan}. Điều này hợp lý vì crossover cỡ nhỏ đôi khi có dáng gần sedan, ranh giới giữa hai nhóm không tuyệt đối rõ ràng kể cả với người quan sát.
 
-\subsection{Kiểm thử trên ảnh thật}
+\subsection{Kiểm thử trên ảnh thật (pipeline Tuần 5, trước khi có bước loại xe riêng)}
+\label{subsec:phanloai-anhhat}
 
-Để kiểm chứng thực tế, không chỉ tin vào accuracy trên tập test nội bộ, nhóm chạy pipeline đầy đủ (model YOLO cho loại thô, ResNet18 cho kiểu dáng) trên 8 ảnh thật thu thập ngoài dataset, gồm ảnh camera cổng bãi xe thật và ảnh xe phổ biến ở Việt Nam:
+Bảng~\ref{tab:phanloai-anhhat} được giữ nguyên làm bằng chứng lịch sử cho quyết định ban đầu ``dùng model pretrained cho loại thô''. Cột ``Loại thô'' là nhãn COCO thô của YOLO pretrained lúc đó, chưa qua bước loại xe tự huấn luyện; pipeline hiện tại ghi đè nhãn này bằng model ở Phần~\ref{sec:phanloai-ketqua} cho ba lớp \texttt{car}/\texttt{motorbike}/\texttt{truck}. Đề tài chạy pipeline đầy đủ trên 8 ảnh thật thu thập ngoài dataset, gồm ảnh camera cổng bãi xe và ảnh xe phổ biến tại Việt Nam.
 
-\begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2000}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2000}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2000}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2000}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2000}}@{}}
-\toprule\noalign{}
-\begin{minipage}[b]{\linewidth}\raggedright
-Ảnh
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-Thực tế
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-Loại thô
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-Kiểu dáng
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-Đúng?
-\end{minipage} \\
-\midrule\noalign{}
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-Xe máy tại bãi gửi xe (camera trần) & Xe máy & motorcycle (62,9\%) & (không áp dụng) & ✓ \\
-Xe máy tại cổng có kiosk vé & Xe máy & motorcycle (70,0\%) & (không áp dụng) & ✓ \\
-Hyundai Santa Fe (SUV) & SUV & car (78,4\%) & Gầm cao (99,8\%) & ✓✓ \\
-Xe máy tại cổng, có nhân viên & Xe máy & motorcycle (53,7\%) & (không áp dụng) & ✓ \\
-VinFast (crossover điện), camera cổng chúc xuống & Crossover & car (33,2\%) & Gầm cao (69,2\%) & ✓✓ \\
-Mitsubishi Xpander (crossover/MPV), camera cổng chúc xuống & Crossover/MPV & car (35,6\%) & Sedan (53,1\%, Gầm cao 36,8\%) & Đúng loại thô, sai sát biên ở kiểu dáng \\
-Toyota Yaris (sedan), camera cổng chúc xuống & Sedan & không phát hiện được & (không áp dụng) & ✗ \\
-Xe tải chở hàng thật (biển 29H) & Xe tải & truck (31,5\%) & (không áp dụng) & ✓ \\
-\end{longtable}
+\begin{table}[htbp]
+\centering
+\caption{Kết quả kiểm thử pipeline trên 8 ảnh thật (bằng chứng lịch sử, pipeline Tuần 5).}
+\label{tab:phanloai-anhhat}
+{\footnotesize Nguồn: ảnh thu thập thực địa và ảnh camera cổng bãi xe thử nghiệm.}
+\begin{tabular}{p{3.2cm}p{2.3cm}p{2.6cm}p{2.8cm}p{1.6cm}}
+\toprule
+\textbf{Ảnh} & \textbf{Thực tế} & \textbf{Loại thô} & \textbf{Kiểu dáng} & \textbf{Đúng?} \\
+\midrule
+Xe máy tại bãi gửi xe (camera trần) & Xe máy & motorcycle (62,9\%) & không áp dụng & Đúng \\
+Xe máy tại cổng có kiosk vé & Xe máy & motorcycle (70,0\%) & không áp dụng & Đúng \\
+Hyundai Santa Fe (SUV) & SUV & car (78,4\%) & Gầm cao (99,8\%) & Đúng cả hai bước \\
+Xe máy tại cổng, có nhân viên & Xe máy & motorcycle (53,7\%) & không áp dụng & Đúng \\
+VinFast crossover điện, camera cổng chúc xuống & Crossover & car (33,2\%) & Gầm cao (69,2\%) & Đúng cả hai bước \\
+Mitsubishi Xpander, camera cổng chúc xuống & Crossover/MPV & car (35,6\%) & Sedan (53,1\%; Gầm cao 36,8\%) & Đúng loại thô, sai sát biên ở kiểu dáng \\
+Toyota Yaris (sedan), camera cổng chúc xuống & Sedan & không phát hiện được & không áp dụng & Sai \\
+Xe tải chở hàng & Xe tải & truck (31,5\%) & không áp dụng & Đúng \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-7/8 đúng ở bước loại thô. Trong 3 ảnh được đưa tiếp sang bước kiểu dáng, 2/3 đúng rõ ràng, 1/3 (Xpander) sai nhưng biên độ sát (53\% so với 37\%), hợp lý vì Xpander là dáng lai sedan/MPV. Điểm yếu còn lại: ảnh chụp từ camera cổng chúc xuống gắt (3 ảnh cuối) làm độ tin cậy giảm (33-36\% so với 60-95\% ở ảnh chụp ngang tầm mắt), và 1 trường hợp bị bỏ sót hoàn toàn. Model YOLO pretrained quen ảnh chụp ngang tầm mắt (theo phân phối COCO), chưa quen góc camera cổng bãi xe thật.
+Kết quả: 7 trên 8 ảnh đúng ở bước loại thô. Trong 3 ảnh được đưa tiếp sang bước kiểu dáng, 2 đúng rõ ràng, 1 (Xpander) sai nhưng biên độ sát (53\% so với 37\%), hợp lý vì Xpander là dáng lai sedan/MPV. Điểm yếu còn lại: ảnh chụp từ camera cổng chúc xuống gắt làm độ tin cậy giảm (từ 33\% đến 36\% so với từ 60\% đến 95\% ở ảnh chụp ngang tầm mắt), và một trường hợp bỏ sót hoàn toàn. Chính hạn chế này của YOLO pretrained là động lực cho việc huấn luyện riêng bước loại xe.
 
-\section{Thảo luận}
+\section{Thảo Luận}
+\label{sec:phanloai-thaoluan}
 
-\textbf{Accuracy trên tập test nội bộ không đảm bảo hiệu năng thật.} Đây là lý do chính khiến nhóm chọn dùng model YOLO pretrained cho bước loại thô thay vì tự huấn luyện trên dữ liệu công khai quy mô nhỏ hiện có: qua thử nghiệm, model tự huấn luyện đạt accuracy rất cao trên tập test riêng của nó nhưng hiệu năng giảm mạnh khi gặp ảnh thật ngoài phân phối train. Model YOLO pretrained, được huấn luyện trên tập dữ liệu đa dạng và tổng quát hơn nhiều, lại cho kết quả tốt hơn trên ảnh thật dù chưa từng thấy ảnh Việt Nam nào. Bài học rút ra: độ đa dạng và đúng khung hình của dữ liệu train quan trọng hơn việc dataset có đúng ngữ cảnh Việt Nam hay không, nếu ngữ cảnh đó lại hẹp và ảnh chất lượng thấp.
+\textbf{Accuracy trên tập test nội bộ không đảm bảo hiệu năng thật.} Đây là lý do ban đầu đề tài chọn YOLO pretrained cho bước loại thô thay vì tự huấn luyện: lần huấn luyện đầu đạt accuracy rất cao trên tập test riêng nhưng chỉ đúng 1 trên 13 khi gặp ảnh ngoài phân phối, vì mỗi lớp chỉ lấy từ một nguồn ảnh. Bài học rút ra không phải ``model tự huấn luyện luôn kém hơn pretrained'', mà là độ đa dạng nguồn ảnh trong tập train quan trọng hơn số lượng ảnh hay accuracy đo được trên một tập test cùng nguồn. Sau khi trộn nguồn ảnh đúng cách, model tự huấn luyện đạt 100\% và 92\% trên bộ kiểm tra ngoài phân phối, tốt hơn hẳn phương án dùng thẳng nhãn COCO.
 
-\textbf{Về việc dùng model pretrained thay vì huấn luyện riêng theo đề cương:} đây là quyết định có căn cứ thực nghiệm, không phải bỏ qua yêu cầu tùy tiện, nhưng khác chữ ``huấn luyện'' trong đề cương, cần trao đổi với giảng viên hướng dẫn trước khi coi là chốt cuối cùng. Nếu cần tuân thủ đúng chữ đề cương, hướng khắc phục là fine-tune model YOLO (hoặc 1 classifier riêng) trên một tập dữ liệu nhỏ đúng khung hình camera cổng bãi xe, dạng ``vehicle entrance''. Hướng này đã xác định được nhưng chưa có dataset phù hợp đã kiểm chứng, để lại cho bước tiếp theo.
+\textbf{Accuracy của model không phải accuracy người dùng nhận được.} Bài học ở một tầng khác (Phần~\ref{subsec:phanloai-pipeline}): một thành phần chưa được huấn luyện (bước định vị YOLO) từng đứng chặn đầu vào của model đã đánh giá, làm mất 57\% số ca dù model xử lý được. Nguyên tắc khi ghép nhiều model là không để một thành phần chưa đánh giá chặn đầu vào của thành phần đã có số liệu; nếu cần điều kiện, hãy chọn điều kiện dựa trên bằng chứng độc lập (ở đây là ``đọc được biển số'') thay vì dựa vào chính thành phần yếu.
 
-\textbf{Hạn chế còn lại của bước loại thô:} góc camera cổng bãi xe thật (chúc xuống, gắt) làm giảm độ tin cậy và có thể bỏ sót. Cần dữ liệu đúng góc này để fine-tune nếu muốn cải thiện, thay vì chỉ dùng model pretrained gốc.
+\textbf{Về phạm vi so với đề cương.} Quyết định ban đầu dùng model pretrained cho cả bốn lớp có căn cứ thực nghiệm tại thời điểm đó nhưng khác chữ ``huấn luyện'' của đề cương. Sau khi sửa dữ liệu, đề tài đã có model riêng cho ba trên bốn lớp, thu hẹp đáng kể khoảng cách. Lớp \texttt{bus} chưa có model riêng vì thiếu ảnh xe khách cận cảnh đúng góc camera cổng; hướng khắc phục là thu thập thêm dữ liệu xe khách theo đúng quy trình đã dùng cho ba lớp kia.
 
-\textbf{Hạn chế của bước kiểu dáng:} vẫn train hoàn toàn trên B5, ảnh dealer/showroom, một phần bối cảnh Trung Quốc. Số liệu 90\% trên tập test B5 đo đúng khả năng phân biệt kiểu dáng trong cùng phong cách ảnh với tập train, chưa chứng minh được trên ảnh camera giám sát Việt Nam thật. Ảnh test thật ở mục 5.4 cho thấy tín hiệu tích cực (2/3 đúng, 1/3 sát biên) nhưng cỡ mẫu quá nhỏ để kết luận chắc chắn.
+\textbf{Hạn chế còn lại của bước định vị.} YOLO pretrained COCO bỏ sót xe trên 57\% ảnh camera cổng trong tập test vì chưa từng huấn luyện với góc chụp này. Sau khi tách bước loại xe ra khỏi bước định vị, hậu quả đã thu hẹp: loại xe và biển số vẫn cho kết quả đầy đủ, chỉ còn tọa độ khung xe (chỉ để hiển thị) và bước kiểu dáng (cần vùng crop) phụ thuộc bước định vị. Với 57\% ảnh nói trên, hệ thống vẫn ra loại xe và biển số đúng, chỉ thiếu thông tin kiểu dáng xe con.
 
-\textbf{Hướng tiếp theo (Tuần 6-8):} tích hợp pipeline vào luồng camera thật (Tuần 6); tìm hoặc thu thập dữ liệu đúng góc camera cổng bãi xe để fine-tune cả 2 bước nếu cần, đặc biệt để giải quyết hạn chế góc chúc xuống; đo lại thời gian inference thật trên Raspberry Pi 5, có thể thêm INT8 quantization, chọn model kiểu dáng triển khai dựa trên số đo thật (Tuần 7-8).
+\textbf{Hạn chế của bước kiểu dáng.} Model kiểu dáng vẫn huấn luyện hoàn toàn trên B5 (ảnh dealer và showroom). Con số 90\% trên tập test B5 phản ánh khả năng phân biệt kiểu dáng trong cùng phong cách ảnh với tập train, chưa chứng minh được trên ảnh camera giám sát Việt Nam thật; kết quả kiểm thử thực địa cho tín hiệu tích cực nhưng cỡ mẫu quá nhỏ để kết luận chắc.
 
-\section{Hướng dẫn tích hợp vào pipeline}
+\textbf{Chọn model triển khai.} Ở bước kiểu dáng, hai kiến trúc gần như ngang nhau về accuracy (0,8997 so với 0,9007) nhưng MobileNetV3-Small nhẹ hơn 7,3 lần và nhanh hơn gần hai lần trên CPU. Ở bước loại xe, ResNet18 chính xác hơn một chút (0,9866 so với 0,9799 trên tập test, và 100\% so với 92\% trên bộ ngoài phân phối), nên pipeline hiện dùng ResNet18 làm mặc định cho cả hai bước. Với mục tiêu chạy trên Raspberry Pi~5, MobileNetV3-Small vẫn là ứng viên đáng cân nhắc nếu độ trễ trên Pi là điểm nghẽn; quyết định cuối cùng chờ số đo thật trên Pi~5 (Chương~\ref{ch:trienkhai}).
 
-Mục này dành cho bước tích hợp hệ thống (Tuần 6), khi module phân loại xe được gọi từ luồng xử lý camera.
+\section{Kết Luận}
+\label{sec:phanloai-ketluan}
 
-\subsection{Các file cần dùng}
+Đề tài xây dựng thành công module phân loại phương tiện ba bước, đạt các kết quả sau:
 
-\begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.5000}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.5000}}@{}}
-\toprule\noalign{}
-\begin{minipage}[b]{\linewidth}\raggedright
-File
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-Vai trò
-\end{minipage} \\
-\midrule\noalign{}
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-\texttt{src/ml/weights/yolov8n.pt} & Model YOLO pretrained cho bước loại thô (tự tải về lần chạy đầu, không commit vào git) \\
-\texttt{src/ml/weights/vehicle-style-resnet18.pt} & Model kiểu dáng, bản ResNet18 (44,8 MB) \\
-\texttt{src/ml/weights/vehicle-style-mobilenet\_v3\_small.pt} & Model kiểu dáng, bản MobileNetV3-Small (6,2 MB) \\
-\texttt{src/ml/weights/vehicle-style-*.onnx} & Bản ONNX tương ứng, dùng khi triển khai bằng ONNX Runtime (Raspberry Pi) \\
-\texttt{src/ml/training/classifier.py} & Chứa \texttt{build\_model()} và \texttt{build\_transforms()}, dùng lại khi load model \\
-\texttt{src/ml/predict\_vehicle.py} & Bản tham chiếu chạy được đầy đủ 2 bước cho 1 ảnh \\
-\end{longtable}
-
-\subsection{Luồng xử lý}
-
-\begin{enumerate}
-\def\labelenumi{\arabic{enumi}.}
-\tightlist
-\item
-  Đưa ảnh (hoặc frame video) vào model YOLO, lọc lấy các box thuộc 4 lớp \texttt{car}(2) / \texttt{motorcycle}(3) / \texttt{bus}(5) / \texttt{truck}(7) của COCO.
-\item
-  Chọn box có diện tích lớn nhất làm phương tiện chính, crop kèm biên 10\% mỗi chiều.
-\item
-  Nếu nhãn không phải \texttt{car}, trả kết quả luôn (xe máy/xe tải/xe buýt không cần phân loại kiểu dáng).
-\item
-  Nếu nhãn là \texttt{car}, đưa ảnh đã crop qua model kiểu dáng để lấy nhãn cuối (\texttt{Sedan} / \texttt{Gầm\ cao} / \texttt{Xe\ tải}).
-\end{enumerate}
-
-\subsection{Ba điểm dễ sai khi tích hợp}
-
-\textbf{Thứ tự lớp đầu ra theo bảng chữ cái.} \texttt{ImageFolder} của torchvision sắp xếp tên thư mục theo bảng chữ cái khi huấn luyện, nên thứ tự lớp của model là \texttt{{[}\textquotesingle{}GamCao\textquotesingle{},\ \textquotesingle{}Sedan\textquotesingle{},\ \textquotesingle{}XeTai\textquotesingle{}{]}}, không phải thứ tự ``Sedan, Gầm cao, Xe tải'' thường dùng khi trình bày. Cách an toàn nhất khi viết code tích hợp là đọc trực tiếp danh sách lớp từ checkpoint (\texttt{ckpt{[}"class\_names"{]}}) thay vì hard-code, vì thứ tự sẽ đổi nếu sau này huấn luyện thêm lớp mới.
-
-\textbf{Tiền xử lý phải khớp đúng lúc huấn luyện:} resize cạnh ngắn về 256, center-crop 224×224, chuẩn hóa theo mean/std của ImageNet. Dùng lại \texttt{build\_transforms(train=False)} trong \texttt{classifier.py} là cách an toàn nhất. Sai bước này sẽ làm độ chính xác giảm mạnh mà vẫn chạy bình thường.
-
-\textbf{Độ tin cậy thấp ở góc camera cổng.} Như đã nêu ở mục 5.4, ảnh chụp từ camera chúc xuống làm độ tin cậy bước loại thô giảm còn 33-36\%, và có trường hợp không phát hiện được xe nào. Khi tích hợp cần xử lý rõ 2 tình huống: không có box nào (bỏ qua frame, thử frame kế tiếp) và độ tin cậy dưới ngưỡng (chưa chốt kết quả, chờ thêm frame). Không nên đặt ngưỡng lọc cao theo mặc định của thư viện vì sẽ loại nhầm nhiều xe ở góc camera này.
-
-\subsection{Chọn model nào}
-
-Ở tập test, hai kiến trúc gần như ngang nhau về độ chính xác (0,8997 so với 0,9007), nhưng MobileNetV3-Small nhẹ hơn 7,3 lần và nhanh hơn gần 2 lần trên CPU. Với mục tiêu chạy trên Raspberry Pi 5, MobileNetV3-Small là lựa chọn hợp lý hơn. Quyết định cuối cùng vẫn chờ số đo thật trên Pi 5 ở Tuần 7-8.
-
-\section{Kết luận}
-
-Công việc đã hoàn thành trong tuần:
-
-\begin{itemize}
-\tightlist
-\item
-  Khảo sát và chốt nguồn dữ liệu cho bài toán phân loại kiểu dáng xe, gộp 12 kiểu dáng gốc của B5 thành 3 nhóm phù hợp nhu cầu vận hành bãi xe, xử lý được 10.000 ảnh crop chia sẵn train/valid/test.
-\item
-  Xây dựng pipeline phân loại 2 bước hoàn chỉnh, chạy được từ một ảnh đầu vào bất kỳ cho ra nhãn cuối, gồm bước phát hiện và cắt vùng xe tự động.
-\item
-  Huấn luyện và so sánh 2 kiến trúc ResNet18 và MobileNetV3-Small trên cùng dữ liệu, cùng cấu hình, đạt accuracy 0,8997 và 0,9007 trên tập test, kèm đầy đủ ma trận nhầm lẫn, đường hội tụ và số liệu tài nguyên thật.
-\item
-  Xuất model sang ONNX cho cả 2 kiến trúc, sẵn sàng cho bước triển khai trên thiết bị biên.
-\item
-  Viết notebook tổng hợp kết quả huấn luyện và hướng dẫn tích hợp cho bước tiếp theo.
+\begin{itemize}[leftmargin=*]
+\item Huấn luyện riêng model cho bước loại xe (\texttt{car}/\texttt{motorbike}/\texttt{truck}) thay cho việc dùng thẳng nhãn COCO của YOLO pretrained, đạt accuracy 0,9866 (ResNet18) và 0,9799 (MobileNetV3-Small), thu hẹp khoảng cách với đề cương từ bốn trên bốn xuống còn một trên bốn lớp.
+\item Phát hiện và sửa một lỗi học tắt ở lần huấn luyện đầu (100\% test nhưng 1 trên 13 trên ảnh ngoài phân phối) bằng cách trộn nguồn ảnh cho mỗi lớp; dựng một bài kiểm tra ngoài phân phối cố định làm bài kiểm tra hồi quy lâu dài.
+\item Đo lại chất lượng ở mức pipeline chứ không chỉ mức model, phát hiện và sửa lỗi bước định vị chặn 57\% đầu vào; sau khi sửa, tỉ lệ ảnh có kết quả tăng từ 43\% lên 100\% và độ chính xác end-to-end từ 41,6\% lên 98,7\%.
+\item Gộp 12 kiểu dáng gốc của B5 thành ba nhóm thực dụng, huấn luyện và so sánh ResNet18 với MobileNetV3-Small cho bước kiểu dáng, đạt accuracy 0,8997 và 0,9007 kèm ma trận nhầm lẫn, đường hội tụ và số liệu tài nguyên đầy đủ.
+\item Xuất cả hai model của cả hai bước sang ONNX và tích hợp vào pipeline dùng chung cho backend và edge worker (\texttt{src/ml/pipeline/onnx\_pipeline.py}), sẵn sàng cho bước triển khai thiết bị biên (Chương~\ref{ch:trienkhai}).
 \end{itemize}
 
-Hai điểm cần lưu ý khi đánh giá kết quả tuần này. Thứ nhất, bước phân loại loại thô dùng model pretrained nên không có số liệu accuracy/F1 riêng cho 2 lớp ô tô và xe máy như đề cương yêu cầu; phần kiểm thử trên ảnh thật ở mục 5.4 chỉ là thử nghiệm nhanh của nhóm với cỡ mẫu nhỏ, chưa phải đánh giá chính thức. Thứ hai, model kiểu dáng huấn luyện hoàn toàn trên dữ liệu ảnh dealer/showroom nên con số 90\% chưa phản ánh được hiệu năng trên ảnh camera giám sát thật. Cả hai điểm này đều cần xử lý ở các tuần tiếp theo, hướng cụ thể đã nêu ở mục 5.5.
-
-\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
-
-\textbf{Tài liệu tham khảo:}
-- He, K. et al.~(2016). ``Deep Residual Learning for Image Recognition.'' CVPR. (ResNet)
-- Howard, A. et al.~(2019). ``Searching for MobileNetV3.'' ICCV.
-- Jocher, G. et al.~Ultralytics YOLOv8 (2023). Dùng bản pretrained COCO cho bước phân loại loại thô, không huấn luyện thêm.
+Ba điểm cần lưu ý khi đọc kết quả: lớp \texttt{bus} chưa có model riêng và không còn dùng nhãn COCO làm phương án tạm, nên xe khách bị xếp vào một trong ba lớp hiện có cho tới khi nhân viên sửa tay; model kiểu dáng huấn luyện hoàn toàn trên ảnh dealer nên con số 90\% chưa phản ánh hiệu năng trên ảnh camera giám sát thật; các số CPU inference đo trên máy huấn luyện, chưa phải Raspberry Pi~5. Cả ba điểm để lại cho các bước tiếp theo.

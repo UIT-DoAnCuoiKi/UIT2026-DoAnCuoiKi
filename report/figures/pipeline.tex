@@ -20,7 +20,7 @@
               align=center, minimum height=11mm, inner sep=4pt, text width=32mm},
   dec/.style={diamond, aspect=2.2, draw=black!70, fill=orange!12,
               align=center, inner sep=0pt, text width=18mm},
-  out/.style={rectangle, rounded corners=2pt, draw=black!70, fill=green!8,
+  outbox/.style={rectangle, rounded corners=2pt, draw=black!70, fill=green!8,
               align=center, minimum height=14mm, inner sep=4pt, text width=32mm},
   arr/.style={->, thick, draw=black!75},
   node distance=9mm and 12mm,
@@ -39,7 +39,7 @@
 \node[box, right=of proc] (ocr) {Đọc biển\\{\footnotesize tách dòng, CRNN CTC, ONNX}\\$\rightarrow$ chuỗi biển};
 
 % tổng hợp kết quả, đặt bên phải, giữa hai nhánh
-\node[out] (res) at ($(style.east)!0.5!(ocr.east) + (34mm,0)$)
+\node[outbox] (res) at ($(style.east)!0.5!(ocr.east) + (34mm,0)$)
   {Kết quả mỗi xe:\\loại xe, kiểu dáng,\\màu nền, chuỗi biển};
 
 \draw[arr] (in.north) |- (vdet.west);
@@ -51,7 +51,7 @@
 
 \draw[arr] (style.east) -| (res.north);
 \draw[arr] (ocr.east) -| (res.south);
-\draw[arr] (iscar.east) to[out=0,in=180] node[near start, above, font=\footnotesize] {không} (res.west);
+\draw[arr] (iscar.south) to[out=-90,in=180] node[pos=0.42, below, font=\footnotesize] {không} (res.west);
 
 \end{tikzpicture}
 \end{document}

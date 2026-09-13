@@ -67,7 +67,7 @@ Ngoài ra, pipeline suy luận trong \texttt{src/ml/pipeline/onnx\_pipeline.py} 
 \begin{table}[htbp]
 \centering
 \caption{Siêu tham số huấn luyện detector biển số.}
-% Nguồn: args.yaml của run yolov8n\_s0\_640 (xem report/chapters/04-phathien.tex).
+{\footnotesize Nguồn: \texttt{args.yaml} của run \texttt{yolov8n\_s0\_640}, \texttt{src/ml/plate\_detection\_pipeline/output/plate\_det\_results\_20260812\_2212/}.}
 \label{tab:det-hyperparam}
 \begin{tabular}{ll}
 \toprule
@@ -125,7 +125,7 @@ trong đó FN là false negative (bỏ sót biển số). Recall cao nghĩa là 
 \begin{table}[htbp]
 \centering
 \caption{Kết quả phát hiện biển số trên tập kiểm định (val split, epoch 50) theo từng seed.}
-% Nguồn: results.csv của 6 run, cột metrics/* tại epoch 50.
+{\footnotesize Nguồn: \texttt{results.csv} của sáu run, cột \texttt{metrics/*} tại epoch 50, trong \texttt{plate\_det\_results\_20260812\_2212}.}
 \label{tab:det-results}
 \begin{tabular}{llcccc}
 \toprule
@@ -150,9 +150,9 @@ Kết quả trong Bảng~\ref{tab:det-results} cho thấy cả hai mô hình đ�
 %   src/ml/plate_detection_pipeline/output/.../runs/*/results.csv qua src/ml/figstyle.py.
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.92\textwidth]{plate_det_curves}
+\includegraphics[width=0.92\textwidth]{plate_det_curves.png}
 \caption{Đường cong mAP theo epoch trên tập kiểm định, trung bình của ba seed (vùng bóng: độ lệch chuẩn). Trái: mAP@0,5; Phải: mAP@0,5:0,95.}
-% Nguồn: dựng từ results.csv của 6 run trong plate_det_results_20260812_2212 bằng figstyle.py.
+{\footnotesize Nguồn: dựng từ \texttt{results.csv} của sáu run trong \texttt{plate\_det\_results\_20260812\_2212} bằng \texttt{figstyle.py}.}
 \label{fig:det-curves}
 \end{figure}
 
@@ -170,7 +170,7 @@ Phân tích phash (perceptual hash) trên bộ dữ liệu A1 (kết quả trong
 \begin{table}[htbp]
 \centering
 \caption{Hiệu năng YOLOv8n (seed 0) trên tập kiểm tra trước và sau khi khử trùng lặp gần (Hamming $\leq 5$).}
-% Nguồn: src/ml/experiments/a1_dedup_eval.csv, đo 2026-09-12 trên CPU Apple M1.
+{\footnotesize Nguồn: \texttt{src/ml/experiments/a1\_dedup\_eval.csv}, đo ngày 12 tháng 9 năm 2026 trên CPU Apple M1.}
 \label{tab:det-dedup}
 \begin{tabular}{lcccccc}
 \toprule
