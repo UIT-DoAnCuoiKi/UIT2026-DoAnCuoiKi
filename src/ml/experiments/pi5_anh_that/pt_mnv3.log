@@ -1,0 +1,12 @@
+  Định vị xe   : yolov8n.pt
+  Kiểu dáng xe : vehicle-style-mobilenet_v3_small.onnx
+  ML_INTRAOP_THREADS = 4
+  Số ảnh: 50, làm nóng 3 ảnh, đo 5 vòng mỗi ảnh
+
+  tất cả     n=50  trung vị   462.4 ms  p90   488.0 ms  max   498.2 ms
+  o_to       n=25  trung vị   480.3 ms  p90   491.5 ms  max   498.2 ms
+  xe_may     n=25  trung vị   459.2 ms  p90   465.0 ms  max   469.5 ms
+  Ảnh có chạy bước kiểu dáng: 18/50
+  Vòng đo: 117.6 giây cho 250 lượt
+
+Đã ghi /home/mn/smartpark/src/ml/experiments/pi5_anh_that/pt_mnv3.csv

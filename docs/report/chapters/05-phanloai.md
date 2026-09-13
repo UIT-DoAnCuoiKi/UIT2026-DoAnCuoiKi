@@ -327,18 +327,18 @@ Vì vậy, thay vì chốt cứng một lựa chọn, `CoarseVehicleDetector` h�
 
 ### Hiệu năng trên Raspberry Pi 5
 
-Đo trên Raspberry Pi 5 bằng cùng script; cách đo và kiểm tra hợp lệ ở `w7-onnx.md` mục 2.3. Toàn pipeline nhanh nhất 495,3 ms mỗi lượt (4 luồng, định vị xe `.pt`). Phần liên quan tới chương này:
+Đo trên Raspberry Pi 5 với 50 ảnh camera cổng thật, 4 luồng; cách đo ở `w7-onnx.md` mục 2.3. Toàn pipeline qua API mất 464 ms mỗi lượt (trung vị). Phần liên quan tới chương này là model kiểu dáng:
 
-| Model kiểu dáng | Chạy riêng, 1 luồng | Trong pipeline, 1 luồng | Trong pipeline, 4 luồng |
-|---|---:|---:|---:|
-| ResNet18 | 129,42 ms | 132,3 ms | 75,8 ms |
-| MobileNetV3-Small | 12,61 ms | 16,0 ms | 27,8 ms |
+| Model kiểu dáng | Chạy riêng, 1 luồng | Toàn pipeline, ảnh ô tô |
+|---|---:|---:|
+| ResNet18 | 129,42 ms | 537,4 ms |
+| MobileNetV3-Small | 12,61 ms | 480,3 ms |
 
-Bản `.onnx` của bước định vị xe chậm hơn `.pt` trên Pi (535,0 so với 495,3 ms ở 4 luồng), nên trên Pi giữ `.pt` và đặt `ML_INTRAOP_THREADS=4`.
+Trên Pi giữ `.pt` cho bước định vị xe và đặt `ML_INTRAOP_THREADS=4`.
 
 ### Chọn model nào
 
-Cả 2 bước (loại xe và kiểu dáng) đều có 2 phương án kiến trúc. Ở bước kiểu dáng, hai kiến trúc gần như ngang nhau về độ chính xác (0,8997 so với 0,9007), nhưng MobileNetV3-Small nhẹ hơn 7,3 lần và nhanh hơn gần 2 lần trên CPU. Ở bước loại xe, ResNet18 chính xác hơn rõ hơn một chút (0,9866 so với 0,9799 trên tập test, và đặc biệt là 100% so với 92% trên bộ kiểm tra OOD ở mục 5.4), nên pipeline hiện đang dùng ResNet18 làm mặc định cho bước này dù nặng hơn. Trên Raspberry Pi 5 (mục trên), pipeline đã nhanh hơn mốc 2 giây khoảng 4 lần nên độ chính xác được ưu tiên. Bước loại xe giữ ResNet18 vì chính xác hơn trên bộ OOD. Bước kiểu dáng chuyển sang MobileNetV3-Small: hai kiến trúc chính xác ngang nhau, mà trên Pi bước này giảm từ 75,8 xuống 27,8 ms ở 4 luồng. Pipeline đã đổi model kiểu dáng mặc định sang bản ONNX của MobileNetV3-Small.
+Cả 2 bước (loại xe và kiểu dáng) đều có 2 phương án kiến trúc. Ở bước kiểu dáng, hai kiến trúc gần như ngang nhau về độ chính xác (0,8997 so với 0,9007), nhưng MobileNetV3-Small nhẹ hơn 7,3 lần và nhanh hơn gần 2 lần trên CPU. Ở bước loại xe, ResNet18 chính xác hơn rõ hơn một chút (0,9866 so với 0,9799 trên tập test, và đặc biệt là 100% so với 92% trên bộ kiểm tra OOD ở mục 5.4), nên pipeline hiện đang dùng ResNet18 làm mặc định cho bước này dù nặng hơn. Trên Raspberry Pi 5 (mục trên), pipeline đã nhanh hơn mốc 2 giây khoảng 4 lần nên độ chính xác được ưu tiên. Bước loại xe giữ ResNet18 vì chính xác hơn trên bộ OOD. Bước kiểu dáng chuyển sang MobileNetV3-Small: hai kiến trúc chính xác ngang nhau, mà chạy riêng trên Pi, MobileNetV3-Small chỉ mất 12,6 ms so với 129,4 ms của ResNet18 (1 luồng). Pipeline đã đổi model kiểu dáng mặc định sang bản ONNX của MobileNetV3-Small.
 
 ## 5.7 Kết luận
 
@@ -352,9 +352,9 @@ Công việc đã hoàn thành:
 - **Đo lại chất lượng ở mức pipeline chứ không chỉ mức model, và sửa lỗi nặng nhất phát hiện được từ đó** (mục 5.4): bước định vị YOLO pretrained từng được đặt làm điều kiện chạy của model loại xe, khiến 57% số ảnh trong tập test không hề được phân loại dù model xử lý được. Sau khi tách hai bước độc lập và cho model loại xe chạy trên cả khung hình đúng như lúc huấn luyện, tỉ lệ ảnh có kết quả tăng từ 43% lên 100% và độ chính xác end-to-end từ 41,6% lên 98,7%, khớp đúng accuracy 98,66% của bản thân model.
 - Xuất model sang ONNX cho cả 2 kiến trúc của cả 2 bước; bản MobileNetV3-Small của bước kiểu dáng khớp `.pt` 987/987 ảnh test.
 - Viết notebook tổng hợp kết quả huấn luyện và hướng dẫn tích hợp cho bước tiếp theo.
-- Đo trên Raspberry Pi 5: toàn pipeline 495,3 ms mỗi lượt ở 4 luồng. Số đo trên Pi dẫn tới ba quyết định có căn cứ: đặt 4 luồng, giữ `.pt` cho bước định vị xe, và chuyển bước kiểu dáng sang MobileNetV3-Small ONNX (nhanh hơn 8 lần trên Pi, accuracy không đổi).
+- Đo trên Raspberry Pi 5 với 50 ảnh camera cổng thật: đầu-cuối qua API 464 ms mỗi lượt. Số đo trên Pi dẫn tới ba quyết định có căn cứ: đặt 4 luồng, giữ `.pt` cho bước định vị xe, và chuyển bước kiểu dáng sang MobileNetV3-Small ONNX (chạy riêng trên Pi nhanh hơn khoảng 10 lần, accuracy không đổi).
 
-Hai điểm cần lưu ý khi đánh giá kết quả. Thứ nhất, lớp `bus` vẫn chưa có model riêng và nay cũng không còn dùng nhãn COCO làm phương án tạm (đo được nhãn đó sai 2/2 lần, mục 5.4), nên xe khách sẽ bị xếp vào một trong 3 lớp hiện có cho tới khi nhân viên sửa tay; cần bổ sung dữ liệu xe khách đúng góc camera cổng để huấn luyện nốt. Thứ hai, model kiểu dáng vẫn huấn luyện hoàn toàn trên dữ liệu ảnh dealer/showroom (B5) nên con số 90% chưa phản ánh được hiệu năng trên ảnh camera giám sát Việt Nam thật, dù model loại xe đã được kiểm chứng tốt hơn qua bộ OOD thật. Cả hai điểm này để lại cho các tuần tiếp theo, hướng cụ thể đã nêu ở mục 5.5. Hiệu năng thì đã đo trên Raspberry Pi 5 thật (mục 5.6): 495,3 ms mỗi lượt ở 4 luồng.
+Hai điểm cần lưu ý khi đánh giá kết quả. Thứ nhất, lớp `bus` vẫn chưa có model riêng và nay cũng không còn dùng nhãn COCO làm phương án tạm (đo được nhãn đó sai 2/2 lần, mục 5.4), nên xe khách sẽ bị xếp vào một trong 3 lớp hiện có cho tới khi nhân viên sửa tay; cần bổ sung dữ liệu xe khách đúng góc camera cổng để huấn luyện nốt. Thứ hai, model kiểu dáng vẫn huấn luyện hoàn toàn trên dữ liệu ảnh dealer/showroom (B5) nên con số 90% chưa phản ánh được hiệu năng trên ảnh camera giám sát Việt Nam thật, dù model loại xe đã được kiểm chứng tốt hơn qua bộ OOD thật. Cả hai điểm này để lại cho các tuần tiếp theo, hướng cụ thể đã nêu ở mục 5.5. Hiệu năng thì đã đo trên Raspberry Pi 5 thật (mục 5.6): 464 ms mỗi lượt qua API trên 50 ảnh camera cổng.
 
 ---
 
