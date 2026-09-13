@@ -6,7 +6,7 @@ này tái lập, xuất CSV từng biển và một ảnh ghép trước/sau đ�
 
 Hai model:
   - TRƯỚC: `plate-ocr-crnn-V3_seed42.pt`, charset 36 ký tự (0-9, A-Z), không có Đ.
-    Model này KHÔNG THỂ đọc đúng biển MĐ/TĐ dù ảnh rõ tới đâu, vì lớp ký tự đó
+    Model này không thể đọc đúng biển MĐ/TĐ dù ảnh rõ tới đâu, vì lớp ký tự đó
     không tồn tại trong đầu ra. Nó rớt hẳn Đ chứ không đọc nhầm thành ký tự khác.
   - SAU: `plate-ocr-crnn.pt`, charset 37 ký tự, thêm Đ.
 

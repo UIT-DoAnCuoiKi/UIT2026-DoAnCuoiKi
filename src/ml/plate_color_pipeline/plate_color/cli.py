@@ -25,7 +25,7 @@ def color_distribution(paths: list[str]) -> dict:
     Non-image paths (extensions other than .jpg/.jpeg/.png) are skipped so
     that glob patterns matching mixed directories don't crash the classifier.
     Unreadable files (corrupted, missing after glob expansion) are also skipped
-    silently — they would otherwise produce None from cv2.imread and crash
+    silently. They would otherwise produce None from cv2.imread and crash
     process_plate.
 
     Args:

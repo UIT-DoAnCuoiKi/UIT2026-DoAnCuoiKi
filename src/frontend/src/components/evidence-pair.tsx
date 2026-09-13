@@ -17,7 +17,7 @@ export type EvidenceSide = {
   at?: string | null;
   lane?: string | null;
   // Ảnh của mọi camera đã lưu cho lượt này (làn đa camera); rỗng/undefined thì
-  // chỉ có 1 ảnh chính, hiện như trước — không đổi hành vi màn hình đơn camera.
+  // chỉ có 1 ảnh chính, hiện như trước, không đổi hành vi màn hình đơn camera.
   images?: { role: string; image_asset_id: number; is_primary: boolean }[];
 };
 

@@ -1,0 +1,12 @@
+  Định vị xe   : yolov8n.pt
+  Kiểu dáng xe : vehicle-style-resnet18.onnx
+  ML_INTRAOP_THREADS = 4
+  Số ảnh: 50, làm nóng 3 ảnh, đo 5 vòng mỗi ảnh
+
+  tất cả     n=50  trung vị   463.0 ms  p90   539.1 ms  max   548.2 ms
+  o_to       n=25  trung vị   530.0 ms  p90   542.0 ms  max   548.2 ms
+  xe_may     n=25  trung vị   460.6 ms  p90   465.7 ms  max   474.8 ms
+  Ảnh có chạy bước kiểu dáng: 18/50
+  Vòng đo: 122.3 giây cho 250 lượt
+
+Đã ghi /home/mn/smartpark/src/ml/experiments/pi5_anh_that/pt_resnet.csv

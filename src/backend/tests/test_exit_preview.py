@@ -1,8 +1,8 @@
-"""POST /sessions/exit/preview — tính thử lượt RA để nhân viên đối chiếu.
+"""POST /sessions/exit/preview: tính thử lượt RA để nhân viên đối chiếu.
 
 Điểm mấu chốt phải giữ: xem trước KHÔNG được ghi gì vào DB. Trước khi có endpoint
 này, `compute_fee` chỉ chạy bên trong `_complete_session`, nên muốn biết phí là
-phiên đã bị đóng — nhân viên không có cơ hội so ảnh vào/ra rồi mới quyết định.
+phiên đã bị đóng, nhân viên không có cơ hội so ảnh vào/ra rồi mới quyết định.
 """
 from app.models import ParkingSession, PriceRule
 

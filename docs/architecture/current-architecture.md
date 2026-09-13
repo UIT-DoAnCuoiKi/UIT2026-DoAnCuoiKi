@@ -2,6 +2,8 @@
 
 Trạng thái thật, suy từ code + deploy podman đang chạy. Đánh dấu: DEPLOYED (đang chạy podman Mac), GAP (đã code nhưng chưa chạy được), PI (thuộc Raspberry Pi, chưa deploy).
 
+Cập nhật 13/09/2026: hệ thống đã chạy trên Raspberry Pi 5 để đo hiệu năng, nhưng không theo nhánh edge worker trong sơ đồ. Pi chạy thẳng backend (FastAPI, SQLite, `INFERENCE_ENGINE=ml`, model ONNX) và portal, khởi động bằng systemd user service. Edge worker và trigger GPIO vẫn chưa dùng. Kết quả đo ở `src/ml/notebooks/benchmark-raspberry-pi5.ipynb`.
+
 ## Deployment + luồng dữ liệu
 
 ```mermaid
@@ -18,7 +20,7 @@ graph TB
         VOL[["images volume"]]
     end
 
-    subgraph PI["Raspberry Pi 5 · Linux native (PI · tuần 8, chưa deploy)"]
+    subgraph PI["Raspberry Pi 5 · Linux native (PI · edge worker chưa deploy, xem ghi chú đầu trang)"]
         EDGE["edge worker<br/>camera /dev/video0 + trigger GPIO<br/>chạy ML tại chỗ"]
     end
 

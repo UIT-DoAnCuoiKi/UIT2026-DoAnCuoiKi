@@ -1,15 +1,15 @@
 """Huấn luyện, đánh giá và xuất model phân loại LOẠI XE THÔ (car/motorbike/truck).
 
 Thay cho việc dùng thẳng nhãn lớp của YOLOv8n pretrained trên COCO (không train
-lại, sai nhiều với ảnh cận cảnh kiểu camera cổng — từng gây lỗi map sai xe
+lại, sai nhiều với ảnh cận cảnh kiểu camera cổng, từng gây lỗi map sai xe
 máy). Dữ liệu do src/ml/data_prep/prepare_vehicle_type_dataset.py tạo ra từ
 data/raw/kaggle_vn_plate_segment (xem docstring file đó để biết nguồn từng
-lớp và cách lọc lớp xe tải bằng tay). Không có lớp "bus" ở bản đầu này — dữ
+lớp và cách lọc lớp xe tải bằng tay). Không có lớp "bus" ở bản đầu này, dữ
 liệu hiện có không đủ ảnh xe khách cận cảnh giống góc camera cổng, xem lại khi
 có thêm nguồn bù.
 
 Chạy 2 lượt huấn luyện (ResNet18 và MobileNetV3-Small) trên cùng dữ liệu và
-cùng cấu hình để so sánh — giống hệt quy trình đã dùng cho model kiểu dáng xe
+cùng cấu hình để so sánh, giống hệt quy trình đã dùng cho model kiểu dáng xe
 con (train_vehicle_classifier.py), dùng chung classifier.py.
 
 Mỗi lượt lưu ra: checkpoint (.pt), bản ONNX, file history JSON (lịch sử từng

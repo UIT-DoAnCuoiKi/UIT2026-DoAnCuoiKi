@@ -29,7 +29,7 @@ def test_ingest_creates_reading_and_response(db_session):
     assert resp.ocr_conf == 0.95
     assert resp.color_conf == 0.9
     # Ảnh chính luôn có 1 dòng ReadingImage tương ứng (is_primary), kể cả khi
-    # làn chỉ có 1 camera — để truy vấn danh sách ảnh của 1 reading luôn nhất quán.
+    # làn chỉ có 1 camera, để truy vấn danh sách ảnh của 1 reading luôn nhất quán.
     assert len(resp.images) == 1
     assert resp.images[0].is_primary is True
     assert resp.images[0].image_asset_id == resp.image_asset_id
@@ -49,7 +49,7 @@ def test_ingest_stores_extra_camera_images(db_session):
     rows = db_session.query(ReadingImage).filter_by(reading_id=reading.id).order_by(ReadingImage.id).all()
     assert [(r.role, r.is_primary) for r in rows] == [("front", True), ("rear", False)]
     # Ảnh phụ phải là 1 ImageAsset THẬT KHÁC với ảnh chính, không phải trỏ lại
-    # cùng 1 bản ghi — nếu không sẽ không lưu được đủ 2 ảnh như yêu cầu.
+    # cùng 1 bản ghi, nếu không sẽ không lưu được đủ 2 ảnh như yêu cầu.
     assert rows[1].image_asset_id != rows[0].image_asset_id
     assert db_session.get(ImageAsset, rows[1].image_asset_id) is not None
 

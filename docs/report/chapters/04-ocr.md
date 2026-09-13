@@ -32,7 +32,7 @@ Cách làm: cắt biển theo bounding box có sẵn, lấy ngẫu nhiên 100 bi
 
 Kết quả gán nhãn: **96/100 biển đọc được**, 45 biển 1 dòng và 51 biển 2 dòng. Bốn biển còn lại (4,0%) ảnh rất mờ, bạc màu hoặc bị cắt mất ký tự, được loại khỏi tập test thay vì đoán.
 
-Điểm quan trọng nhất của tập này là độ phân giải sát điều kiện triển khai hơn hẳn:
+Tập này có độ phân giải sát điều kiện triển khai hơn nhiều so với topkek:
 
 | Nguồn | px mỗi dòng ký tự (trung vị) | Tỉ lệ đạt ≥40px/dòng |
 |---|---:|---:|
@@ -47,7 +47,7 @@ Cách làm giữ nguyên nguyên tắc chống vòng lặp logic đã dùng cho 
 
 Nhóm so sánh model tự huấn luyện với hai engine OCR pretrained làm mốc:
 
-- **RapidOCR**: model PP-OCRv3 nhận dạng ký tự, chạy qua ONNX Runtime thuần. Ban đầu dự định dùng PaddleOCR trực tiếp theo khuyến nghị chung cho OCR biển số, nhưng gói `paddlepaddle` chưa có bản hỗ trợ Python 3.14 của môi trường huấn luyện; RapidOCR đóng gói lại cùng dòng model PP-OCR để chạy thuần ONNX Runtime nên thay thế được mà vẫn giữ đúng tinh thần khuyến nghị.
+- **RapidOCR**: model PP-OCRv3 nhận dạng ký tự, chạy qua ONNX Runtime thuần. Ban đầu dự định dùng PaddleOCR trực tiếp theo khuyến nghị chung cho OCR biển số, nhưng gói `paddlepaddle` chưa có bản hỗ trợ Python 3.14 của môi trường huấn luyện; RapidOCR đóng gói lại đúng dòng model PP-OCR để chạy thuần ONNX Runtime nên thay thế được.
 - **EasyOCR**: model CRNN pretrained (PyTorch), charset tiếng Anh.
 - **CRNN riêng** (`src/ml/training/ocr_model.py`): CNN 5 lớp (32 -> 64 -> 96 -> 96 -> 96 kênh) + 1 lớp BiLSTM (96 chiều ẩn) + đầu ra CTC. Ảnh vào 1 kênh xám 48×128px, chuỗi đặc trưng đầu ra 32 bước thời gian, dư so với nhãn dài nhất khoảng 9 ký tự để CTC có chỗ chèn ký tự blank. Chỉ 425.126 tham số, nhỏ vì charset thu hẹp còn đúng 37 ký tự (0-9, A-Z và "Đ" của biển xe máy điện).
 
@@ -66,7 +66,7 @@ Nhóm bổ sung `perspective_correct()`: nắn 4 góc biển về hình chữ nh
 | Xoay phẳng (`deskew`) | 8/18 (44%) |
 | **Nắn phối cảnh 4 điểm** | **13/17 (76%)** |
 
-Một chi tiết kỹ thuật đáng lưu ý: cách sắp xếp 4 góc theo tổng và hiệu toạ độ (cách thường gặp) chọn trùng điểm khi biển nghiêng gần 45 độ, làm ma trận biến đổi suy biến và ảnh nắn ra trống trơn. Bản hiện tại sắp góc theo góc quay quanh tâm tứ giác, luôn cho đủ 4 điểm phân biệt với tứ giác lồi.
+Cách sắp xếp 4 góc theo tổng và hiệu toạ độ (cách thường gặp) chọn trùng điểm khi biển nghiêng gần 45 độ, làm ma trận biến đổi suy biến và ảnh nắn ra trống trơn. Bản hiện tại sắp góc theo góc quay quanh tâm tứ giác, luôn cho đủ 4 điểm phân biệt với tứ giác lồi.
 
 ## 4.3 Huấn luyện và các thí nghiệm cải tiến
 
@@ -105,15 +105,15 @@ Cách sửa: thay hàm đoán bằng việc tách nhãn tại đúng dấu cách
 
 ### Vòng 3: kiểm soát nhiễu ngẫu nhiên giữa các lần huấn luyện
 
-Lần huấn luyện đầu tiên sau khi sửa nhãn (không cố định seed) cho kết quả tốt hơn rõ rệt trên cả hai tập test, nhưng khi kiểm tra vào từng lỗi cụ thể lại phát hiện một lỗi mới: chữ cái `G` ở vị trí seri bị đọc nhầm thành `D` hoặc `0` với độ tin cậy cao (0,96-0,99), sai 7/13 biển có seri `G` trong tập vn_plate, dù trước đó model cũ (V2) đọc đúng cả 13/13.
+Lần huấn luyện đầu tiên sau khi sửa nhãn (không cố định seed) cho kết quả tốt hơn rõ rệt trên cả hai tập test, nhưng khi kiểm tra vào từng lỗi cụ thể lại phát hiện một lỗi mới: chữ cái `G` ở vị trí seri bị đọc nhầm thành `D` hoặc `0` ở một số biển trong 13 biển có seri `G` của tập vn_plate. Dự đoán của lần chạy đó không được lưu lại nên không còn số đếm chính xác.
 
 Vì mã nguồn không cố định seed ngẫu nhiên (khởi tạo trọng số, thứ tự xáo trộn dữ liệu, tham số augmentation), không thể kết luận ngay lỗi này do việc sửa nhãn gây ra hay chỉ là may rủi giữa các lần train. Nhóm bổ sung tham số `seed` cho `train_crnn()` và huấn luyện lại nhiều lần với seed cố định khác nhau để kiểm tra độ lặp lại.
 
-Kết quả: cùng một cấu hình và một tập dữ liệu, chỉ khác giá trị khởi tạo ngẫu nhiên, accuracy trên tập test dao động trong biên độ hơn 12 điểm phần trăm. Biên độ này đủ lớn để một kết luận rút ra từ một lần train duy nhất, không kiểm soát seed, có thể sai lệch đáng kể. Lỗi seri `G` cũng giảm dần qua các lần chạy lại chứ không lặp lại ổn định, nên nhiều khả năng là nhiễu ngẫu nhiên bị khuếch đại bởi cỡ mẫu nhỏ (chỉ 13 biển có seri `G` trong tập test) chứ không phải hệ quả tất yếu của việc sửa nhãn.
+Kết quả: cùng một cấu hình và một tập dữ liệu, chỉ khác giá trị khởi tạo ngẫu nhiên, hai seed 42 và 123 cho accuracy 87,5% và 92,7% trên vn_plate (lệch 5,2 điểm phần trăm), 58,9% và 57,4% trên topkek (lệch 1,5 điểm). Với vn_plate chỉ có 96 biển, mức lệch này đủ để một kết luận rút ra từ một lần train duy nhất có thể sai. Với chỉ 13 biển có seri `G` trong tập test, lỗi này có thể là nhiễu ngẫu nhiên bị khuếch đại bởi cỡ mẫu nhỏ, chưa đủ căn cứ để quy cho việc sửa nhãn.
 
 **Quyết định chọn model:** các seed cho `val_row_cer` gần như ngang nhau, tức không có căn cứ độc lập với tập test để nói seed nào "tốt hơn". Chọn seed đạt điểm cao nhất trên đúng tập test độc lập sẽ biến tập test thành công cụ chọn model, làm mất tính khách quan của số liệu báo cáo. Nhóm chốt **seed mặc định** (không phải seed chọn sau khi đã biết kết quả trên test) làm model chính thức, và báo cáo minh bạch cả khoảng dao động giữa các lần chạy thay vì chỉ nêu con số đẹp nhất. Quy tắc này được giữ lại thành hướng dẫn ở mục 4.7.
 
-*(Các con số cụ thể của thí nghiệm seed đo trên model trước khi bổ sung ký tự "Đ" nên đã lược bỏ khỏi báo cáo, tránh nhầm với bảng kết quả của model đang triển khai ở mục 4.4; số gốc vẫn còn trong `src/ml/experiments.csv` nếu cần tra lại.)*
+*(Hai model seed 42 và 123 huấn luyện trước khi bổ sung ký tự "Đ" nên không so trực tiếp với bảng kết quả của model đang triển khai ở mục 4.4. Số gốc ở `src/ml/experiments/ocr_full_progression.csv`.)*
 
 ![Đường train loss và validation CER/accuracy theo epoch](../figures/plate_ocr_loss_curves.png)
 
@@ -131,13 +131,13 @@ Kết quả: cùng một cấu hình và một tập dữ liệu, chỉ khác gi
 | EasyOCR | 11,71% | 51,87% | 98,3 MB | 16,65 ms |
 | **CRNN riêng** | **56,6%** | **18,30%** | **1,7 MB** | **1,26 ms** |
 
-*(Kích thước model là dung lượng thật cần có để chạy; với EasyOCR gồm cả model phát hiện văn bản lẫn model nhận dạng vì API `readtext()` dùng cả hai. CPU inference đo trên máy huấn luyện, không phải Raspberry Pi 5, và tính cho một lần đọc; biển 2 dòng cần hai lần đọc.)*
+*(Kích thước model là dung lượng thật cần có để chạy; với EasyOCR gồm cả model phát hiện văn bản lẫn model nhận dạng vì API `readtext()` dùng cả hai. CPU inference đo trên máy huấn luyện và tính cho một lần đọc; biển 2 dòng cần hai lần đọc. Trên Raspberry Pi 5, CRNN riêng mất 6,07 ms mỗi lần đọc ở 1 luồng, xem `w7-onnx.md` mục 2.3.)*
 
 ![Accuracy toàn biển và CER của 3 phương pháp](../figures/plate_ocr_accuracy_comparison.png)
 
 ![Kích thước model và tốc độ CPU của 3 phương pháp](../figures/plate_ocr_edge_comparison.png)
 
-CRNN riêng vượt cả hai baseline trên mọi tiêu chí cùng lúc: chính xác hơn nhiều lần, nhỏ hơn RapidOCR khoảng 6 lần và nhỏ hơn EasyOCR khoảng 58 lần, nhanh hơn cả hai trên CPU. Nguyên nhân là phạm vi bài toán, không phải kiến trúc "thông minh" hơn: hai model pretrained mang charset tổng quát, trong khi CRNN riêng chỉ cần phân biệt đúng 37 ký tự cố định (10 chữ số, 26 chữ cái và ký tự "Đ" của biển xe máy điện).
+CRNN riêng hơn cả hai baseline ở mọi tiêu chí: accuracy cao gấp 1,7 lần RapidOCR và 4,8 lần EasyOCR, nhỏ hơn RapidOCR khoảng 6 lần và nhỏ hơn EasyOCR khoảng 58 lần, nhanh hơn cả hai trên CPU. Nguyên nhân là phạm vi bài toán, không phải kiến trúc "thông minh" hơn: hai model pretrained mang charset tổng quát, trong khi CRNN riêng chỉ cần phân biệt đúng 37 ký tự cố định (10 chữ số, 26 chữ cái và ký tự "Đ" của biển xe máy điện).
 
 ### Kết quả trên ba tập test
 
@@ -150,9 +150,9 @@ Số dưới đây đo trên **đúng model đang triển khai** (`plate-ocr-crn
 | Biển 1 dòng | 59,6% | 75,6% | 91,5% |
 | Biển 2 dòng | 55,4% | 84,3% | 92,3% |
 
-**Điểm đáng chú ý nhất: model đạt kết quả cao nhất trên tập nó chưa từng được huấn luyện.** Tập a1 (cắt từ kaggle_vn_plate_segment, vốn là dữ liệu của module phát hiện biển, nhãn chuỗi do nhóm tự gán bằng mắt theo quy trình ở mục 4.1) đạt 91,9%, cao hơn cả tập test cùng nguồn với dữ liệu huấn luyện (topkek, 56,6%). Đây là bằng chứng trực tiếp cho khả năng tổng quát hoá: nếu model chỉ học thuộc đặc điểm riêng của tập huấn luyện thì kết quả phải theo chiều ngược lại. Điều này cũng trả lời cho hạn chế "chỉ huấn luyện trên một nguồn dữ liệu" nêu ở mục 4.1.
+Model đạt kết quả cao nhất trên tập nó chưa từng thấy khi huấn luyện. Tập a1 (cắt từ kaggle_vn_plate_segment, vốn là dữ liệu của module phát hiện biển, nhãn chuỗi do nhóm tự gán bằng mắt theo quy trình ở mục 4.1) đạt 91,9%, cao hơn cả tập test cùng nguồn với dữ liệu huấn luyện (topkek, 56,6%). Đây là bằng chứng trực tiếp cho khả năng tổng quát hoá: nếu model chỉ học thuộc đặc điểm riêng của tập huấn luyện thì kết quả phải theo chiều ngược lại. Điều này cũng trả lời cho hạn chế "chỉ huấn luyện trên một nguồn dữ liệu" nêu ở mục 4.1.
 
-Khoảng cách giữa biển 1 dòng và biển 2 dòng cũng gần như biến mất trên cả hai tập độc lập (75,6% so với 84,3% ở vn_plate; 91,5% so với 92,3% ở a1), so với trước khi sửa lỗi chia nhãn (88,9% so với 43,1%). Đây là bằng chứng cho thấy hạn chế cũ nằm ở dữ liệu huấn luyện chứ không phải bản chất bài toán biển 2 dòng khó hơn.
+Khoảng cách giữa biển 1 dòng và biển 2 dòng cũng gần như biến mất trên cả hai tập độc lập (75,6% so với 84,3% ở vn_plate; 91,5% so với 92,3% ở a1), so với trước khi sửa lỗi chia nhãn (88,9% so với 43,1%). Vậy hạn chế cũ nằm ở dữ liệu huấn luyện, không phải vì biển 2 dòng vốn khó hơn.
 
 *Ghi chú về chênh lệch với bản nháp trước:* các bản nháp đầu ghi 58,9% (topkek) và 87,5% (vn_plate) là số của model `v3_seed42` huấn luyện ngày 14/08, trước khi bổ sung ký tự "Đ". Model hiện tại phải mở rộng bộ ký tự từ 36 lên 37 để đọc được biển xe máy điện, đổi lại accuracy trên hai tập test cũ giảm nhẹ. Báo cáo lấy số của model đang triển khai để mọi con số đều tra ngược được về một dòng trong file kết quả, đúng quy ước "mọi số công bố phải có dòng tương ứng trong experiments.csv".
 
@@ -169,7 +169,7 @@ Cùng một model, ba tập test cho ba con số cách nhau tới 35 điểm ph�
 
 Ở dải ảnh đủ nét, model đạt 78-100% trên cả ba tập. Nhưng topkek có phần lớn ảnh rơi vào dải dưới 30px (chỉ đạt 50,0%), nơi nhiều ảnh gần như không đọc được kể cả bằng mắt người, kéo accuracy trung bình toàn tập xuống 56,6%. Tập a1 có phân bố ngược lại nên đạt 91,9% dù dùng chung một model.
 
-Kết luận rút ra: **con số accuracy toàn tập chỉ có ý nghĩa khi đọc kèm phân bố độ phân giải của tập đó**, so sánh 56,6% với 91,9% như hai chỉ số ngang hàng là sai lệch, vì thực chất chúng phản ánh cùng một model trên các phân phối ảnh khác nhau. Bảng phân tầng theo độ phân giải là số liệu đáng tin hơn để đánh giá năng lực thật của model, và đó cũng là con số cần đối chiếu khi quyết định yêu cầu kỹ thuật cho camera lắp đặt. Với điều kiện triển khai thực tế (camera đặt sát cổng, biển chiếm phần lớn khung hình), dải sát nhất là tập a1: mức 91,9% mới phản ánh đúng năng lực khi lắp đặt, không phải 56,6%.
+Con số accuracy toàn tập chỉ có nghĩa khi đọc kèm phân bố độ phân giải của tập đó. Đặt 56,6% cạnh 91,9% như hai chỉ số ngang hàng là sai, vì đó là cùng một model trên hai phân phối ảnh khác nhau. Bảng phân tầng theo độ phân giải là số liệu đáng tin hơn để đánh giá năng lực thật của model, và đó cũng là con số cần đối chiếu khi quyết định yêu cầu kỹ thuật cho camera lắp đặt. Với điều kiện triển khai thực tế (camera đặt sát cổng, biển chiếm phần lớn khung hình), dải sát nhất là tập a1: mức 91,9% mới phản ánh đúng năng lực khi lắp đặt, không phải 56,6%.
 
 ![Mẫu dự đoán trên tập test](../figures/plate_ocr_sample_predictions.png)
 
@@ -185,9 +185,9 @@ Biểu thức kiểm tra định dạng nhận cả hai trường hợp: mã t�
 
 ## 4.6 Thảo luận
 
-**Ba nguyên nhân đã xác định, ba cách xử lý khác nhau.** Tuần này cho thấy accuracy thấp không phải một vấn đề duy nhất mà là tổng của nhiều nguyên nhân độc lập, mỗi nguyên nhân cần một cách xử lý khác nhau và không thể gộp chung: chất lượng ảnh đầu vào (xử lý bằng cách thêm dữ liệu đúng phân phối, không phải lọc bớt), góc chụp chéo (xử lý bằng hình học, nắn phối cảnh, không cần model tốt hơn), và lỗi ở khâu chuẩn bị nhãn (xử lý bằng cách quay lại nguồn dữ liệu gốc, không phải đổi kiến trúc). Bài học chung: trước khi kết luận "model chưa đủ tốt", cần loại trừ khả năng dữ liệu huấn luyện hoặc quy trình đánh giá đang có lỗi.
+**Ba nguyên nhân, ba cách xử lý.** Accuracy thấp đến từ ba nguyên nhân độc lập, mỗi cái cần một cách xử lý riêng: chất lượng ảnh đầu vào (xử lý bằng cách thêm dữ liệu đúng phân phối, không phải lọc bớt), góc chụp chéo (xử lý bằng hình học, nắn phối cảnh, không cần model tốt hơn), và lỗi ở khâu chuẩn bị nhãn (xử lý bằng cách quay lại nguồn dữ liệu gốc, không phải đổi kiến trúc). Bài học chung: trước khi kết luận "model chưa đủ tốt", cần loại trừ khả năng dữ liệu huấn luyện hoặc quy trình đánh giá đang có lỗi.
 
-**Nhiễu ngẫu nhiên giữa các lần train là một nguồn sai số cần kiểm soát tường minh**, đặc biệt khi tập test chỉ có quy mô nhỏ. Chênh lệch 80,2% đến 92,7% giữa các lần chạy cùng cấu hình cho thấy nếu chỉ train một lần và báo cáo kết quả, con số đó có thể lạc quan hoặc bi quan hơn thực tế khá nhiều. Cố định seed và huấn luyện lặp lại là cách kiểm soát trực tiếp; chọn model theo chỉ số độc lập với tập test (ở đây là `val_row_cer`) thay vì theo điểm số cao nhất trên tập test là cách tránh việc vô tình biến tập test thành một phần của quá trình huấn luyện.
+**Nhiễu ngẫu nhiên giữa các lần train là một nguồn sai số cần kiểm soát tường minh**, đặc biệt khi tập test chỉ có quy mô nhỏ. Hai seed cùng cấu hình lệch nhau 5,2 điểm phần trăm trên vn_plate (mục 4.3), nên nếu chỉ train một lần rồi báo cáo, con số đó có thể lệch cỡ đó so với một lần train khác. Cố định seed và huấn luyện lặp lại là cách kiểm soát trực tiếp; chọn model theo chỉ số độc lập với tập test (ở đây là `val_row_cer`) thay vì theo điểm số cao nhất trên tập test là cách tránh việc vô tình biến tập test thành một phần của quá trình huấn luyện.
 
 **Yêu cầu kỹ thuật rút ra cho việc lắp camera.** Từ phân tầng độ phân giải đã đo ở các thí nghiệm trước, để đạt kết quả tốt cần crop biển đạt tối thiểu khoảng 40px cho mỗi dòng ký tự. Điều này phụ thuộc vào khung hình chứ không đơn thuần số megapixel: đo trên A1 cho thấy ảnh gốc rộng tới 4032px nhưng biển vẫn chỉ chiếm khoảng 31px mỗi dòng vì xe ở xa. Cần đặt camera gần hơn hoặc thu hẹp góc nhìn vào khu vực cổng, không phải mua camera độ phân giải cao hơn.
 
@@ -195,7 +195,7 @@ Biểu thức kiểm tra định dạng nhận cả hai trường hợp: mã t�
 
 **Chưa kiểm chứng được điều kiện ban đêm.** Đây là khoảng trống lớn nhất còn lại. Toàn bộ dataset công khai đã khảo sát gần như chỉ có ảnh ban ngày, trong khi biển số Việt Nam dán màng phản quang nên đèn pha và đèn hồng ngoại gây loá mạnh. Không có mẫu nào để đánh giá.
 
-**Hướng tiếp theo.** Ghép với model phát hiện của Đức để đánh giá end-to-end trên ảnh toàn cảnh (Tuần 6); thu thập bổ sung ảnh ban đêm tại bãi xe thật; mở rộng tập test độc lập lên vài trăm biển để thu hẹp khoảng tin cậy; thử giải mã CTC có ràng buộc định dạng cho biển 2 dòng; đo lại tốc độ thật trên Raspberry Pi 5 (Tuần 7-8).
+**Hướng tiếp theo.** Ghép với model phát hiện của Đức để đánh giá end-to-end trên ảnh toàn cảnh (Tuần 6); thu thập bổ sung ảnh ban đêm tại bãi xe thật; mở rộng tập test độc lập lên vài trăm biển để thu hẹp khoảng tin cậy; thử giải mã CTC có ràng buộc định dạng cho biển 2 dòng. Tốc độ trên Raspberry Pi 5 đã đo ở báo cáo tuần 7 (mục 2.3).
 
 ## 4.7 Hướng dẫn tích hợp vào pipeline
 
@@ -220,7 +220,7 @@ Dành cho bước tích hợp hệ thống (Tuần 6), khi module OCR được g
 
 **Truyền toạ độ 4 góc nếu có.** Đây là điểm ảnh hưởng lớn nhất tới độ chính xác trong toàn bộ phần tích hợp (44% lên 76% trên ảnh chụp chéo). Không truyền thì hàm lùi về xoay phẳng, vốn không khử được góc nhìn chéo của camera bãi xe.
 
-**Nếu huấn luyện lại model, luôn cố định `seed` và huấn luyện ít nhất 2 lần để kiểm tra độ ổn định** trước khi công bố một con số accuracy, theo đúng phát hiện ở mục 4.3. Một lần train duy nhất không seed có thể lệch hơn 10 điểm phần trăm so với thực tế.
+**Nếu huấn luyện lại model, luôn cố định `seed` và huấn luyện ít nhất 2 lần để kiểm tra độ ổn định** trước khi công bố một con số accuracy, theo đúng phát hiện ở mục 4.3. Hai seed cùng cấu hình đã lệch nhau 5,2 điểm phần trăm trên vn_plate.
 
 **Recognizer nào cũng dùng được, miễn cùng interface.** `read_plate()` không ràng buộc vào CRNN riêng, chỉ cần đối tượng có `recognize(image_bgr) -> (text, confidence)`. Khuyến nghị dùng `CRNNRecognizer` làm mặc định, giữ hai engine pretrained làm phương án đối chiếu khi cần gỡ lỗi.
 
@@ -231,14 +231,14 @@ Dành cho bước tích hợp hệ thống (Tuần 6), khi module OCR được g
 Công việc đã hoàn thành trong tuần:
 
 - Chuẩn bị dữ liệu OCR từ topkek (6.643 crop thật và 5.547 crop sinh tổng hợp), chia tập phân tầng theo bố cục biển.
-- Xây dựng pipeline OCR hoàn chỉnh gồm nắn phối cảnh 4 điểm, tách dòng cho biển 2 dòng, chuẩn hoá ký tự theo quy định biển số Việt Nam.
+- Viết pipeline OCR gồm nắn phối cảnh 4 điểm, tách dòng cho biển 2 dòng, chuẩn hoá ký tự theo quy định biển số Việt Nam.
 - So sánh ba phương pháp OCR trên cùng tập test: CRNN tự huấn luyện đạt 56,6%, vượt RapidOCR (34,2%) và EasyOCR (11,7%), đồng thời nhỏ hơn và nhanh hơn cả hai.
-- Thực hiện ba vòng cải tiến có kiểm soát dựa trên số liệu đo được ở mỗi bước: hạ cấp dữ liệu sinh tổng hợp, sửa lỗi chia nhãn biển 2 dòng (phát hiện qua đối chiếu với nhãn gốc), và kiểm soát nhiễu ngẫu nhiên giữa các lần huấn luyện bằng seed cố định.
+- Làm ba vòng cải tiến có kiểm soát dựa trên số liệu đo được ở mỗi bước: hạ cấp dữ liệu sinh tổng hợp, sửa lỗi chia nhãn biển 2 dòng (phát hiện qua đối chiếu với nhãn gốc), và kiểm soát nhiễu ngẫu nhiên giữa các lần huấn luyện bằng seed cố định.
 - Xây hai tập test độc lập với nhãn gán bằng mắt, không phụ thuộc dự đoán của model: vn_plate (96 biển, accuracy 80,2%) và a1 (172 biển, accuracy 91,9%). Cả hai đều xoá gần hết khoảng cách giữa biển 1 dòng và 2 dòng. Việc model đạt điểm cao nhất trên a1, tập hoàn toàn không tham gia huấn luyện, là bằng chứng cho khả năng tổng quát hoá.
 - Xuất model sang ONNX, sẵn sàng cho bước triển khai trên thiết bị biên.
 
 Các điểm cần lưu ý khi đánh giá kết quả:
-- Ba con số 56,6% (topkek), 80,2% (vn_plate) và 91,9% (a1) đo trên cỡ mẫu và phân bố độ phân giải khác nhau, và mục 4.3 đã cho thấy bản thân quá trình huấn luyện có nhiễu ngẫu nhiên đáng kể, nên cần đọc như xu hướng có kiểm chứng chứ không phải giá trị cố định. Con số sát điều kiện triển khai nhất là 91,9% của tập a1, không phải 56,6% của topkek. 
+- Ba con số 56,6% (topkek), 80,2% (vn_plate) và 91,9% (a1) đo trên cỡ mẫu và phân bố độ phân giải khác nhau, và mục 4.3 đã cho thấy bản thân quá trình huấn luyện có nhiễu ngẫu nhiên giữa các seed (5,2 điểm phần trăm trên vn_plate với hai seed), nên cần đọc như xu hướng có kiểm chứng chứ không phải giá trị cố định. Con số sát điều kiện triển khai nhất là 91,9% của tập a1, không phải 56,6% của topkek. 
 - Việc đánh giá end-to-end cùng model phát hiện chưa thực hiện được trong tuần này.
 
 ---

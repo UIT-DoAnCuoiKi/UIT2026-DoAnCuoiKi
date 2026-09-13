@@ -1,5 +1,5 @@
 """Cắt biển từ A1 (kaggle_vn_plate_segment) để làm tập test độc lập, có nhãn
-thật, cho module OCR — đo domain gap giữa dataset train detector (A1, phân
+thật, cho module OCR, đo domain gap giữa dataset train detector (A1, phân
 giải cao) và dataset train OCR (topkek, phân giải thấp hơn).
 
 A1 chỉ có nhãn vị trí (polygon 4 góc), không có nhãn chuỗi ký tự, nên script
@@ -9,7 +9,7 @@ cho `vn_plate` (`prepare_vnplate_testset.py`): nếu điền sẵn dự đoán r
 làm nhãn thì việc đánh giá thành vòng tròn logic, accuracy sẽ bị thổi phồng.
 
 A1 không có split `test`, chỉ có `train`/`val`. Dùng `val` (không lan truyền
-ngược lúc train) — cùng lựa chọn đã dùng ở `eval_ocr_on_a1.py`.
+ngược lúc train), cùng lựa chọn đã dùng ở `eval_ocr_on_a1.py`.
 
 Lấy mẫu cân bằng 100 biển 1 dòng (bien_1hang) + 100 biển 2 dòng (bien_2hang),
 lấy riêng theo từng lớp để đảm bảo đúng tỉ lệ, không lấy mẫu chung rồi lọc.
@@ -79,7 +79,7 @@ def crop_one(item: dict) -> dict | None:
     """Cắt 1 biển theo bbox bao polygon + pad, rồi nắn phối cảnh phẳng ngay
     tại đây (khác `eval_ocr_on_a1.py` vốn nắn lúc OCR) để ảnh lưu ra dùng
     thẳng được với `read_plate(img, recognizer, layout=...)` không cần
-    truyền `corners` — tập test A1 dùng chung schema với test.csv/vn-plate."""
+    truyền `corners`, tập test A1 dùng chung schema với test.csv/vn-plate."""
     img = cv2.imread(str(item["image_path"]))
     if img is None:
         return None

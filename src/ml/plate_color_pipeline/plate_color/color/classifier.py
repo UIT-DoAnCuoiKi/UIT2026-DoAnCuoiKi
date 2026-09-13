@@ -1,6 +1,6 @@
 """HSV colour classifier for Vietnamese licence-plate crops.
 
-Design rationale — area-dominance vs. brightest-pixel heuristic
+Design rationale: area-dominance vs. brightest-pixel heuristic
 ----------------------------------------------------------------
 An earlier prototype in ``docs/research/tools/color_check.py`` assumed the
 plate background is the *brightest* pixel cluster.  That assumption is wrong
@@ -12,12 +12,12 @@ one of four colour buckets (white, red, yellow, blue), then pick the *majority*
 bucket as the plate colour.  On a white-background plate the large white area
 wins easily; on a blue-background plate the many blue pixels outvote the
 handful of light-text pixels.  No assumption about which colour is brighter is
-made — only which colour occupies more area.
+made, only which colour occupies more area.
 
 Two safety gates prevent low-quality predictions from reaching callers:
-  1. ``MIN_CONSIDERED_FRAC`` gate — if too few pixels are classifiable at all
+  1. ``MIN_CONSIDERED_FRAC`` gate: if too few pixels are classifiable at all
      (e.g. a mostly dark/shadow crop) we cannot form a reliable count.
-  2. ``CONF_FLOOR`` gate — if the winning bucket does not have a clear majority
+  2. ``CONF_FLOOR`` gate: if the winning bucket does not have a clear majority
      of classifiable pixels (e.g. a 50/50 white+yellow split) we return
      ``unknown`` rather than guess.
 """
@@ -36,7 +36,7 @@ class ColorResult:
     """Result of ``classify_color``.
 
     Attributes:
-        color: Predicted plate background colour — one of ``"white"``,
+        color: Predicted plate background colour, one of ``"white"``,
             ``"yellow"``, ``"blue"``, ``"red"``, or ``"unknown"``.
         conf:  Winner's share of classifiable pixels (0.0–1.0).
             Always ``0.0`` when *color* is ``"unknown"`` due to size or
@@ -67,7 +67,7 @@ def classify_color(crop_bgr: np.ndarray) -> ColorResult:
         * the fraction of classifiable pixels is below ``MIN_CONSIDERED_FRAC``
           (e.g. a nearly-black crop where nothing is bright or saturated), OR
         * the winner's share of classifiable pixels is below ``CONF_FLOOR``
-          (ambiguous colour distribution — better to abstain than guess wrong).
+          (ambiguous colour distribution, better to abstain than guess wrong).
     """
     h, w = crop_bgr.shape[:2]
     if h < 8 or w < 8:
@@ -75,7 +75,7 @@ def classify_color(crop_bgr: np.ndarray) -> ColorResult:
 
     # Thu hẹp về đúng vùng nền biển trước khi đếm màu: crop từ PlateDetector có
     # thêm biên (pad=4) quanh bbox YOLO, và rìa crop nhỏ dễ dính quang sai màu/
-    # nén JPEG — cả hai có thể lệch hue khỏi nền biển thật, gây nhận nhầm màu.
+    # nén JPEG, cả hai có thể lệch hue khỏi nền biển thật, gây nhận nhầm màu.
     # Dùng Otsu + contour lớn nhất (cùng kỹ thuật deskew() trong pipeline/ocr.py)
     # để tìm vùng nền biển thật, không đoán 1 tỉ lệ % cố định. Không tìm được
     # contour đủ tin cậy thì lùi về dùng nguyên crop, không cố ép.
@@ -96,7 +96,7 @@ def classify_color(crop_bgr: np.ndarray) -> ColorResult:
 
     total = crop_bgr.shape[0] * crop_bgr.shape[1]  # dùng kích thước sau khi cắt viền, không phải crop gốc
 
-    # Saturation mask — only chromatic (coloured) pixels are tested against hue bands.
+    # Saturation mask: only chromatic (coloured) pixels are tested against hue bands.
     sat = S >= T.SAT_MIN_FOR_HUE
 
     # Count pixels in each colour bucket.
@@ -105,7 +105,7 @@ def classify_color(crop_bgr: np.ndarray) -> ColorResult:
     # text pixels, correctly identifying the plate colour as blue.
     counts = {
         "white":  int(np.count_nonzero((S < T.WHITE_SAT_MAX) & (V >= T.WHITE_VAL_MIN))),
-        # Red wraps around the HSV hue cylinder — two arcs capture it.
+        # Red wraps around the HSV hue cylinder, so two arcs capture it.
         "red":    int(np.count_nonzero(sat & ((H < T.HUE_RED_HI) | (H >= T.HUE_RED_WRAP)))),
         "yellow": int(np.count_nonzero(sat & (H >= T.HUE_YELLOW_LO) & (H < T.HUE_YELLOW_HI))),
         "blue":   int(np.count_nonzero(sat & (H >= T.HUE_BLUE_LO)  & (H < T.HUE_BLUE_HI))),

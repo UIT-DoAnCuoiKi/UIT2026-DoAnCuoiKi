@@ -1,0 +1,57 @@
+### [bench_pt_4luong] bắt đầu 2026-09-13T14:31:10+07:00 ở 58°C (đã chờ nguội 5s)
+==============================================================================
+MÔI TRƯỜNG ĐO
+==============================================================================
+  Máy          : aarch64
+  Số lõi logic : 4
+  Hệ điều hành : Linux 6.18.34+rpt-rpi-2712 (build #1 SMP PREEMPT Debian 1:6.18.34-1+rpt1 (2026-06-09))
+  Python       : 3.13.5
+  onnxruntime  : 1.30.0  providers=['AzureExecutionProvider', 'CPUExecutionProvider']
+  numpy/opencv : 2.5.2 / 5.0.0
+  torch        : 2.14.0+cpu (chỉ dùng cho nhánh ultralytics + tiền xử lý)
+  ML_INTRAOP_THREADS = 4  (số luồng mỗi model được phép dùng)
+  Định vị xe   : yolov8n.pt
+  Kiểu dáng xe : vehicle-style-resnet18.onnx
+  Warm-up 3 lượt (bỏ), đo 10 lượt, báo cáo TRUNG VỊ
+
+==============================================================================
+1. TỪNG MODEL ONNX CHẠY RIÊNG (đầu vào ngẫu nhiên đúng shape)
+==============================================================================
+  Model                            Đầu vào                MB  Trung vị     min     max
+  Phát hiện biển (YOLOv8n)         [1, 3, 640, 640]     12.2   141.85ms 141.21 144.75
+  OCR biển số (CRNN)               [1, 1, 48, 128]       1.7     2.30ms   2.26   2.41
+  Loại xe (ResNet18)               [1, 3, 224, 224]     44.7    44.99ms  44.70  45.21
+  Loại xe (MobileNetV3-Small)      [1, 3, 224, 224]      6.1     5.75ms   5.71   5.86
+  Kiểu dáng xe (ResNet18)          [1, 3, 224, 224]     44.7    45.53ms  45.32  47.56
+  Kiểu dáng xe (MobileNetV3-Small) [1, 3, 224, 224]      6.1     5.67ms   5.63   5.73
+
+==============================================================================
+2. TỪNG BƯỚC TRONG PIPELINE THẬT
+==============================================================================
+  Ảnh: 1_bomaich_detect.png  (1200x600 px)
+  Số biển phát hiện được trên ảnh này: 12
+
+  Bước                                Trung vị      min      max   Tỉ lệ
+  Chuyển màu BGR sang RGB                 1.5ms     1.5     1.9   0.3%
+  Phát hiện biển số (ONNX)              168.0ms   161.4   181.9  29.6%
+  Màu biển + OCR (12 biển)              109.4ms    97.6   122.0  19.3%
+  Định vị + cắt vùng xe (YOLO)          156.5ms   148.3   161.7  27.6%
+  Tiền xử lý ảnh cho classifier           6.6ms     6.5     7.0   1.2%
+  Phân loại loại xe (ONNX)               45.6ms    44.6    51.8   8.0%
+  Phân loại kiểu dáng (ONNX)             79.4ms    75.8    87.7  14.0%
+  TỔNG (cộng trung vị các bước)         567.1ms
+
+==============================================================================
+3. TOÀN PIPELINE (đúng cách backend và edge worker gọi)
+==============================================================================
+  Lượt đầu tiên (gồm nạp model từ đĩa) :    604.4 ms
+  Sau khi làm nóng, trung vị            :    495.3 ms   (min 487.2, max 535.8)
+  CPU-time trung vị / 1 ảnh             :   1830.0 ms
+  Số luồng dùng trung bình (CPU/wall)   :      3.7
+
+  Đọc chỉ số cuối: bằng ~1 nghĩa là chạy gần như đơn luồng. Càng lớn
+  hơn số lõi thật thì càng có dấu hiệu toả luồng quá mức: từng đo được
+  tỉ số ~24 (CPU-time ~21 giây cho 1 ảnh trong ~0,9 giây đồng hồ),
+  nguyên nhân là mỗi model tự phân luồng theo toàn bộ số lõi của máy.
+
+### [bench_pt_4luong] xong sau 24.134015242 giây

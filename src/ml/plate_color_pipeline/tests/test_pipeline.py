@@ -30,7 +30,7 @@ def test_wb_isolated_from_color():
     """Color is stable on path A regardless of WB; WB alone would flip it.
 
     Positive direction: both clahe_v (path A) and process_plate must classify
-    a yellow crop as 'yellow' — proving path A produces the correct label.
+    a yellow crop as 'yellow', proving path A produces the correct label.
     Negative direction: prepending gray-world WB collapses the hue toward gray,
     confirming WB would corrupt the color decision if it ran on path A.
     """

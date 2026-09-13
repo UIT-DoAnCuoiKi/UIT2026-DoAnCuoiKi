@@ -88,7 +88,7 @@ export function useCameras(roles: string[]) {
     return new Promise((resolve) => canvas.toBlob((b) => resolve(b), "image/jpeg", 0.85));
   }, []);
 
-  /** Chụp tất cả camera đang stream cùng lúc — 1 nút Chụp cho cả làn. */
+  /** Chụp tất cả camera đang stream cùng lúc, 1 nút Chụp cho cả làn. */
   const captureAll = useCallback(async (): Promise<{ role: string; blob: Blob }[]> => {
     const out: { role: string; blob: Blob }[] = [];
     for (const role of roles) {

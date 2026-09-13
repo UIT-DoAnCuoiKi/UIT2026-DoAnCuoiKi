@@ -26,7 +26,7 @@ So với model chốt trước đó trên cùng `test.csv`:
 - Accuracy toàn bộ `test.csv`: 58,9% giảm còn 56,6%.
 - Accuracy tập độc lập vn_plate: 87,5% giảm còn 80,2%.
 
-Giảm nhẹ, hợp lý vì model học thêm 1 lớp ký tự mới trong cùng số epoch, không phải dấu hiệu lỗi. Chưa xác định được mức giảm này là do thêm Đ hay chỉ là nhiễu giữa các lần train (chương 4 mục 4.3 đã ghi nhận nhiễu này có thể trên 10 điểm phần trăm); cần train thêm seed khác để kiểm chứng, chưa làm.
+Giảm nhẹ, hợp lý vì model học thêm 1 lớp ký tự mới trong cùng số epoch, không phải dấu hiệu lỗi. Chưa xác định được mức giảm này là do thêm Đ hay chỉ là nhiễu giữa các lần train (chương 4 mục 4.3: hai seed cùng cấu hình lệch nhau 5,2 điểm phần trăm trên vn_plate); cần train thêm seed khác để kiểm chứng, chưa làm.
 
 Riêng 17 biển có Đ trong `test.csv`: 8/17 khớp hoàn toàn cả biển. Soi từng ca sai thì 10/17 model đọc đúng ký tự Đ (7 đúng cả biển, 3 ca chỉ lệch 1 chữ số khác không liên quan đến Đ). 7/17 ca thực sự nhầm Đ thành ký tự khác, chủ yếu D, B, H, C. So với trước đây rớt ký tự này 100% số lần, đây là cải thiện thật dù chưa hoàn hảo.
 
@@ -83,13 +83,73 @@ Cách phát hiện lỗi thứ hai đáng ghi lại vì không nhìn ra được
 
 Kết quả sau khi sửa cả 2: từ 780-900 ms mỗi ảnh và dao động rất mạnh (340 đến 1200 ms) xuống còn 146,8 ms ổn định (dao động dưới 10 ms) ở cấu hình mặc định, và 76,2 ms nếu đặt 4 luồng trên máy nhiều lõi. Bước tốn thời gian nhất hiện là phát hiện biển số (40% tổng thời gian), nên nếu cần tối ưu tiếp thì ưu tiên bước đó trước.
 
-### 2.3 Việc còn tồn: đo trên Raspberry Pi 5
+### 2.3 Đo trên Raspberry Pi 5
 
-Toàn bộ số liệu ở trên đo trên máy phát triển x86, **chưa phải thiết bị triển khai thật**, nên chưa trả lời được câu hỏi quan trọng nhất là hệ thống có chạy đủ nhanh trên Pi hay không. Dự kiến làm ở tuần sau, dùng đúng script `benchmark_pipeline.py` này để hai bên số liệu so sánh được với nhau. Ba điểm cần lưu ý khi đo trên Pi:
+Máy đo là Raspberry Pi 5 Model B 16GB, chạy Debian 13 trên thẻ microSD, nguồn khai báo tối đa 3000 mA, có quạt tản nhiệt (thông tin ghi trong `src/ml/experiments/pi5/may_do.txt`). Cấu hình model giống backend đang chạy trên Pi: 4 luồng, định vị xe bằng `yolov8n.pt`, kiểu dáng bằng MobileNetV3-Small ONNX.
 
-- **Số luồng tối ưu nhiều khả năng khác hẳn.** Pi chỉ có 4 lõi, trong khi máy dev có 24 luồng logic. Giá trị mặc định `ML_INTRAOP_THREADS=1` được chọn chính vì lý do này, nhưng vẫn phải đo lại để xác nhận thay vì suy đoán.
-- **Có thể không cài torch trên Pi.** Bước định vị xe mặc định chạy qua ultralytics nên kéo theo torch, khá nặng với Pi. Nếu muốn chạy hoàn toàn không cần torch thì trỏ `ML_COARSE_WEIGHTS` sang bản `.onnx` để dùng nhánh onnxruntime thuần (đã làm sẵn, xem chương 5 mục 5.6). Lúc đó cần đo cả 2 nhánh để biết trên ARM nhánh nào thật sự nhanh hơn: trên x86 nhánh `.pt` nhanh hơn (147,3 ms so với 218,5 ms cùng điều kiện), nhưng ARM không có các tối ưu CPU như x86 nên kết quả có thể ngược lại.
-- **Đo cả nhiệt độ và xung nhịp.** Pi bị giảm xung khi nóng, nên số đo lần đầu chạy nguội có thể đẹp hơn thực tế lúc chạy liên tục ở trạm cổng.
+Nhóm đo hai lần riêng, dùng chung một bộ ảnh:
+
+| Lần đo | Mục đích | Script | Log gốc |
+|---|---|---|---|
+| A: gọi `run()` trực tiếp | So hai model kiểu dáng, đo điện năng | `run_pi_anh_that.sh`, `benchmark_anh_that.py`, `summarize_pi_anh_that.py` | `src/ml/experiments/pi5_anh_that/` |
+| B: gọi API của backend | Độ trễ đầu-cuối | `run_pi_do_tre_api.sh`, `do_tre_api.py` | `src/ml/experiments/pi5_do_tre_api/` |
+
+Các bảng dưới đây tính lại được từ log bằng notebook `src/ml/notebooks/benchmark-raspberry-pi5.ipynb`.
+
+**Cách đo.**
+
+- Ảnh: 50 ảnh camera cổng thật (25 ô tô, 25 xe máy), chọn ngẫu nhiên với seed 2026 từ tập val của A1, danh sách ở `src/ml/data/anh_cong_benchmark.txt`.
+- Lần A: nạp hết ảnh vào bộ nhớ, làm nóng 3 ảnh, rồi gọi `OnnxAlprPipeline.run()` 5 vòng trên mỗi ảnh, bấm giờ bằng `time.perf_counter()`. Mỗi ảnh lấy trung vị 5 vòng, sau đó tính trung vị và phân vị 90 trên 50 ảnh. Không tính thời gian đọc ảnh.
+- Lần B: chạy một backend riêng ở cổng 8001 với cùng biến model như service thật, trỏ vào bản sao cơ sở dữ liệu; backend chính tạm dừng để không tranh CPU. `do_tre_api.py` gọi `POST /captures/infer` 3 vòng trên mỗi ảnh, bấm giờ từ lúc gửi tới lúc nhận phản hồi. Phản hồi có trường `timings_ms.tong` là tổng thời gian các bước pipeline có bấm giờ (đổi màu, phát hiện biển, màu biển, OCR, định vị xe, loại xe, kiểu dáng). Phần ngoài suy luận tính trên cùng một request, `t_ngoài = t_client - timings_ms.tong`, gồm HTTP, giải mã ảnh, lưu ảnh, ghi cơ sở dữ liệu và đoạn code không bấm giờ giữa các bước. Client và backend chạy cùng máy nên chưa gồm độ trễ mạng LAN.
+- Điện năng: chip quản lý nguồn (PMIC) của Pi 5 có ADC đo dòng và áp trên từng nhánh nguồn. `pi_power_monitor.py` đọc `vcgencmd pmic_read_adc` mỗi giây và tính `P = Σ V_k × I_k`, chỉ cộng những nhánh có cả dòng và áp. Mốc thời gian của mỗi cấu hình do `benchmark_anh_that.py` ghi và chỉ bao vòng gọi `run()`, nên `E mỗi lượt = P trung bình trong mốc × độ dài mốc / số lượt`. Con số này là cận dưới của điện năng lấy từ ổ cắm vì không tính hao phí củ sạc và thiết bị USB.
+- Nhiệt độ và hạ xung: cùng script ghi nhiệt độ SoC, xung CPU và `vcgencmd get_throttled` mỗi giây. Bit 0 đến 3 của `get_throttled` lần lượt báo sụt áp, đang giới hạn xung, đang hạ xung và chạm ngưỡng nhiệt mềm. Trước mỗi cấu hình của lần A và trước lần B, script chờ tới khi phần nguyên nhiệt độ SoC không quá 58°C, tối đa 5 phút.
+- Kết quả nhận dạng: so chuỗi biển, loại xe và kiểu dáng từng ảnh của lần A với cùng cấu hình chạy trên máy dev (`src/ml/experiments/anh_that_dev/`).
+
+**Kết quả lần B: độ trễ đầu-cuối qua API.** 150 lượt (50 ảnh × 3 vòng), mỗi ảnh lấy trung vị 3 vòng. Nguồn: `pi5_do_tre_api/do_tre_api.log`.
+
+| | Trung vị | Phân vị 90 | Lớn nhất |
+|---|---:|---:|---:|
+| Đầu-cuối phía client | 463,4 ms | 487,9 ms | 497,2 ms |
+| Các bước suy luận (`timings_ms.tong`) | 445,8 ms | 465,8 ms | 475,3 ms |
+| Ngoài suy luận, cùng request | 17,5 ms | 22,1 ms | 29,1 ms |
+
+Cả 150 lượt trả HTTP 200 và đều có loại xe, biển số. Lượt đầu tiên sau khi khởi động backend mất 4,8 giây vì backend nạp model ở lượt này (`do_tre_api_luot_dau.txt`). Lần đo kéo dài 77 giây, nhiệt độ SoC từ 57,3°C lên 77,7°C, không mẫu nào bật bit 0 đến 3.
+
+**Kết quả lần A: 50 ảnh, 5 vòng mỗi ảnh.** Nguồn: `pi5_anh_that/tong_hop.csv`, `pt_mnv3.csv`, `pt_resnet.csv`.
+
+| | MobileNetV3-Small | ResNet18 |
+|---|---:|---:|
+| `run()`, trung vị 50 ảnh | 464,4 ms | 463,0 ms |
+| `run()`, phân vị 90 | 487,7 ms | 539,1 ms |
+| Trung vị 18 ảnh có qua bước kiểu dáng | 482,0 ms | 536,4 ms |
+| Trung vị 32 ảnh không qua bước kiểu dáng | 461,4 ms | 459,5 ms |
+| Điện năng mỗi lượt | 3,12 J | 3,25 J |
+| Điện năng tăng thêm so với lúc nghỉ (1,55 W) | 2,39 J | 2,49 J |
+| Kết quả nhận dạng trùng máy dev | 50/50 ảnh | 50/50 ảnh |
+| Thời gian đo liên tục | 118,1 s | 122,3 s |
+| Mẫu bật bit 0 đến 2 | 0/114 | 0/118 |
+| Mẫu bật bit 3 (ngưỡng nhiệt mềm) | 3/114 | 13/118 |
+| Xung CPU thấp nhất trong mốc | 2400 MHz | 2400 MHz |
+
+Bước kiểu dáng chỉ chạy khi model loại xe trả `car` và bước định vị tìm được vùng xe, tức 18/50 ảnh, trùng nhau ở hai cấu hình. So từng ảnh trong 18 ảnh này, ResNet18 chậm hơn MobileNetV3-Small từ 30,6 đến 68,5 ms, trung vị 51,3 ms. Ở 32 ảnh còn lại, hai lần chạy lệch nhau từ -18,7 đến 12,5 ms, là mức dao động giữa hai lần chạy. Phần lớn ảnh không qua bước kiểu dáng nên trung vị trên cả 50 ảnh của hai cấu hình gần bằng nhau, còn phân vị 90 thì khác rõ.
+
+Về nhiệt độ, sau 1 đến 2 phút tải liên tục SoC lên 82 đến 83°C và bật bit 3 ở một số mẫu (bảng trên). Không mẫu nào bật bit 1 hoặc 2, xung CPU giữ 2400 MHz suốt cả hai mốc, và trung vị theo từng vòng trên 50 ảnh không tăng dần (467 đến 469 ms với MobileNetV3-Small, 463 đến 472 ms với ResNet18), nên nhóm vẫn dùng số của lần A. Trước MobileNetV3-Small, SoC đã nguội xuống 57,9°C trong lần nghỉ đầu; trước ResNet18, script chờ hết 5 phút mà nhiệt độ thấp nhất chỉ 59,5°C, chưa đạt điều kiện 58°C.
+
+**Bộ nhớ.** Tiến trình chạy `benchmark_pipeline.py` với 4 luồng dùng tối đa 705 đến 766 MiB (`ru_maxrss`, script `run_pi_ram.sh`, log `pi5/ram_*.log`). Tiến trình này nạp pipeline hai lần và nạp thêm các model đo riêng nên đây là cận trên. Cấu hình `.pt` + MobileNetV3-Small đang dùng chưa được đo riêng. Máy có 16GB RAM nên còn dư nhiều.
+
+**Hạn chế.**
+
+- Mỗi cấu hình chỉ chạy liên tục khoảng 2 phút ở lần A và 77 giây ở lần B. Chưa đo tải liên tục lâu hơn nên chưa biết khi đó CPU có bị hạ xung không.
+- Điện năng đọc từ PMIC là cận dưới, chưa đối chiếu với đồng hồ đo USB-C ở ổ cắm.
+- Độ trễ chưa gồm mạng LAN và thời gian lấy khung hình từ camera.
+
+**Kết luận.**
+
+- Đạt mốc đề cương: đầu-cuối qua API 463,4 ms mỗi lượt, phân vị 90 là 487,9 ms, nhanh hơn mốc 2 giây khoảng 4 lần. Lượt đầu sau khi khởi động backend mất 4,8 giây vì nạp model; nạp sẵn model lúc khởi động sẽ tránh được độ trễ này.
+- Bước kiểu dáng dùng MobileNetV3-Small ONNX: accuracy ngang ResNet18 (0,9007 so với 0,8997), bản ONNX khớp `.pt` trên 987/987 ảnh test, và trên Pi mỗi ảnh có qua bước này nhanh hơn trung vị 51,3 ms.
+- Kết quả nhận dạng trên Pi trùng máy dev ở cả 50 ảnh, cho cả hai cấu hình.
+- Điện năng 3,12 J mỗi lượt xe với cấu hình đang dùng.
+- 4 luồng và `.pt` cho bước định vị xe chọn theo lần đo ma trận trước đó trên ảnh mẫu `1_bomaich_detect.png` (`pi5/tong_hop.csv`): 4 luồng nhanh nhất ở cả ba cấu hình, bản `.onnx` chậm hơn `.pt` (1.067,4 so với 813,9 ms ở 1 luồng, 535,0 so với 495,3 ms ở 4 luồng).
 
 ## 3. Tiến hành xây dựng module Backend và Dashboard
 
@@ -109,3 +169,4 @@ FastAPI cộng SQLAlchemy 2.0 cộng Alembic cộng PostgreSQL, đóng gói bằ
 - OCR đọc đúng ký tự Đ cho biển xe máy điện, không còn rớt hẳn ký tự này như trước.
 - Toàn bộ pipeline nhận diện (phát hiện biển số, OCR) chạy được bằng ONNX, không cần torch lúc suy luận, và weights đồng bộ tự động qua git giữa các máy.
 - Đo được hiệu năng suy luận thật trên CPU bằng script tái lập được: toàn pipeline 146,8 ms mỗi ảnh ở cấu hình mặc định và 76,2 ms trên máy nhiều lõi, sau khi sửa 2 lỗi hiệu năng phát hiện trong lúc đo (nạp lại model mỗi khung hình, và tranh chấp luồng CPU giữa các model).
+- Đo trên Raspberry Pi 5 thật với 50 ảnh camera cổng: đầu-cuối qua API 463,4 ms mỗi lượt (phân vị 90 là 487,9 ms), nhanh hơn mốc 2 giây của đề cương khoảng 4 lần; điện năng 3,12 J mỗi lượt xe; kết quả nhận dạng trùng máy dev ở cả 50 ảnh. Bước kiểu dáng chuyển sang MobileNetV3-Small ONNX (khớp `.pt` 987/987 ảnh), nhanh hơn ResNet18 trung vị 51,3 ms trên mỗi ảnh có qua bước này.

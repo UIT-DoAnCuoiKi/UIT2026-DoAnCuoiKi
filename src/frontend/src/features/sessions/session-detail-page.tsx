@@ -173,7 +173,7 @@ export function SessionDetailPage() {
         <h1 className="tnum text-lg font-semibold">{formatPlate(data.plate_text)}</h1>
         <StatusChip kind="session" value={data.status} />
         {/* Giống dòng đầu phiếu thu ở Trạm cổng: giờ vào luôn hiện, còn giờ ra
-            hay thời lượng đang đậu thì tuỳ trạng thái — trước đây phải kéo
+            hay thời lượng đang đậu thì tuỳ trạng thái, trước đây phải kéo
             xuống bảng dữ liệu bên dưới mới thấy, không có ngay ở đầu trang. */}
         <span className="text-[13px] text-muted">
           Giờ vào: <span className="tnum font-medium text-ink">{formatDateTime(data.entry_time)}</span>
@@ -272,7 +272,7 @@ export function SessionDetailPage() {
           <Field label="Nhân viên vào">{data.created_by_name ?? "—"}</Field>
           <Field label="Nhân viên ra">{data.closed_by_name ?? "—"}</Field>
           {/* Dữ liệu đã có sẵn trên PlateReading.lane từ trước, chỉ chưa lộ ra
-              màn này — không tra được xe vào/ra ở làn nào để đối chiếu camera. */}
+              màn này, không tra được xe vào/ra ở làn nào để đối chiếu camera. */}
           <Field label="Làn vào">{data.entry_reading?.lane ?? "—"}</Field>
           <Field label="Làn ra">{data.exit_reading?.lane ?? "—"}</Field>
           <Field label="Bãi">{data.lot_name ?? "—"}</Field>

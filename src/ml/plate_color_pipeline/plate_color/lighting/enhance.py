@@ -1,7 +1,7 @@
 """Lighting enhancement primitives for Vietnamese plate OCR pre-processing.
 
 The module provides low-level image operators (CLAHE, gamma, gray-world WB,
-glare reduction) and a single entry point — ``enhance`` — that selects the
+glare reduction) and a single entry point, ``enhance``, that selects the
 right operator chain based on the lighting condition label produced by
 ``classify_lighting`` in the metrics module.
 
@@ -16,11 +16,11 @@ rescale channels.
 
 Dispatch table (``enhance``)
 ----------------------------
-- ``low_light``    → gamma(1.6) then CLAHE_V   — lift midtones first so CLAHE
+- ``low_light``    → gamma(1.6) then CLAHE_V, lift midtones first so CLAHE
                      has more local structure to redistribute.
-- ``low_contrast`` → CLAHE_V only              — contrast is the only issue.
-- ``overexposed``  → gamma(0.7)                — compress highlights.
-- ``glare``        → reduce_glare then CLAHE_V — roll back hotspots, then
+- ``low_contrast`` → CLAHE_V only, contrast is the only issue.
+- ``overexposed``  → gamma(0.7), compress highlights.
+- ``glare``        → reduce_glare then CLAHE_V, roll back hotspots, then
                      spread remaining contrast.
 - ``normal`` / ``degenerate`` → no tone change; only gray-world WB applied.
 """
@@ -34,14 +34,14 @@ def clahe_v(crop_bgr: np.ndarray, clip: float = 2.0, grid: int = 8) -> np.ndarra
     """Apply CLAHE to the V (brightness) channel of a BGR plate crop.
 
     CLAHE (Contrast Limited Adaptive Histogram Equalisation) is applied
-    inside HSV so that hue and saturation are completely untouched — only
+    inside HSV so that hue and saturation are completely untouched. Only
     local contrast in the luminance dimension is adjusted.  This is critical
     for plate-colour classification downstream: boosting contrast without
     shifting hue keeps the yellow/white/blue plate distinction reliable.
 
     Args:
         crop_bgr: BGR uint8 image (H, W, 3).
-        clip: CLAHE clip limit — caps redistribution to avoid amplifying noise.
+        clip: CLAHE clip limit, caps redistribution to avoid amplifying noise.
         grid: Number of tiles per axis (CLAHE divides the image into grid×grid tiles).
 
     Returns:
@@ -79,7 +79,7 @@ def gray_world_wb(crop_bgr: np.ndarray) -> np.ndarray:
     """Gray-world white balance: scale each BGR channel to a neutral mean.
 
     The gray-world assumption holds that the average colour of a natural
-    scene (or a plate surface under mixed lighting) is achromatic — i.e. the
+    scene (or a plate surface under mixed lighting) is achromatic, i.e. the
     mean R, G, B values should all equal the overall mean.  Dividing each
     channel by its own mean and multiplying by the global mean removes
     systematic colour casts caused by coloured ambient lighting (sodium lamps,
@@ -133,11 +133,11 @@ def enhance(crop_bgr: np.ndarray, condition: str) -> np.ndarray:
     interference between the two corrections.
 
     Dispatch:
-    - ``low_light``    — gamma(1.6) brightens, then CLAHE_V redistributes contrast.
-    - ``low_contrast`` — CLAHE_V only (brightness is already fine).
-    - ``overexposed``  — gamma(0.7) compresses highlights.
-    - ``glare``        — reduce_glare (gamma 0.7) then CLAHE_V for local contrast.
-    - ``normal`` / ``degenerate`` — no tone change; only WB applied.
+    - ``low_light``: gamma(1.6) brightens, then CLAHE_V redistributes contrast.
+    - ``low_contrast``: CLAHE_V only (brightness is already fine).
+    - ``overexposed``: gamma(0.7) compresses highlights.
+    - ``glare``: reduce_glare (gamma 0.7) then CLAHE_V for local contrast.
+    - ``normal`` / ``degenerate``: no tone change; only WB applied.
 
     Args:
         crop_bgr: BGR uint8 plate crop.
@@ -155,7 +155,7 @@ def enhance(crop_bgr: np.ndarray, condition: str) -> np.ndarray:
         out = gamma(out, 0.7)
     elif condition == "glare":
         out = clahe_v(reduce_glare(out))
-    # "normal" and "degenerate": no tone change — only WB below
+    # "normal" and "degenerate": no tone change, only WB below
 
     # Gray-world WB runs last and unconditionally: it corrects colour casts
     # from mixed parking-lot lighting without reversing the tone correction above.

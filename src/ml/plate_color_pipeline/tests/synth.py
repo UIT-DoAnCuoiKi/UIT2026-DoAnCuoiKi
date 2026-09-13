@@ -1,8 +1,8 @@
 """Synthetic plate-crop generators for lighting-condition tests.
 
 Each helper returns a BGR uint8 ndarray shaped (H, W, 3).  The pixel values
-are chosen so that `classify_lighting` maps each crop to the intended bucket —
-see the threshold comments in `plate_color.lighting.metrics` for the exact
+are chosen so that `classify_lighting` maps each crop to the intended bucket.
+See the threshold comments in `plate_color.lighting.metrics` for the exact
 decision boundaries these values are designed to exercise.
 """
 from __future__ import annotations

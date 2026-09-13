@@ -5,23 +5,23 @@ docs/report/chapters/05-phanloai.md mục 5.6 đều sinh ra từ file này.
 CÁCH ĐO (viết rõ ở đây để tái lập và để đối chiếu khi bảo vệ):
 
 1. Đồng hồ: `time.perf_counter()` (đồng hồ đơn điệu, độ phân giải cao) đo thời
-   gian ĐỒNG HỒ TƯỜNG, tức thời gian người dùng thật sự phải chờ. Riêng phần
+   gian đồng hồ tường, tức thời gian người dùng thật sự phải chờ. Riêng phần
    chẩn đoán tranh chấp luồng dùng thêm `time.process_time()` (tổng CPU-time của
    mọi luồng): tỉ số process_time/perf_counter cho biết pipeline đang trải công
    việc ra bao nhiêu luồng, con số này mới lộ ra vấn đề toả luồng quá mức.
 
-2. Làm nóng (warm-up): bỏ N_WARMUP lượt chạy đầu KHÔNG tính vào kết quả. Lượt
+2. Làm nóng (warm-up): bỏ N_WARMUP lượt chạy đầu, không tính vào kết quả. Lượt
    đầu tiên luôn chậm bất thường vì phải nạp trọng số từ đĩa, cấp phát bộ nhớ
    và chọn kernel CPU (đo được: lượt đầu ~615ms so với ~10ms các lượt sau cho
    riêng bước định vị xe). Không bỏ warm-up thì trung bình bị lệch hoàn toàn.
 
-3. Thống kê: báo cáo TRUNG VỊ của N_RUNS lượt, không phải trung bình, vì máy
+3. Thống kê: báo cáo trung vị của N_RUNS lượt, không phải trung bình, vì máy
    dev có tiến trình nền (trình duyệt, IDE) thỉnh thoảng chen vào làm một vài
    lượt tăng vọt; trung vị không bị các điểm ngoại lai đó kéo lệch. In kèm min
    và max để thấy độ dao động thật.
 
-4. Phạm vi đo: mỗi số chỉ tính phần tính toán của pipeline. KHÔNG tính thời
-   gian đọc ảnh từ đĩa (`cv2.imread` chạy trước vòng đo), KHÔNG tính HTTP, mã
+4. Phạm vi đo: mỗi số chỉ tính phần tính toán của pipeline. Không tính thời
+   gian đọc ảnh từ đĩa (`cv2.imread` chạy trước vòng đo), không tính HTTP, mã
    hoá ảnh, ghi cơ sở dữ liệu của backend. Muốn biết độ trễ đầu-cuối mà nhân
    viên cảm nhận ở màn Trạm cổng thì cộng thêm các phần đó (đo riêng bằng
    `curl` với `POST /captures/infer`, xem README backend).
@@ -39,18 +39,11 @@ Chạy:
   ML_INTRAOP_THREADS=4 python src/ml/benchmark_pipeline.py
   python src/ml/benchmark_pipeline.py --image duong/dan/anh.jpg --runs 20
 
-Chạy trên Raspberry Pi (việc còn tồn, xem w7-onnx.md mục 2.3):
-  # Pi chỉ 4 lõi, đo lần lượt vài mức để tìm giá trị tốt nhất thay vì đoán
-  for n in 1 2 4; do ML_INTRAOP_THREADS=$n python src/ml/benchmark_pipeline.py; done
-
-  # Nếu trên Pi KHÔNG cài torch/ultralytics: trỏ bước định vị xe sang bản .onnx
-  # để chạy onnxruntime thuần (xem predict_vehicle.CoarseVehicleDetector).
-  ML_COARSE_WEIGHTS=src/ml/weights/yolov8n.onnx python src/ml/benchmark_pipeline.py
-
-  Lưu ý khi so sánh với số đo trên máy dev: phải dùng ĐÚNG ảnh mặc định của
-  script (ảnh mẫu commit trong repo), vì thời gian phụ thuộc số biển số phát
-  hiện được trên ảnh. Nên đo thêm lúc máy đã chạy nóng một lúc: Pi tự giảm
-  xung nhịp khi nóng nên lần chạy đầu tiên lúc nguội thường đẹp hơn thực tế.
+Chạy trên Raspberry Pi 5: dùng `bash src/ml/run_pi_benchmark.sh`, không gọi
+script này bằng tay. Script đó chạy đủ ma trận 1/2/4 luồng nhân hai nhánh định
+vị xe (.pt và .onnx), ghi log điện năng song song, và ghi mốc thời gian để ghép
+số điện với từng loạt. Kết quả và cách tính nằm ở
+src/ml/notebooks/benchmark-raspberry-pi5.ipynb.
 """
 from __future__ import annotations
 
@@ -77,6 +70,12 @@ DEFAULT_PLATE_WEIGHTS = ML_DIR / "plate_detection_pipeline" / "weights" / "yolov
 N_WARMUP = 3
 N_RUNS = 10
 
+# Cùng tên biến môi trường với backend (app/services/ml_inference.py). Bản đầu script
+# không đọc hai biến này, nên lần đo đầu trên Pi đặt ML_COARSE_WEIGHTS mà vẫn chạy .pt.
+# Tên model thật sự dùng được in ở đầu log để kiểm tra lại được.
+COARSE_WEIGHTS = os.environ.get("ML_COARSE_WEIGHTS") or None
+STYLE_ONNX = os.environ.get("ML_STYLE_ONNX") or None
+
 # Các model ONNX đo riêng lẻ. Đầu vào là tensor ngẫu nhiên đúng shape: chỉ đo
 # chi phí tính toán của đồ thị, không phụ thuộc nội dung ảnh.
 STANDALONE_MODELS = [
@@ -85,6 +84,7 @@ STANDALONE_MODELS = [
     ("Loại xe (ResNet18)", ML_DIR / "weights" / "vehicle-type-resnet18.onnx"),
     ("Loại xe (MobileNetV3-Small)", ML_DIR / "weights" / "vehicle-type-mobilenet_v3_small.onnx"),
     ("Kiểu dáng xe (ResNet18)", ML_DIR / "weights" / "vehicle-style-resnet18.onnx"),
+    ("Kiểu dáng xe (MobileNetV3-Small)", ML_DIR / "weights" / "vehicle-style-mobilenet_v3_small.onnx"),
 ]
 
 
@@ -126,6 +126,10 @@ def print_environment(threads: int) -> None:
     except ImportError:
         print("  torch        : không cài (pipeline vẫn chạy nếu bước định vị dùng backend onnx)")
     print(f"  ML_INTRAOP_THREADS = {threads}  (số luồng mỗi model được phép dùng)")
+    from pipeline.onnx_pipeline import _DEFAULTS
+
+    print(f"  Định vị xe   : {Path(COARSE_WEIGHTS or _DEFAULTS['coarse_weights']).name}")
+    print(f"  Kiểu dáng xe : {Path(STYLE_ONNX or _DEFAULTS['style_onnx']).name}")
     print(f"  Warm-up {N_WARMUP} lượt (bỏ), đo {N_RUNS} lượt, báo cáo TRUNG VỊ")
     print()
 
@@ -133,7 +137,7 @@ def print_environment(threads: int) -> None:
 def bench_standalone_models(threads: int) -> None:
     """Đo từng model ONNX một mình: chỉ đồ thị tính toán, đầu vào ngẫu nhiên.
 
-    Con số ở đây KHÔNG cộng lại thành thời gian pipeline: chạy một mình thì mỗi
+    Con số ở đây không cộng lại thành thời gian pipeline: chạy một mình thì mỗi
     model được dùng trọn số luồng cấu hình, còn trong pipeline chúng chạy nối
     tiếp và chia nhau tài nguyên (xem bench_pipeline_stages)."""
     import numpy as np
@@ -176,7 +180,7 @@ def bench_pipeline_stages(image_path: Path, plate_weights: Path, threads: int) -
     if img_bgr is None:
         raise FileNotFoundError(f"Không đọc được ảnh: {image_path}")
 
-    pipe = OnnxAlprPipeline(plate_weights=str(plate_weights))
+    pipe = OnnxAlprPipeline(plate_weights=str(plate_weights), coarse_weights=COARSE_WEIGHTS, style_onnx=STYLE_ONNX)
     for _ in range(N_WARMUP):
         pipe.run(img_bgr)
 
@@ -245,7 +249,7 @@ def bench_end_to_end(image_path: Path, plate_weights: Path, threads: int) -> Non
     from pipeline.onnx_pipeline import OnnxAlprPipeline
 
     img_bgr = cv2.imread(str(image_path))
-    pipe = OnnxAlprPipeline(plate_weights=str(plate_weights))
+    pipe = OnnxAlprPipeline(plate_weights=str(plate_weights), coarse_weights=COARSE_WEIGHTS, style_onnx=STYLE_ONNX)
 
     t_load0 = time.perf_counter()
     pipe.run(img_bgr)

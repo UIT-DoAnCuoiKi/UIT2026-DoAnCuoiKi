@@ -25,7 +25,7 @@ const SHORTCUTS: { key: string; desc: string }[] = [
 ];
 
 export function GatePage() {
-  // events (không phải capturesByDirection) để tự lọc theo làn ở dưới — 1 kết
+  // events (không phải capturesByDirection) để tự lọc theo làn ở dưới, 1 kết
   // nối WS dùng chung, mỗi panel chỉ lấy đúng capture của làn nó đang trực.
   const { events, degraded } = useGateSocket();
   const { data: lanes = [] } = useListLanes();
@@ -138,7 +138,7 @@ export function GatePage() {
           Phím tắt (?)
         </Button>
 
-        {/* Chọn làn đang trực cho từng hướng — rỗng nghĩa là không lọc theo
+        {/* Chọn làn đang trực cho từng hướng, rỗng nghĩa là không lọc theo
             làn (hành vi cũ), dùng khi chưa cấu hình làn nào hoặc chỉ có 1 làn. */}
         {showIn && (
           <select

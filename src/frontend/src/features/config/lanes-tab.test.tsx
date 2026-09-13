@@ -101,7 +101,7 @@ test("RTSP camera without a url shows an error instead of submitting", async () 
 
 test("switching device in camera tester reopens the preview on the newly picked camera", async () => {
   // Trước đây đổi dropdown chỉ ghi nhớ deviceId, khung xem trước vẫn kẹt ở
-  // camera mặc định lúc bấm "Thử camera" — nhân viên tưởng camera USB (thiết
+  // camera mặc định lúc bấm "Thử camera", nhân viên tưởng camera USB (thiết
   // bị thứ 2 trong danh sách) không nhận được dù vẫn được liệt kê đúng.
   const enumerate = vi.fn().mockResolvedValue([
     { kind: "videoinput", deviceId: "cam-built-in", label: "Built-in" },

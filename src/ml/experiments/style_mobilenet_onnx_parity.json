@@ -1,0 +1,9 @@
+{
+ "model": "vehicle-style-mobilenet_v3_small.onnx",
+ "tu_checkpoint": "vehicle-style-mobilenet_v3_small.pt",
+ "so_anh_test": 987,
+ "du_doan_khop_pt_onnx": 987,
+ "lech_logit_tuyet_doi_max": 3.9e-05,
+ "accuracy_pt": 0.9007,
+ "accuracy_onnx": 0.9007
+}

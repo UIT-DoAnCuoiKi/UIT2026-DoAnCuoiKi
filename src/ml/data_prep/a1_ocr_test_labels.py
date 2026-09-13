@@ -2,7 +2,7 @@
 
 Quy trình gán: `prepare_a1_ocr_testset.py` cắt 200 biển cân bằng layout (seed
 2026) và xuất thành 20 lưới ảnh không kèm bất kỳ dự đoán nào của model. Đọc
-từng ảnh và ghi lại chuỗi nhìn thấy TRƯỚC khi chạy OCR — giữ nhãn độc lập với
+từng ảnh và ghi lại chuỗi nhìn thấy TRƯỚC khi chạy OCR, giữ nhãn độc lập với
 model đang đánh giá, đúng nguyên tắc đã áp dụng cho `vn_plate`
 (`vnplate_test_labels.py`); nếu điền sẵn dự đoán rồi sửa thì đánh giá thành
 vòng tròn logic, accuracy bị thổi phồng.
@@ -11,14 +11,14 @@ Biển không đọc được chắc chắn bằng mắt (mờ, bị cắt/che m
 bị hỏng do polygon suy biến lúc nắn phối cảnh) được gán None và loại khỏi tập
 test, không đoán. Một vài trường hợp gán None cụ thể đáng chú ý:
   - #023: nhãn gốc A1 gán layout bien_1hang nhưng ảnh thực tế là biển 2 dòng
-    (71-C2 / 635.10) — lỗi nhãn nguồn, không dùng được vì layout sai sẽ khiến
+    (71-C2 / 635.10), lỗi nhãn nguồn, không dùng được vì layout sai sẽ khiến
     OCR tách dòng sai không do lỗi model.
   - #054, #068, #090, #115, #116, #144, #155: ảnh cắt hỏng (polygon gần suy
     biến khiến `perspective_correct` cho ra ảnh kéo giãn dị dạng, không còn
-    là biển số) — lỗi kỹ thuật của bước cắt, không phải biển mờ tự nhiên.
+    là biển số), lỗi kỹ thuật của bước cắt, không phải biển mờ tự nhiên.
   - Vài cặp chỉ số cho cùng 1 biển (A1 có ảnh lặp, vd #007/#034/#067 cùng là
     "51G-513.32") được dùng để đối chiếu chéo giữa các nhãn đã gán khi 1 ảnh
-    mờ hơn ảnh còn lại — không phải đối chiếu với dự đoán model nên không vi
+    mờ hơn ảnh còn lại, không phải đối chiếu với dự đoán model nên không vi
     phạm nguyên tắc chống vòng lặp logic.
 
 Chạy: .venv/Scripts/python.exe src/ml/data_prep/a1_ocr_test_labels.py
@@ -87,7 +87,7 @@ LABELS: dict[int, str | None] = {
 
 # Series 2 chữ cái đặc biệt (LD, DA...) không khớp regex biển thường
 # (`\d{2}[A-Z]\d{4,6}`). Giữ trong tập test vì đây là biển thật gặp ngoài đời,
-# nhưng đánh dấu để phân tích riêng — cùng quy ước với vnplate_test_labels.py.
+# nhưng đánh dấu để phân tích riêng, cùng quy ước với vnplate_test_labels.py.
 SPECIAL_SERIES_INDICES = {28}
 
 

@@ -64,7 +64,7 @@ def test_lane_camera_crud_root(client, make_user):
 
     cams = client.get(f"/lanes/{lane_id}/cameras", headers=h).json()
     assert {c["role"] for c in cams} == {"front", "rear"}
-    # /lanes phải trả kèm danh sách camera — màn cấu hình cần thấy cả 2 camera
+    # /lanes phải trả kèm danh sách camera, màn cấu hình cần thấy cả 2 camera
     # ngay ở màn lane, không phải gọi thêm 1 request riêng cho mỗi lane.
     lane_out = client.get("/lanes", headers=h).json()
     lane2 = next(l for l in lane_out if l["id"] == lane_id)

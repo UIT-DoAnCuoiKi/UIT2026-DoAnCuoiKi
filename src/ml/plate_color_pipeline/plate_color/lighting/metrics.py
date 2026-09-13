@@ -5,7 +5,7 @@ four scalar metrics that together capture the dominant lighting pathology.
 `classify_lighting` maps those metrics to a single condition label, consumed
 by the enhancement stage to choose the right CLAHE / normalisation strategy.
 
-Check order in `classify_lighting` matters — glare must precede overexposed
+Check order in `classify_lighting` matters. Glare must precede overexposed
 because a glare-heavy crop also has a high mean_v and would be
 misclassified as overexposed if the mean check ran first.
 """
@@ -34,10 +34,10 @@ def lighting_metrics(crop_bgr: np.ndarray) -> dict:
     """Compute four scalar lighting metrics from a BGR plate crop.
 
     Returns a dict with keys:
-    - ``mean_v``   — mean brightness on the V channel.
-    - ``contrast`` — p95 − p5 of V; robust to outliers, unlike std-dev.
-    - ``glare``    — fraction of pixels with V ≥ 250 (clipped highlights).
-    - ``shadow``   — fraction with V ≤ 10 (crushed shadows).
+    - ``mean_v``: mean brightness on the V channel.
+    - ``contrast``: p95 − p5 of V; robust to outliers, unlike std-dev.
+    - ``glare``: fraction of pixels with V ≥ 250 (clipped highlights).
+    - ``shadow``: fraction with V ≤ 10 (crushed shadows).
 
     All values are plain Python floats for JSON / dataclass compatibility.
     """
@@ -55,12 +55,12 @@ def classify_lighting(crop_bgr: np.ndarray) -> str:
     """Return a single lighting-condition label for a plate crop.
 
     Labels (in evaluation order):
-    1. ``degenerate``   — crop is too small to be a real plate (< 8 px in any dim).
-    2. ``glare``        — >10 % of pixels are specularly clipped (V ≥ 250).
-    3. ``overexposed``  — mean V > 200; broad highlight saturation.
-    4. ``low_light``    — mean V < 60; dark environment.
-    5. ``low_contrast`` — p95−p5 < 50; tonal range too narrow for OCR.
-    6. ``normal``       — none of the above; standard enhancement is sufficient.
+    1. ``degenerate``: crop is too small to be a real plate (< 8 px in any dim).
+    2. ``glare``: >10 % of pixels are specularly clipped (V ≥ 250).
+    3. ``overexposed``: mean V > 200; broad highlight saturation.
+    4. ``low_light``: mean V < 60; dark environment.
+    5. ``low_contrast``: p95−p5 < 50; tonal range too narrow for OCR.
+    6. ``normal``: none of the above; standard enhancement is sufficient.
 
     Order is intentional: glare *before* overexposed prevents a glare crop
     (high mean_v) from being labelled 'overexposed'; similarly the two

@@ -89,7 +89,7 @@ test("multi-camera upload waits for every configured camera role before submitti
   const rear = new File(["b"], "rear.jpg", { type: "image/jpeg" });
 
   // Tải ảnh camera chính trước: trước đây gửi ngay với 0 ảnh phụ, mất luôn ảnh
-  // camera thứ 2 tải sau đó — giờ phải chờ đủ cả 2 role mới gửi.
+  // camera thứ 2 tải sau đó, giờ phải chờ đủ cả 2 role mới gửi.
   await userEvent.upload(screen.getByLabelText("Tải ảnh Trước"), front);
   expect(postInfer).not.toHaveBeenCalled();
 
@@ -103,7 +103,7 @@ test("multi-camera upload waits for every configured camera role before submitti
 
 test("shows a thumbnail for the secondary camera image after a multi-camera capture", async () => {
   // Backend đã lưu đúng cả 2 ảnh (kiểm tra trực tiếp qua DB), nhưng trước đây
-  // không có UI nào hiện ảnh phụ — nhân viên tưởng chỉ 1 ảnh được lưu.
+  // không có UI nào hiện ảnh phụ, nhân viên tưởng chỉ 1 ảnh được lưu.
   postInfer.mockResolvedValueOnce({
     reading_id: 9,
     capture_id: "c9",

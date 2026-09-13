@@ -1,4 +1,4 @@
-"""Tests for plate_color.lighting.metrics — lighting metrics and condition classifier."""
+"""Tests for plate_color.lighting.metrics: lighting metrics and condition classifier."""
 import numpy as np
 
 from plate_color.lighting.metrics import classify_lighting, lighting_metrics

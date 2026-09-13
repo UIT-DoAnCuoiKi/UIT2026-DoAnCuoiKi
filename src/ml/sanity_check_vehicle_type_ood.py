@@ -1,14 +1,14 @@
 """Kiểm tra model phân loại loại xe (vehicle-type) trên ảnh NGOÀI phân phối
-train — tức ảnh chưa từng dùng để train/valid/test, khác cả nguồn lẫn phong
+train, tức ảnh chưa từng dùng để train/valid/test, khác cả nguồn lẫn phong
 cách chụp so với dữ liệu huấn luyện.
 
 Vì sao cần script này: lần train đầu tiên đạt accuracy 100% trên tập test,
 nhưng test set đó lấy mẫu từ ĐÚNG các nguồn đã dùng để train (carlong_ cho
-car, greenpack_ cho motorbike) — không hề kiểm tra được việc model có học
+car, greenpack_ cho motorbike), không hề kiểm tra được việc model có học
 đúng "hình dáng xe" hay chỉ học tắt theo "phong cách ảnh/camera". Chạy đúng
 12 ảnh dưới đây (toàn bộ lấy từ Dieu_/Hung_, xem tay biết chắc nhãn thật,
 XÁC NHẬN không nằm trong danh sách đã dùng train ở prepare_vehicle_type_dataset.py)
-với model của lần train đầu: sai 12/13 — mọi ảnh phong cách "đường phố" đều
+với model của lần train đầu: sai 12/13, mọi ảnh phong cách "đường phố" đều
 bị đoán thành "truck" bất kể là xe gì, vì truck là lớp DUY NHẤT có ảnh đường
 phố lúc đó. Sau khi bổ sung ảnh car/motorbike từ Dieu_/Hung_ vào dataset
 (xem prepare_vehicle_type_dataset.py), chạy lại: resnet18 13/13 (100%),

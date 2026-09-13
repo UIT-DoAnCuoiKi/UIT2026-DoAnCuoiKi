@@ -5,9 +5,9 @@ Pipeline gồm 2 bước:
      thêm. Model được nạp 1 lần rồi cache theo instance (nạp lại từ đĩa mỗi
      lần gọi từng chiếm 88% độ trễ toàn pipeline, xem CoarseVehicleDetector).
      2 backend chọn được: "pt" (ultralytics, mặc định) hoặc "onnx"
-     (onnxruntime thuần, không cần torch — dùng khi triển khai thiết bị muốn
+     (onnxruntime thuần, không cần torch, dùng khi triển khai thiết bị muốn
      tránh phụ thuộc torch, vd Raspberry Pi). Nhãn lớp COCO
-     (car/motorcycle/bus/truck) chỉ dùng làm loại thô dự phòng cho "bus" —
+     (car/motorcycle/bus/truck) chỉ dùng làm loại thô dự phòng cho "bus",
      car/motorbike/truck đã có model tự huấn luyện riêng, chính xác hơn (xem
      onnx_pipeline.py, train_vehicle_type_classifier.py).
   2. Kiểu dáng (chỉ chạy khi bước 1 ra "car"): model tự huấn luyện, 3 lớp
@@ -42,7 +42,7 @@ WEIGHTS_DIR = REPO_ROOT / "src" / "ml" / "weights"
 # Chỉ giữ 4 lớp phương tiện trong COCO, bỏ qua người/vật thể khác trong khung hình.
 # "motorbike" (không phải "motorcycle") để khớp tên lớp của model loại-xe tự huấn
 # luyện (train_vehicle_type_classifier.py) và bảng ánh xạ nhóm phí backend
-# (app/services/vehicle_groups.py) — trước đây lệch tên khiến mọi xe máy không
+# (app/services/vehicle_groups.py), trước đây lệch tên khiến mọi xe máy không
 # được gán nhóm phí tự động (group_for("motorcycle") luôn trả None).
 COCO_VEHICLE_CLASSES = {2: "car", 3: "motorbike", 5: "bus", 7: "truck"}
 _COCO_NUM_CLASSES = 80
@@ -55,23 +55,23 @@ class CoarseVehicleDetector:
 
     - `"pt"` (mặc định): `ultralytics.YOLO`, cần torch cài đặt. Ultralytics tự
       letterbox (giữ tỉ lệ khung hình + đệm) và tự NMS nội bộ.
-    - `"onnx"`: `onnxruntime` thuần, KHÔNG cần torch/ultralytics cài đặt — dùng
+    - `"onnx"`: `onnxruntime` thuần, không cần torch/ultralytics cài đặt, dùng
       khi triển khai trên thiết bị muốn tránh phụ thuộc torch (vd Raspberry
       Pi, xem docs/report/chapters/05-phanloai.md mục 5.6). Tự làm letterbox
       (resize giữ tỉ lệ + đệm xám 114, đúng quy ước ultralytics) rồi giải mã
       box/NMS bằng `decode_v8` (tái dùng từ module phát hiện biển của Đức).
 
-      QUAN TRỌNG: bước letterbox không được thay bằng squash-resize (resize
+      Bước letterbox không được thay bằng squash-resize (resize
       thẳng về hình vuông, bỏ qua tỉ lệ khung hình) như `PlateDetector._detect_onnx`
-      đang làm cho biển số — đo thực tế trên ảnh camera cổng thật (khung hình
+      đang làm cho biển số, đo thực tế trên ảnh camera cổng thật (khung hình
       rất rộng, 2048x899) cho thấy squash-resize làm méo xe đến mức model
-      KHÔNG phát hiện được xe nào (0 detection). Letterbox đúng cho kết quả
+      không phát hiện được xe nào (0 detection). Letterbox đúng cho kết quả
       gần như giống hệt bản pt trên cùng ảnh (car conf=0,853 so với 0,850, box
       lệch vài pixel). Biển số không gặp vấn đề này vì ảnh crop biển đã tương
       đối vuông vắn trước khi vào bước phát hiện.
 
     Model/session cache theo INSTANCE (nạp 1 lần, dùng lại cho mọi khung hình
-    tiếp theo) — xem lý do cache ở `detect_vehicle_crop`.
+    tiếp theo), xem lý do cache ở `detect_vehicle_crop`.
     """
 
     def __init__(self, weights, backend: str = "pt", conf: float = 0.25,
@@ -158,7 +158,7 @@ class CoarseVehicleDetector:
 # Cache theo tiến trình cho detector mặc định (backend "pt", dùng cho CLI và
 # mọi nơi gọi detect_vehicle_crop() không tự truyền detector riêng). Nạp lại
 # YOLO(...) từ đĩa mỗi lần gọi tốn ~135ms (đo thực tế), chiếm 88% độ trễ toàn
-# pipeline khi chạy nhiều khung hình liên tiếp — cache instance 1 lần giải
+# pipeline khi chạy nhiều khung hình liên tiếp, cache instance 1 lần giải
 # quyết đúng vấn đề này, cùng nguyên tắc với _engine trong ml_inference.py.
 _default_coarse_detector: CoarseVehicleDetector | None = None
 

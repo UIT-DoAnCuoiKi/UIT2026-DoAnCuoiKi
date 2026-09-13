@@ -326,7 +326,7 @@ function CameraRow({
   );
 }
 
-/** Mở webcam tạm thời để chọn đúng thiết bị (không lưu ảnh gì) — nhân viên cấu
+/** Mở webcam tạm thời để chọn đúng thiết bị (không lưu ảnh gì), nhân viên cấu
  * hình cần biết đang trỏ đúng camera nào trước khi lưu, không phải đoán theo tên. */
 function CameraTester({
   deviceId, deviceLabel, onPick,
@@ -361,7 +361,7 @@ function CameraTester({
   };
 
   // Trước đây đổi camera trong dropdown chỉ ghi nhớ deviceId, không mở lại
-  // stream — khung xem trước vẫn kẹt ở camera mặc định lúc bấm "Thử camera"
+  // stream, khung xem trước vẫn kẹt ở camera mặc định lúc bấm "Thử camera"
   // (thường là webcam laptop), khiến nhân viên tưởng camera USB không nhận
   // được dù thiết bị vẫn được liệt kê đúng.
   const switchDevice = async (id: string, label: string) => {

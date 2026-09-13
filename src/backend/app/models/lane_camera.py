@@ -20,7 +20,7 @@ class LaneCamera(Base):
     role: Mapped[str] = mapped_column(String(16))  # front | rear | overview
     source_kind: Mapped[str] = mapped_column(String(16))  # browser | rtsp
     # browser: id thiết bị do navigator.mediaDevices trả về (lưu để nhớ lựa chọn,
-    #   không đảm bảo ổn định giữa các máy — trình duyệt tự chọn lại nếu không khớp).
+    #   không đảm bảo ổn định giữa các máy, trình duyệt tự chọn lại nếu không khớp).
     # rtsp: URL luồng, chỉ có tác dụng khi edge worker đọc cấu hình này (chưa nối
     #   ở đợt này, xem "Việc KHÔNG làm" trong kế hoạch).
     device_id: Mapped[str | None] = mapped_column(String(256), nullable=True)

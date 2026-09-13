@@ -26,7 +26,7 @@ export async function postInfer(
   lane?: string,
   // Ảnh camera phụ khi làn có 2-3 camera: lưu làm bằng chứng (hoặc, nếu làn
   // cấu hình recognition_mode=best_of, có thể được backend chọn làm ảnh chính
-  // thay cho `blob` nếu đọc rõ hơn) — không tự chạy nhận dạng ở phía client.
+  // thay cho `blob` nếu đọc rõ hơn), không tự chạy nhận dạng ở phía client.
   extraImages?: { role: string; blob: Blob }[],
   primaryRole?: string,
 ): Promise<CaptureResponse> {

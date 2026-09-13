@@ -20,7 +20,7 @@ services:
     environment:
       ML_PLATE_WEIGHTS: /app/src/ml/weights/plate-detector.pt
       ML_OCR_ONNX: /app/src/ml/weights/plate-ocr-crnn.onnx
-      ML_STYLE_ONNX: /app/src/ml/weights/vehicle-style-resnet18.onnx
+      ML_STYLE_ONNX: /app/src/ml/weights/vehicle-style-mobilenet_v3_small.onnx
       ML_STYLE_CLASSES: /app/src/ml/data/vehicle-style-classes.json
     depends_on:
       db:

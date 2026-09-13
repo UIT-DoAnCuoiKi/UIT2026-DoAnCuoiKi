@@ -384,7 +384,7 @@ export const DecisionPanel = forwardRef<DecisionPanelHandle, Props>(function Dec
 
   // Bố cục: phần phụ (độ tin cậy, danh sách phiên, nhập tay) cuộn được ở trên;
   // thanh thao tác chính ghim đáy nên biển số và nút xác nhận không bao giờ bị
-  // đẩy khỏi màn hình — trước đây nhân viên phải cuộn mới bấm được nút chính.
+  // đẩy khỏi màn hình, trước đây nhân viên phải cuộn mới bấm được nút chính.
   return (
     <div className="flex h-full min-h-0 flex-col gap-2">
       <div className="min-h-0 flex-1 space-y-2 overflow-auto">
@@ -401,7 +401,7 @@ export const DecisionPanel = forwardRef<DecisionPanelHandle, Props>(function Dec
               Nhận lại
             </Button>
             {/* Khác với "Hoàn tác sửa" (chỉ trả biển/loại xe/màu về đúng giá trị
-                model đã nhận, luôn tắt khi chưa sửa gì) — nút này xoá hẳn cả ảnh
+                model đã nhận, luôn tắt khi chưa sửa gì), nút này xoá hẳn cả ảnh
                 lẫn kết quả của lượt hiện tại, cho lượt chụp mới hoàn toàn. Trước
                 đây không có cách nào bỏ một lượt chụp hỏng ngoài phím tắt Esc. */}
             <Button variant="ghost" className="h-9" onClick={onDone} disabled={busy}>
