@@ -111,6 +111,28 @@ def _intra_op_threads() -> int:
         return 1
 
 
+def _process_ram_mb() -> float | None:
+    """RAM tiến trình đang chiếm (MB). Trả None nếu không đọc được.
+
+    Ưu tiên /proc (Linux, không cần thư viện ngoài, đúng nơi triển khai Pi), lùi
+    về psutil cho Windows lúc phát triển. Không cài thêm phụ thuộc chỉ vì việc
+    hiển thị phụ này.
+    """
+    try:
+        with open("/proc/self/status", encoding="utf-8") as fh:
+            for line in fh:
+                if line.startswith("VmRSS:"):
+                    return round(int(line.split()[1]) / 1024, 1)
+    except OSError:
+        pass
+    try:
+        import psutil
+
+        return round(psutil.Process().memory_info().rss / 1e6, 1)
+    except Exception:
+        return None
+
+
 def _single_threaded_session_options():
     import onnxruntime as ort
 
@@ -247,12 +269,37 @@ class OnnxAlprPipeline:
                 self._style_classes = json.load(fh)
         self._style_transform = build_transforms(train=False)
 
-    def run(self, image_bgr) -> dict:
+    def run(
+        self,
+        image_bgr,
+        *,
+        read_plate_enabled: bool = True,
+        plate_color_enabled: bool = True,
+        vehicle_class_enabled: bool = True,
+        collect_timings: bool = False,
+    ) -> dict:
         """Chạy toàn chuỗi trên 1 khung BGR, trả dict trùng schema PipelinePayload.
 
         Khoá cấp trên: vehicle_type, vehicle_box, vehicle_style,
-        vehicle_style_conf, plates. Mỗi phần tử plates: bbox, layout, det_conf,
-        plate_text, plate_valid, ocr_conf, color, color_conf, crop_proc_b64."""
+        vehicle_style_conf, plates, timings_ms. Mỗi phần tử plates: bbox, layout,
+        det_conf, plate_text, plate_valid, ocr_conf, color, color_conf,
+        crop_proc_b64.
+
+        Ba cờ `*_enabled` ánh xạ thẳng từ bảng feature_toggle (read_plate,
+        plate_color, vehicle_class) để tắt công tắc ở màn Cấu hình là THỰC SỰ bỏ
+        bước tính, không chỉ ẩn kết quả. Trên thiết bị biên đây là đòn bẩy hiệu
+        năng thật: đo trên Raspberry Pi 5, tắt vehicle_class bỏ được khoảng 260ms
+        trong tổng 490ms mỗi lượt.
+
+        `read_plate_enabled=False` vẫn PHÁT HIỆN biển (để còn ảnh crop làm bằng
+        chứng cho nhân viên đối chiếu) nhưng bỏ bước OCR, đúng như mô tả của công
+        tắc: tắt thì màn cổng ép nhập tay.
+
+        `collect_timings=True` thêm khoá `timings_ms` ghi thời gian từng giai
+        đoạn, dùng cho chế độ dev_mode trên portal.
+        """
+        import time
+
         import cv2
         import numpy as np
         from PIL import Image
@@ -261,35 +308,72 @@ class OnnxAlprPipeline:
         from pipeline.ocr import read_plate
         from predict_vehicle import detect_vehicle_crop
 
+        timings: dict[str, float] = {}
+
+        def _mark(name: str, t0: float) -> None:
+            if collect_timings:
+                timings[name] = round((time.perf_counter() - t0) * 1000, 1)
+
         result: dict = {
             "vehicle_type": None,
             "vehicle_box": None,
             "vehicle_style": None,
             "vehicle_style_conf": None,
             "plates": [],
+            "timings_ms": None,
+            "resources": None,
         }
         if image_bgr is None:
             return result
 
+        t_all0, cpu0 = time.perf_counter(), time.process_time()
+
+        t0 = time.perf_counter()
         img_pil = Image.fromarray(cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB))
+        _mark("doi_mau", t0)
 
         # --- Nhánh biển số: phát hiện -> màu -> OCR, cho từng biển ---
         # Chạy TRƯỚC nhánh xe vì "có đọc được biển" là bằng chứng độc lập rằng
         # trong khung hình có xe, dùng để quyết định nhánh xe bên dưới.
-        for det in self._plate_detector.detect(image_bgr):
-            appearance = process_plate(det.crop)
-            reading = read_plate(appearance.crop_for_ocr, self._ocr, layout=det.cls_name)
+        t0 = time.perf_counter()
+        dets = self._plate_detector.detect(image_bgr)
+        _mark("phat_hien_bien", t0)
+
+        t_color = t_ocr = 0.0
+        for det in dets:
+            t0 = time.perf_counter()
+            appearance = process_plate(det.crop, with_color=plate_color_enabled)
+            t_color += time.perf_counter() - t0
+
+            t0 = time.perf_counter()
+            if read_plate_enabled:
+                reading = read_plate(appearance.crop_for_ocr, self._ocr, layout=det.cls_name)
+                text, valid, ocr_conf = reading.text_display, bool(reading.valid_format), float(reading.confidence)
+            else:
+                text, valid, ocr_conf = "", False, 0.0
+            t_ocr += time.perf_counter() - t0
+
             result["plates"].append({
                 "bbox": [float(v) for v in det.bbox_xyxy],
                 "layout": det.cls_name,
                 "det_conf": float(det.conf),
-                "plate_text": reading.text_display,
-                "plate_valid": bool(reading.valid_format),
-                "ocr_conf": float(reading.confidence),
-                "color": appearance.color,
-                "color_conf": float(appearance.color_conf) if appearance.color_conf is not None else None,
+                "plate_text": text,
+                "plate_valid": valid,
+                "ocr_conf": ocr_conf,
+                # Tắt công tắc màu thì trả None chứ không phải "unknown": None là
+                # "không tính", "unknown" là "có tính nhưng không nhận ra màu".
+                # Lẫn hai thứ này thì nhân viên tưởng máy đọc hụt màu.
+                "color": appearance.color if plate_color_enabled else None,
+                "color_conf": (
+                    float(appearance.color_conf)
+                    if plate_color_enabled and appearance.color_conf is not None
+                    else None
+                ),
                 "crop_proc_b64": encode_crop_b64(appearance.crop_for_ocr),
             })
+        if collect_timings:
+            timings["mau_bien"] = round(t_color * 1000, 1)
+            timings["doc_bien_ocr"] = round(t_ocr * 1000, 1)
 
         # --- Nhánh xe: loại xe (model tự huấn luyện) + (nếu car) kiểu dáng ---
         # YOLO COCO chỉ còn để ĐỊNH VỊ + cắt vùng xe cho bước kiểu dáng và để
@@ -299,9 +383,15 @@ class OnnxAlprPipeline:
         # YOLOv8n COCO không train lại nên hay trượt trên ảnh cận cảnh camera
         # cổng (ảnh greenpack_1343.png bị nó đoán thành "person" 63%), trong
         # khi model loại xe chạy thẳng trên ảnh đó cho motorbike 99,9%.
-        crop_pil, det_info = detect_vehicle_crop(img_pil, detector=self._coarse_detector)
-        if det_info is not None:
-            result["vehicle_box"] = [float(v) for v in det_info["box"]]
+        # Bỏ luôn bước định vị khi tắt phân loại xe: nó chỉ phục vụ bước kiểu
+        # dáng và trả vehicle_box, không ai dùng tới nữa nếu không phân loại.
+        crop_pil, det_info = (None, None)
+        if vehicle_class_enabled:
+            t0 = time.perf_counter()
+            crop_pil, det_info = detect_vehicle_crop(img_pil, detector=self._coarse_detector)
+            _mark("dinh_vi_xe", t0)
+            if det_info is not None:
+                result["vehicle_box"] = [float(v) for v in det_info["box"]]
 
         # Chỉ phân loại khi có bằng chứng thật sự có xe trong khung hình: YOLO
         # thấy xe HOẶC phát hiện được biển số. Thiếu ràng buộc này thì khung
@@ -314,20 +404,28 @@ class OnnxAlprPipeline:
         # vốn đã đúng. Xe khách vẫn là hạn chế đã biết (xem 05-phanloai.md mục
         # 5.5); nhân viên sửa tay ở màn Trạm cổng khi thực sự gặp.
         has_vehicle = det_info is not None or bool(result["plates"])
-        if has_vehicle and self._type_sess is not None:
+        if vehicle_class_enabled and has_vehicle and self._type_sess is not None:
             # Chạy trên CẢ khung hình, không phải vùng crop: dữ liệu huấn luyện
             # model này là ảnh camera cổng nguyên khung (prepare_vehicle_type_dataset.py
             # copy thẳng ảnh gốc, không cắt), nên đưa ảnh nguyên vào mới đúng
             # phân phối lúc train và đúng với con số accuracy đã báo cáo.
+            t0 = time.perf_counter()
             x = self._style_transform(img_pil).unsqueeze(0).numpy()
             logits = self._type_sess.run(None, {self._type_input: x})[0][0]
             e = np.exp(logits - logits.max())
             probs = e / e.sum()
             result["vehicle_type"] = self._type_classes[int(probs.argmax())]
+            _mark("phan_loai_loai_xe", t0)
 
         # Kiểu dáng vẫn cần vùng xe đã cắt: model đó train trên ảnh B5 cắt theo
         # bbox kèm biên 10%, đưa nguyên khung hình vào sẽ lệch phân phối.
-        if result["vehicle_type"] == "car" and det_info is not None and self._style_sess is not None:
+        if (
+            vehicle_class_enabled
+            and result["vehicle_type"] == "car"
+            and det_info is not None
+            and self._style_sess is not None
+        ):
+            t0 = time.perf_counter()
             x = self._style_transform(crop_pil).unsqueeze(0).numpy()
             logits = self._style_sess.run(None, {self._style_input: x})[0][0]
             e = np.exp(logits - logits.max())
@@ -335,5 +433,23 @@ class OnnxAlprPipeline:
             idx = int(probs.argmax())
             result["vehicle_style"] = self._style_classes[idx]
             result["vehicle_style_conf"] = float(probs[idx])
+            _mark("phan_loai_kieu_dang", t0)
 
+        if collect_timings:
+            timings["tong"] = round(sum(timings.values()), 1)
+            result["timings_ms"] = timings
+
+            wall = time.perf_counter() - t_all0
+            cpu = time.process_time() - cpu0
+            res: dict[str, float] = {
+                # CPU-time chia thời gian đồng hồ = số lõi dùng trung bình. Bằng
+                # ~1 là chạy gần như đơn luồng; lớn hơn số lõi thật là dấu hiệu
+                # toả luồng quá mức (xem docstring _intra_op_threads).
+                "so_loi_dung": round(cpu / wall, 2) if wall > 0 else 0.0,
+                "cpu_time_ms": round(cpu * 1000, 1),
+            }
+            ram = _process_ram_mb()
+            if ram is not None:
+                res["ram_tien_trinh_mb"] = ram
+            result["resources"] = res
         return result

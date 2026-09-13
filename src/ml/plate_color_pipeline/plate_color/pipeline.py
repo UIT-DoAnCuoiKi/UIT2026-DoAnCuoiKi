@@ -29,7 +29,7 @@ from .lighting.metrics import classify_lighting
 from .lighting.enhance import clahe_v, enhance
 
 
-def process_plate(crop_bgr: np.ndarray) -> PlateAppearance:
+def process_plate(crop_bgr: np.ndarray, with_color: bool = True) -> PlateAppearance:
     """Analyse a single plate crop and return its color + lighting + OCR-ready image.
 
     Degenerate crops (height < 8 px or width < 8 px) are returned immediately
@@ -43,6 +43,9 @@ def process_plate(crop_bgr: np.ndarray) -> PlateAppearance:
 
     Args:
         crop_bgr: BGR uint8 ndarray of the plate region of interest.
+        with_color: run path A. Set False to honour the ``plate_color`` feature
+            toggle: path B still runs because OCR needs its enhanced crop, so
+            only the colour decision is skipped (``color="unknown"``).
 
     Returns:
         A ``PlateAppearance`` instance with fields populated from both paths.
@@ -55,8 +58,11 @@ def process_plate(crop_bgr: np.ndarray) -> PlateAppearance:
     # CLAHE on V only preserves hue + saturation so the yellow/white/blue
     # decision is not contaminated by gray-world WB (which would shift hue).
     # White balance is intentionally absent here — it lives only in path B.
-    crop_a = clahe_v(crop_bgr)
-    cr = classify_color(crop_a)
+    if with_color:
+        crop_a = clahe_v(crop_bgr)
+        cr = classify_color(crop_a)
+    else:
+        cr = None
 
     # --- Path B: OCR enhancement ------------------------------------------------
     # Full enhance stack: tone correction appropriate to the lighting condition,
@@ -64,4 +70,6 @@ def process_plate(crop_bgr: np.ndarray) -> PlateAppearance:
     cond = classify_lighting(crop_bgr)
     crop_b = enhance(crop_bgr, cond)
 
+    if cr is None:
+        return PlateAppearance("unknown", 0.0, {}, cond, crop_b)
     return PlateAppearance(cr.color, cr.conf, cr.features, cond, crop_b)
