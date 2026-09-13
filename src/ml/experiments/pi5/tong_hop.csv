@@ -1,0 +1,15 @@
+loat,cau_hinh,dinh_vi_file,kieu_dang_file,nhanh_dinh_vi,luong,lien_tuc,trung_vi_ms,min_ms,max_ms,luot_dau_ms,cpu_time_ms,ti_so_cpu_wall,p_trung_vi_w,p_min_w,p_max_w,e_toan_phan_j,e_tang_them_j,nhiet_do_bat_dau_c,nhiet_do_max_c,giay_cho_nguoi,quat_rpm_max,cpu_trung_vi_pct,throttled,throttled_hien_tai,so_mau,so_bien_tren_anh
+nghi_truoc,,,,,,,,,,,,,1.459,1.368,1.887,,,53,54.0,0,3761,0.0,0x80000,0x0,59,
+nghi_sau,,,,,,,,,,,,,1.607,1.408,2.196,,,58,60.0,230,6294,0.0,0x80000,0x0,58,
+bench_onnx_1luong,onnx,yolov8n.onnx,vehicle-style-resnet18.onnx,onnx,1,False,1067.4,1066.3,1076.0,1135.3,1103.7,1.0,3.595,2.092,4.966,3.837,2.192,58,64.5,10,6235,25.9,0x80000,0x0,46,12
+bench_onnx_2luong,onnx,yolov8n.onnx,vehicle-style-resnet18.onnx,onnx,2,False,611.6,608.5,625.9,677.1,1342.5,2.2,5.224,2.385,6.155,3.195,2.253,58,69.4,15,8002,54.9,0x80000,0x0,28,12
+bench_onnx_4luong,onnx,yolov8n.onnx,vehicle-style-resnet18.onnx,onnx,4,False,535.0,525.4,558.5,588.6,2129.7,4.0,7.595,2.106,9.364,4.063,3.239,58,74.9,20,8045,98.8,0x80000,0x0,25,12
+bench_onnx_mnv3_1luong,onnx_mnv3,yolov8n.onnx,vehicle-style-mobilenet_v3_small.onnx,onnx,1,False,1082.4,1076.4,1093.7,1144.1,1119.1,1.0,3.603,1.981,4.993,3.9,2.232,58,65.0,70,6234,26.0,0x80000,0x0,44,12
+bench_onnx_mnv3_2luong,onnx_mnv3,yolov8n.onnx,vehicle-style-mobilenet_v3_small.onnx,onnx,2,False,610.9,609.3,619.3,676.2,1340.9,2.2,5.281,2.67,6.114,3.226,2.285,58,70.0,35,8077,54.9,0x80000,0x0,27,12
+bench_onnx_mnv3_4luong,onnx_mnv3,yolov8n.onnx,vehicle-style-mobilenet_v3_small.onnx,onnx,4,False,550.4,528.1,594.9,579.2,2164.2,3.9,6.554,2.018,9.047,3.607,2.759,58,74.3,25,8042,98.3,0x80000,0x0,25,12
+bench_pt_1luong,pt,yolov8n.pt,vehicle-style-resnet18.onnx,pt,1,False,813.9,811.8,823.2,962.0,1124.1,1.4,3.575,2.627,5.115,2.91,1.655,53,61.1,0,5977,32.7,0x80000,0x0,37,12
+bench_pt_2luong,pt,yolov8n.pt,vehicle-style-resnet18.onnx,pt,2,False,526.3,524.9,534.5,668.0,1279.8,2.4,4.903,1.896,6.418,2.58,1.769,56,66.1,5,6103,58.0,0x80000,0x0,26,12
+bench_pt_4luong,pt,yolov8n.pt,vehicle-style-resnet18.onnx,pt,4,False,495.3,487.2,535.8,604.4,1830.0,3.7,6.074,2.385,7.739,3.008,2.245,58,70.5,5,7953,91.8,0x80000,0x0,23,12
+tai_lien_tuc_onnx_4luong,onnx,yolov8n.onnx,vehicle-style-resnet18.onnx,onnx,4,True,547.5,519.7,597.3,600.7,2158.6,3.9,6.819,2.184,9.474,3.733,2.89,58,81.5,145,9881,98.3,0x80000,0x0,83,12
+tai_lien_tuc_onnx_mnv3_4luong,onnx_mnv3,yolov8n.onnx,vehicle-style-mobilenet_v3_small.onnx,onnx,4,True,544.3,519.2,608.7,576.7,2141.0,3.9,6.706,2.803,9.462,3.65,2.811,58,81.0,220,9865,98.3,0x80000,0x0,80,12
+tai_lien_tuc_pt_4luong,pt,yolov8n.pt,vehicle-style-resnet18.onnx,pt,4,True,495.5,481.2,561.0,616.9,1823.3,3.7,6.409,2.711,9.399,3.176,2.412,59,78.2,55,9871,92.5,0x80000,0x0,77,12

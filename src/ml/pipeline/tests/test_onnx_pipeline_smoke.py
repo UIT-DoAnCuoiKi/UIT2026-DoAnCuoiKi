@@ -19,7 +19,8 @@ from pipeline.onnx_pipeline import OnnxAlprPipeline
 REPO_ROOT = Path(__file__).resolve().parents[4]  # tests -> pipeline -> ml -> src -> repo
 SAMPLE = REPO_ROOT / "docs" / "research" / "assets" / "dataset-samples" / "10_duydieu_CLOSE_singlevehicle.png"
 
-TOP_KEYS = {"vehicle_type", "vehicle_box", "vehicle_style", "vehicle_style_conf", "plates"}
+# timings_ms và resources có từ khi thêm hiển thị thời gian suy luận (dev_mode)
+TOP_KEYS = {"vehicle_type", "vehicle_box", "vehicle_style", "vehicle_style_conf", "plates", "timings_ms", "resources"}
 PLATE_KEYS = {"bbox", "layout", "det_conf", "plate_text", "plate_valid", "ocr_conf", "color", "color_conf",
               "crop_proc_b64"}
 

@@ -83,13 +83,30 @@ Cách phát hiện lỗi thứ hai đáng ghi lại vì không nhìn ra được
 
 Kết quả sau khi sửa cả 2: từ 780-900 ms mỗi ảnh và dao động rất mạnh (340 đến 1200 ms) xuống còn 146,8 ms ổn định (dao động dưới 10 ms) ở cấu hình mặc định, và 76,2 ms nếu đặt 4 luồng trên máy nhiều lõi. Bước tốn thời gian nhất hiện là phát hiện biển số (40% tổng thời gian), nên nếu cần tối ưu tiếp thì ưu tiên bước đó trước.
 
-### 2.3 Việc còn tồn: đo trên Raspberry Pi 5
+### 2.3 Đo trên Raspberry Pi 5
 
-Toàn bộ số liệu ở trên đo trên máy phát triển x86, **chưa phải thiết bị triển khai thật**, nên chưa trả lời được câu hỏi quan trọng nhất là hệ thống có chạy đủ nhanh trên Pi hay không. Dự kiến làm ở tuần sau, dùng đúng script `benchmark_pipeline.py` này để hai bên số liệu so sánh được với nhau. Ba điểm cần lưu ý khi đo trên Pi:
+Đo lại trên Raspberry Pi 5 16GB (Debian 13, thẻ microSD, quạt chủ động, nguồn 3A) bằng đúng `benchmark_pipeline.py`, chạy qua `src/ml/run_pi_benchmark.sh`. Log gốc ở `src/ml/experiments/pi5/`, bảng và kiểm tra chi tiết ở notebook `src/ml/notebooks/benchmark-raspberry-pi5.ipynb`.
 
-- **Số luồng tối ưu nhiều khả năng khác hẳn.** Pi chỉ có 4 lõi, trong khi máy dev có 24 luồng logic. Giá trị mặc định `ML_INTRAOP_THREADS=1` được chọn chính vì lý do này, nhưng vẫn phải đo lại để xác nhận thay vì suy đoán.
-- **Có thể không cài torch trên Pi.** Bước định vị xe mặc định chạy qua ultralytics nên kéo theo torch, khá nặng với Pi. Nếu muốn chạy hoàn toàn không cần torch thì trỏ `ML_COARSE_WEIGHTS` sang bản `.onnx` để dùng nhánh onnxruntime thuần (đã làm sẵn, xem chương 5 mục 5.6). Lúc đó cần đo cả 2 nhánh để biết trên ARM nhánh nào thật sự nhanh hơn: trên x86 nhánh `.pt` nhanh hơn (147,3 ms so với 218,5 ms cùng điều kiện), nhưng ARM không có các tối ưu CPU như x86 nên kết quả có thể ngược lại.
-- **Đo cả nhiệt độ và xung nhịp.** Pi bị giảm xung khi nóng, nên số đo lần đầu chạy nguội có thể đẹp hơn thực tế lúc chạy liên tục ở trạm cổng.
+**Cách đo.**
+
+- Thời gian: `time.perf_counter()`, bỏ 3 lượt làm nóng, lấy trung vị 10 lượt gọi `OnnxAlprPipeline.run()` trên ảnh mẫu 12 biển số. Mỗi log in tên model thật sự chạy.
+- Điện năng: chip quản lý nguồn của Pi 5 (PMIC Renesas DA9091) có ADC đo dòng và áp từng nhánh nguồn, đọc bằng `vcgencmd pmic_read_adc` mỗi giây. Công suất `P = Σ V_k × I_k`, điện năng mỗi lượt xe `E = P khi chạy liên tục × thời gian mỗi lượt`. Số này là cận dưới của điện năng ở ổ cắm vì không tính củ sạc, quạt và thiết bị USB.
+- Điều kiện hợp lệ: cờ `vcgencmd get_throttled` không báo hạ xung hay sụt áp ở mẫu nào (0/1.452 mẫu); công suất đi theo tải CPU (hệ số tương quan 0,944). Cùng một cấu hình đo lặp 5 lần, trung vị lệch nhau không quá 1,04%.
+
+**Kết quả** (trung vị mỗi lượt xe):
+
+| Định vị xe | Kiểu dáng | 1 luồng | 4 luồng | Điện năng, 4 luồng |
+|---|---|---:|---:|---:|
+| `.pt` | ResNet18 | 813,9 ms | **495,3 ms** | 3,2 J |
+| `.onnx` | ResNet18 | 1.067,4 ms | 535,0 ms | 3,7 J |
+| `.onnx` | MobileNetV3-Small | 1.082,4 ms | 550,4 ms | 3,7 J |
+
+Riêng bước kiểu dáng: ResNet18 mất 132,3 ms (1 luồng) và 75,8 ms (4 luồng), MobileNetV3-Small mất 16,0 ms và 27,8 ms. Bảng trên không thấy khác biệt vì ảnh đo là xe máy, pipeline chỉ chạy bước kiểu dáng với ô tô.
+
+**Kết luận.**
+
+- Đạt mốc đề cương: 495,3 ms mỗi lượt, nhanh hơn mốc 2 giây khoảng 4 lần. Lúc nghỉ Pi tiêu khoảng 1,5 W.
+- Cấu hình triển khai trên Pi: 4 luồng, định vị xe bằng `.pt` (bản `.onnx` chậm hơn 8% đến 31%), kiểu dáng bằng MobileNetV3-Small ONNX. Bản ONNX khớp `.pt` trên 987/987 ảnh test, accuracy giữ nguyên 0,9007.
 
 ## 3. Tiến hành xây dựng module Backend và Dashboard
 
@@ -109,3 +126,4 @@ FastAPI cộng SQLAlchemy 2.0 cộng Alembic cộng PostgreSQL, đóng gói bằ
 - OCR đọc đúng ký tự Đ cho biển xe máy điện, không còn rớt hẳn ký tự này như trước.
 - Toàn bộ pipeline nhận diện (phát hiện biển số, OCR) chạy được bằng ONNX, không cần torch lúc suy luận, và weights đồng bộ tự động qua git giữa các máy.
 - Đo được hiệu năng suy luận thật trên CPU bằng script tái lập được: toàn pipeline 146,8 ms mỗi ảnh ở cấu hình mặc định và 76,2 ms trên máy nhiều lõi, sau khi sửa 2 lỗi hiệu năng phát hiện trong lúc đo (nạp lại model mỗi khung hình, và tranh chấp luồng CPU giữa các model).
+- Đo trên Raspberry Pi 5 thật: toàn pipeline 495,3 ms mỗi lượt ở 4 luồng, nhanh hơn mốc 2 giây của đề cương khoảng 4 lần; điện năng khoảng 3,2 J mỗi lượt xe, đo bằng ADC của chip quản lý nguồn. Xuất MobileNetV3-Small ONNX cho bước kiểu dáng (khớp `.pt` 987/987 ảnh), bước này nhanh hơn 8 lần trên Pi.

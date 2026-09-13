@@ -1,0 +1,41 @@
+loat,cau_hinh,luong,model,dau_vao,mb,trung_vi_ms,min_ms,max_ms
+bench_onnx_1luong,onnx,1,Phát hiện biển (YOLOv8n),"[1, 3, 640, 640]",12.2,361.79,361.25,362.31
+bench_onnx_1luong,onnx,1,OCR biển số (CRNN),"[1, 1, 48, 128]",1.7,6.12,6.09,6.29
+bench_onnx_1luong,onnx,1,Loại xe (ResNet18),"[1, 3, 224, 224]",44.7,129.24,129.12,130.06
+bench_onnx_1luong,onnx,1,Loại xe (MobileNetV3-Small),"[1, 3, 224, 224]",6.1,12.42,12.41,12.54
+bench_onnx_1luong,onnx,1,Kiểu dáng xe (ResNet18),"[1, 3, 224, 224]",44.7,129.49,129.32,134.1
+bench_onnx_2luong,onnx,2,Phát hiện biển (YOLOv8n),"[1, 3, 640, 640]",12.2,194.83,193.92,203.48
+bench_onnx_2luong,onnx,2,OCR biển số (CRNN),"[1, 1, 48, 128]",1.7,3.41,3.38,3.43
+bench_onnx_2luong,onnx,2,Loại xe (ResNet18),"[1, 3, 224, 224]",44.7,69.73,69.57,70.37
+bench_onnx_2luong,onnx,2,Loại xe (MobileNetV3-Small),"[1, 3, 224, 224]",6.1,7.62,7.57,7.65
+bench_onnx_2luong,onnx,2,Kiểu dáng xe (ResNet18),"[1, 3, 224, 224]",44.7,69.33,69.23,69.93
+bench_onnx_4luong,onnx,4,Phát hiện biển (YOLOv8n),"[1, 3, 640, 640]",12.2,142.43,142.24,148.19
+bench_onnx_4luong,onnx,4,OCR biển số (CRNN),"[1, 1, 48, 128]",1.7,2.33,2.27,2.85
+bench_onnx_4luong,onnx,4,Loại xe (ResNet18),"[1, 3, 224, 224]",44.7,46.59,46.41,46.95
+bench_onnx_4luong,onnx,4,Loại xe (MobileNetV3-Small),"[1, 3, 224, 224]",6.1,5.81,5.77,6.04
+bench_onnx_4luong,onnx,4,Kiểu dáng xe (ResNet18),"[1, 3, 224, 224]",44.7,45.66,45.32,47.27
+bench_pt_1luong,pt,1,Phát hiện biển (YOLOv8n),"[1, 3, 640, 640]",12.2,360.64,360.33,362.4
+bench_pt_1luong,pt,1,OCR biển số (CRNN),"[1, 1, 48, 128]",1.7,6.1,6.05,6.19
+bench_pt_1luong,pt,1,Loại xe (ResNet18),"[1, 3, 224, 224]",44.7,129.68,129.54,130.71
+bench_pt_1luong,pt,1,Loại xe (MobileNetV3-Small),"[1, 3, 224, 224]",6.1,12.41,12.39,12.49
+bench_pt_1luong,pt,1,Kiểu dáng xe (ResNet18),"[1, 3, 224, 224]",44.7,129.31,129.14,130.38
+bench_pt_2luong,pt,2,Phát hiện biển (YOLOv8n),"[1, 3, 640, 640]",12.2,194.09,193.58,196.33
+bench_pt_2luong,pt,2,OCR biển số (CRNN),"[1, 1, 48, 128]",1.7,3.41,3.37,3.43
+bench_pt_2luong,pt,2,Loại xe (ResNet18),"[1, 3, 224, 224]",44.7,69.01,68.89,70.32
+bench_pt_2luong,pt,2,Loại xe (MobileNetV3-Small),"[1, 3, 224, 224]",6.1,7.54,7.52,7.61
+bench_pt_2luong,pt,2,Kiểu dáng xe (ResNet18),"[1, 3, 224, 224]",44.7,69.21,69.11,69.89
+bench_pt_4luong,pt,4,Phát hiện biển (YOLOv8n),"[1, 3, 640, 640]",12.2,141.44,140.35,144.0
+bench_pt_4luong,pt,4,OCR biển số (CRNN),"[1, 1, 48, 128]",1.7,2.29,2.24,2.31
+bench_pt_4luong,pt,4,Loại xe (ResNet18),"[1, 3, 224, 224]",44.7,44.04,43.95,45.94
+bench_pt_4luong,pt,4,Loại xe (MobileNetV3-Small),"[1, 3, 224, 224]",6.1,5.68,5.62,6.88
+bench_pt_4luong,pt,4,Kiểu dáng xe (ResNet18),"[1, 3, 224, 224]",44.7,45.86,44.91,64.12
+tai_lien_tuc_onnx_4luong,onnx,4,Phát hiện biển (YOLOv8n),"[1, 3, 640, 640]",12.2,144.26,142.89,146.45
+tai_lien_tuc_onnx_4luong,onnx,4,OCR biển số (CRNN),"[1, 1, 48, 128]",1.7,2.31,2.26,2.33
+tai_lien_tuc_onnx_4luong,onnx,4,Loại xe (ResNet18),"[1, 3, 224, 224]",44.7,44.52,44.41,47.25
+tai_lien_tuc_onnx_4luong,onnx,4,Loại xe (MobileNetV3-Small),"[1, 3, 224, 224]",6.1,5.86,5.8,5.95
+tai_lien_tuc_onnx_4luong,onnx,4,Kiểu dáng xe (ResNet18),"[1, 3, 224, 224]",44.7,44.4,44.18,46.51
+tai_lien_tuc_pt_4luong,pt,4,Phát hiện biển (YOLOv8n),"[1, 3, 640, 640]",12.2,143.77,143.32,151.27
+tai_lien_tuc_pt_4luong,pt,4,OCR biển số (CRNN),"[1, 1, 48, 128]",1.7,2.32,2.27,2.35
+tai_lien_tuc_pt_4luong,pt,4,Loại xe (ResNet18),"[1, 3, 224, 224]",44.7,45.33,45.1,45.5
+tai_lien_tuc_pt_4luong,pt,4,Loại xe (MobileNetV3-Small),"[1, 3, 224, 224]",6.1,5.86,5.82,5.98
+tai_lien_tuc_pt_4luong,pt,4,Kiểu dáng xe (ResNet18),"[1, 3, 224, 224]",44.7,45.27,45.14,45.41

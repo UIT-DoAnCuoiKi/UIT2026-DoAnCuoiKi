@@ -1,4 +1,4 @@
-"""Runner suy luận ALPR chạy model thật (ONNX + YOLO) — nguồn sự thật dùng chung
+"""Runner suy luận ALPR chạy model thật (ONNX + YOLO), nguồn sự thật dùng chung
 cho backend (`app/services/ml_inference.py`) và edge worker (`src/edge/worker.py`).
 
 Chạy 4 model đã huấn luyện ở src/ml trên một khung ảnh BGR:
@@ -9,11 +9,11 @@ Chạy 4 model đã huấn luyện ở src/ml trên một khung ảnh BGR:
   4. Kiểu dáng xe:      classifier `.onnx` qua onnxruntime (chỉ khi là "car").
 
 Cắt vùng xe tái dùng `predict_vehicle.detect_vehicle_crop` +
-`predict_vehicle.CoarseVehicleDetector` (YOLOv8n COCO, chỉ để định vị + cắt —
-model này KHÔNG train lại nên nhãn lớp COCO của nó chỉ giữ lại làm loại thô
+`predict_vehicle.CoarseVehicleDetector` (YOLOv8n COCO, chỉ để định vị + cắt,
+model này không train lại nên nhãn lớp COCO của nó chỉ giữ lại làm loại thô
 cho "bus" (chưa có dữ liệu train riêng); car/motorbike/truck luôn được ghi đè
 bằng model loại-xe tự huấn luyện ở bước 3, chính xác hơn hẳn trên ảnh cận cảnh
-kiểu camera cổng — xem train_vehicle_type_classifier.py và
+kiểu camera cổng, xem train_vehicle_type_classifier.py và
 sanity_check_vehicle_type_ood.py). `CoarseVehicleDetector` có 2 backend chọn
 được qua đường dẫn `coarse_weights` (đuôi `.onnx` → onnxruntime thuần, không
 cần torch; mặc định `.pt` → ultralytics/torch), dùng khi triển khai thiết bị
@@ -29,7 +29,7 @@ muốn tránh phụ thuộc torch (vd Raspberry Pi). Màu biển tái dùng
 
 Các import nặng (torch, cv2, onnxruntime, cây src/ml) nằm trong hàm khởi tạo để
 môi trường không có model vẫn import được module. Bản `.pt` cho OCR/classifier
-KHÔNG có trong repo (chỉ có bản `.onnx` đã export), nên runner chạy thẳng `.onnx`
+không có trong repo (chỉ có bản `.onnx` đã export), nên runner chạy thẳng `.onnx`
 thay vì `torch.load`, dùng đúng model đã train.
 """
 from __future__ import annotations
@@ -43,13 +43,14 @@ _ML_DIR = Path(__file__).resolve().parents[1]
 
 _DEFAULTS = {
     "coarse_weights": _ML_DIR / "weights" / "yolov8n.pt",
-    "plate_weights": _ML_DIR
-    / "plate_detection_pipeline" / "output" / "plate_det_results_20260812_2212"
-    / "runs" / "yolov8n_s0_640" / "weights" / "best.pt",
+    "plate_weights": _ML_DIR / "weights" / "plate-detector.pt",  # cùng file compose.yaml dùng
     "ocr_onnx": _ML_DIR / "weights" / "plate-ocr-crnn.onnx",
     "type_onnx": _ML_DIR / "weights" / "vehicle-type-resnet18.onnx",
     "type_classes": _ML_DIR / "data" / "vehicle-type-classes.json",
-    "style_onnx": _ML_DIR / "weights" / "vehicle-style-resnet18.onnx",
+    # MobileNetV3-Small thay ResNet18: accuracy ngang (0,9007 so với 0,8997 trên test),
+    # nhẹ hơn 7 lần. Bản ONNX khớp .pt 987/987 ảnh test
+    # (experiments/style_mobilenet_onnx_parity.json).
+    "style_onnx": _ML_DIR / "weights" / "vehicle-style-mobilenet_v3_small.onnx",
     "style_classes": _ML_DIR / "data" / "vehicle-style-classes.json",
 }
 
@@ -82,24 +83,24 @@ def _ensure_ml_path() -> None:
 
 
 def _intra_op_threads() -> int:
-    """Số luồng intra-op cho MỖI session ONNX + torch (YOLO coarse, torchvision
+    """Số luồng intra-op cho mỗi session ONNX + torch (YOLO coarse, torchvision
     transform) trong pipeline. Đọc từ biến môi trường `ML_INTRAOP_THREADS`,
     mặc định 1.
 
     Pipeline nạp đồng thời 4-5 backend nhỏ (YOLO coarse qua torch, detector biển,
-    OCR, loại xe, kiểu dáng) và chạy TUẦN TỰ trên 1 ảnh — không phải theo lô. Mỗi
+    OCR, loại xe, kiểu dáng) và chạy TUẦN TỰ trên 1 ảnh, không phải theo lô. Mỗi
     `ort.InferenceSession`/torch mặc định tự phân luồng theo toàn bộ số lõi logic
     máy; 4-5 session cùng làm vậy trên 1 ảnh nhỏ khiến chi phí đồng bộ hoá luồng
-    vượt xa thời gian tính toán thật — đo thực tế trên máy dev 24 lõi logic: mặc
+    vượt xa thời gian tính toán thật, đo thực tế trên máy dev 24 lõi logic: mặc
     định pipeline tốn CPU-time ~21 GIÂY cho 1 ảnh trong ~0.9 giây đồng hồ tường.
     Ép **1** luồng/session đưa 1 ảnh từ ~900ms xuống ổn định ~145ms (~6 lần) và
     là lựa chọn AN TOÀN trên mọi máy, kể cả Raspberry Pi 4/5 lõi (mục tiêu triển
-    khai Edge của đồ án) — nơi việc chia luồng còn dễ phản tác dụng hơn nữa.
+    khai Edge của đồ án), nơi việc chia luồng còn dễ phản tác dụng hơn nữa.
 
     Trên máy nhiều lõi (>= ~16), tăng biến này lên 4-5 còn nhanh hơn nữa (đo
     được ~70ms/ảnh với 4-5 luồng/session trên máy dev 24 lõi, so với ~145ms ở 1
     luồng) vì mỗi model nhỏ vẫn tận dụng được vài lõi thay vì hoàn toàn đơn
-    luồng — nhưng con số tối ưu phụ thuộc số lõi máy chạy thật, không hard-code
+    luồng, nhưng con số tối ưu phụ thuộc số lõi máy chạy thật, không hard-code
     được 1 giá trị đúng cho mọi nơi, nên để mặc định an toàn (1) và cho chỉnh
     qua biến môi trường thay vì đoán.
     """
@@ -212,7 +213,7 @@ class OnnxAlprPipeline:
         # Pipeline chạy tuần tự nhiều backend nhỏ trên 1 ảnh, không theo lô;
         # torch mặc định tự phân luồng theo toàn bộ số lõi máy cho nhánh YOLO
         # coarse + torchvision transform, cộng dồn với các session ONNX bên dưới
-        # gây tranh chấp luồng nghiêm trọng — xem chi tiết đo đạc trong docstring
+        # gây tranh chấp luồng nghiêm trọng, xem chi tiết đo đạc trong docstring
         # _intra_op_threads(). Cùng biến môi trường ML_INTRAOP_THREADS với các
         # session ONNX để nhất quán 1 điểm chỉnh duy nhất.
         torch.set_num_threads(_intra_op_threads())
@@ -220,7 +221,7 @@ class OnnxAlprPipeline:
         # Backend suy theo đuôi file, giống PlateDetector/CRNNRecognizer: ".onnx"
         # -> onnxruntime thuần (không cần torch/ultralytics), còn lại -> "pt"
         # (ultralytics, mặc định, khớp hành vi cũ). Đổi sang .onnx khi triển
-        # khai muốn tránh phụ thuộc torch (vd Raspberry Pi) — xem docstring
+        # khai muốn tránh phụ thuộc torch (vd Raspberry Pi), xem docstring
         # CoarseVehicleDetector về lý do phải letterbox, không được squash-resize.
         coarse_weights = str(coarse_weights or _DEFAULTS["coarse_weights"])
         coarse_backend = "onnx" if coarse_weights.lower().endswith(".onnx") else "pt"
@@ -333,7 +334,7 @@ class OnnxAlprPipeline:
         _mark("doi_mau", t0)
 
         # --- Nhánh biển số: phát hiện -> màu -> OCR, cho từng biển ---
-        # Chạy TRƯỚC nhánh xe vì "có đọc được biển" là bằng chứng độc lập rằng
+        # Chạy trước nhánh xe vì "có đọc được biển" là bằng chứng độc lập rằng
         # trong khung hình có xe, dùng để quyết định nhánh xe bên dưới.
         t0 = time.perf_counter()
         dets = self._plate_detector.detect(image_bgr)
@@ -377,7 +378,7 @@ class OnnxAlprPipeline:
 
         # --- Nhánh xe: loại xe (model tự huấn luyện) + (nếu car) kiểu dáng ---
         # YOLO COCO chỉ còn để ĐỊNH VỊ + cắt vùng xe cho bước kiểu dáng và để
-        # trả vehicle_box, KHÔNG còn quyền quyết định có phân loại hay không.
+        # trả vehicle_box, không còn quyền quyết định có phân loại hay không.
         # Trước đây "YOLO không thấy xe -> bỏ qua luôn" làm mất 85/149 ảnh
         # (57%) của chính tập test model loại xe, riêng lớp motorbike mất 68%:
         # YOLOv8n COCO không train lại nên hay trượt trên ảnh cận cảnh camera
@@ -397,7 +398,7 @@ class OnnxAlprPipeline:
         # thấy xe HOẶC phát hiện được biển số. Thiếu ràng buộc này thì khung
         # hình trống cũng bị ép về 1 trong 3 lớp với độ tin cậy cao.
         #
-        # KHÔNG dùng nhãn "bus" của COCO làm phương án dự phòng cho lớp xe khách
+        # Không dùng nhãn "bus" của COCO làm phương án dự phòng cho lớp xe khách
         # (model tự huấn luyện chưa có lớp này): đo trên tập test loại xe, COCO
         # gọi "bus" 2 lần thì SAI cả 2 (đều là ô tô con), một lần ở mức tin cậy
         # 0,781 nên đặt ngưỡng cũng không lọc được. Tin nhãn đó chỉ làm hỏng 2 ca
