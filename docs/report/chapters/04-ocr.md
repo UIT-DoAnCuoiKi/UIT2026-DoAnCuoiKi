@@ -105,15 +105,15 @@ Cách sửa: thay hàm đoán bằng việc tách nhãn tại đúng dấu cách
 
 ### Vòng 3: kiểm soát nhiễu ngẫu nhiên giữa các lần huấn luyện
 
-Lần huấn luyện đầu tiên sau khi sửa nhãn (không cố định seed) cho kết quả tốt hơn rõ rệt trên cả hai tập test, nhưng khi kiểm tra vào từng lỗi cụ thể lại phát hiện một lỗi mới: chữ cái `G` ở vị trí seri bị đọc nhầm thành `D` hoặc `0` với độ tin cậy cao (0,96-0,99), sai 7/13 biển có seri `G` trong tập vn_plate, dù trước đó model cũ (V2) đọc đúng cả 13/13.
+Lần huấn luyện đầu tiên sau khi sửa nhãn (không cố định seed) cho kết quả tốt hơn rõ rệt trên cả hai tập test, nhưng khi kiểm tra vào từng lỗi cụ thể lại phát hiện một lỗi mới: chữ cái `G` ở vị trí seri bị đọc nhầm thành `D` hoặc `0` ở một số biển trong 13 biển có seri `G` của tập vn_plate. Dự đoán của lần chạy đó không được lưu lại nên không còn số đếm chính xác.
 
 Vì mã nguồn không cố định seed ngẫu nhiên (khởi tạo trọng số, thứ tự xáo trộn dữ liệu, tham số augmentation), không thể kết luận ngay lỗi này do việc sửa nhãn gây ra hay chỉ là may rủi giữa các lần train. Nhóm bổ sung tham số `seed` cho `train_crnn()` và huấn luyện lại nhiều lần với seed cố định khác nhau để kiểm tra độ lặp lại.
 
-Kết quả: cùng một cấu hình và một tập dữ liệu, chỉ khác giá trị khởi tạo ngẫu nhiên, accuracy trên tập test dao động trong biên độ hơn 12 điểm phần trăm. Biên độ này đủ lớn để một kết luận rút ra từ một lần train duy nhất, không kiểm soát seed, có thể sai. Lỗi seri `G` cũng giảm dần qua các lần chạy lại chứ không lặp lại ổn định, nên nhiều khả năng là nhiễu ngẫu nhiên bị khuếch đại bởi cỡ mẫu nhỏ (chỉ 13 biển có seri `G` trong tập test) chứ không phải hệ quả tất yếu của việc sửa nhãn.
+Kết quả: cùng một cấu hình và một tập dữ liệu, chỉ khác giá trị khởi tạo ngẫu nhiên, hai seed 42 và 123 cho accuracy 87,5% và 92,7% trên vn_plate (lệch 5,2 điểm phần trăm), 58,9% và 57,4% trên topkek (lệch 1,5 điểm). Với vn_plate chỉ có 96 biển, mức lệch này đủ để một kết luận rút ra từ một lần train duy nhất có thể sai. Với chỉ 13 biển có seri `G` trong tập test, lỗi này có thể là nhiễu ngẫu nhiên bị khuếch đại bởi cỡ mẫu nhỏ, chưa đủ căn cứ để quy cho việc sửa nhãn.
 
 **Quyết định chọn model:** các seed cho `val_row_cer` gần như ngang nhau, tức không có căn cứ độc lập với tập test để nói seed nào "tốt hơn". Chọn seed đạt điểm cao nhất trên đúng tập test độc lập sẽ biến tập test thành công cụ chọn model, làm mất tính khách quan của số liệu báo cáo. Nhóm chốt **seed mặc định** (không phải seed chọn sau khi đã biết kết quả trên test) làm model chính thức, và báo cáo minh bạch cả khoảng dao động giữa các lần chạy thay vì chỉ nêu con số đẹp nhất. Quy tắc này được giữ lại thành hướng dẫn ở mục 4.7.
 
-*(Các con số cụ thể của thí nghiệm seed đo trên model trước khi bổ sung ký tự "Đ" nên đã lược bỏ khỏi báo cáo, tránh nhầm với bảng kết quả của model đang triển khai ở mục 4.4; số gốc vẫn còn trong `src/ml/experiments.csv` nếu cần tra lại.)*
+*(Hai model seed 42 và 123 huấn luyện trước khi bổ sung ký tự "Đ" nên không so trực tiếp với bảng kết quả của model đang triển khai ở mục 4.4. Số gốc ở `src/ml/experiments/ocr_full_progression.csv`.)*
 
 ![Đường train loss và validation CER/accuracy theo epoch](../figures/plate_ocr_loss_curves.png)
 
@@ -187,7 +187,7 @@ Biểu thức kiểm tra định dạng nhận cả hai trường hợp: mã t�
 
 **Ba nguyên nhân, ba cách xử lý.** Accuracy thấp đến từ ba nguyên nhân độc lập, mỗi cái cần một cách xử lý riêng: chất lượng ảnh đầu vào (xử lý bằng cách thêm dữ liệu đúng phân phối, không phải lọc bớt), góc chụp chéo (xử lý bằng hình học, nắn phối cảnh, không cần model tốt hơn), và lỗi ở khâu chuẩn bị nhãn (xử lý bằng cách quay lại nguồn dữ liệu gốc, không phải đổi kiến trúc). Bài học chung: trước khi kết luận "model chưa đủ tốt", cần loại trừ khả năng dữ liệu huấn luyện hoặc quy trình đánh giá đang có lỗi.
 
-**Nhiễu ngẫu nhiên giữa các lần train là một nguồn sai số cần kiểm soát tường minh**, đặc biệt khi tập test chỉ có quy mô nhỏ. Chênh lệch 80,2% đến 92,7% giữa các lần chạy cùng cấu hình cho thấy nếu chỉ train một lần và báo cáo kết quả, con số đó có thể lệch hơn 12 điểm phần trăm so với thực tế (mục 4.3). Cố định seed và huấn luyện lặp lại là cách kiểm soát trực tiếp; chọn model theo chỉ số độc lập với tập test (ở đây là `val_row_cer`) thay vì theo điểm số cao nhất trên tập test là cách tránh việc vô tình biến tập test thành một phần của quá trình huấn luyện.
+**Nhiễu ngẫu nhiên giữa các lần train là một nguồn sai số cần kiểm soát tường minh**, đặc biệt khi tập test chỉ có quy mô nhỏ. Hai seed cùng cấu hình lệch nhau 5,2 điểm phần trăm trên vn_plate (mục 4.3), nên nếu chỉ train một lần rồi báo cáo, con số đó có thể lệch cỡ đó so với một lần train khác. Cố định seed và huấn luyện lặp lại là cách kiểm soát trực tiếp; chọn model theo chỉ số độc lập với tập test (ở đây là `val_row_cer`) thay vì theo điểm số cao nhất trên tập test là cách tránh việc vô tình biến tập test thành một phần của quá trình huấn luyện.
 
 **Yêu cầu kỹ thuật rút ra cho việc lắp camera.** Từ phân tầng độ phân giải đã đo ở các thí nghiệm trước, để đạt kết quả tốt cần crop biển đạt tối thiểu khoảng 40px cho mỗi dòng ký tự. Điều này phụ thuộc vào khung hình chứ không đơn thuần số megapixel: đo trên A1 cho thấy ảnh gốc rộng tới 4032px nhưng biển vẫn chỉ chiếm khoảng 31px mỗi dòng vì xe ở xa. Cần đặt camera gần hơn hoặc thu hẹp góc nhìn vào khu vực cổng, không phải mua camera độ phân giải cao hơn.
 
@@ -220,7 +220,7 @@ Dành cho bước tích hợp hệ thống (Tuần 6), khi module OCR được g
 
 **Truyền toạ độ 4 góc nếu có.** Đây là điểm ảnh hưởng lớn nhất tới độ chính xác trong toàn bộ phần tích hợp (44% lên 76% trên ảnh chụp chéo). Không truyền thì hàm lùi về xoay phẳng, vốn không khử được góc nhìn chéo của camera bãi xe.
 
-**Nếu huấn luyện lại model, luôn cố định `seed` và huấn luyện ít nhất 2 lần để kiểm tra độ ổn định** trước khi công bố một con số accuracy, theo đúng phát hiện ở mục 4.3. Một lần train duy nhất không seed có thể lệch hơn 10 điểm phần trăm so với thực tế.
+**Nếu huấn luyện lại model, luôn cố định `seed` và huấn luyện ít nhất 2 lần để kiểm tra độ ổn định** trước khi công bố một con số accuracy, theo đúng phát hiện ở mục 4.3. Hai seed cùng cấu hình đã lệch nhau 5,2 điểm phần trăm trên vn_plate.
 
 **Recognizer nào cũng dùng được, miễn cùng interface.** `read_plate()` không ràng buộc vào CRNN riêng, chỉ cần đối tượng có `recognize(image_bgr) -> (text, confidence)`. Khuyến nghị dùng `CRNNRecognizer` làm mặc định, giữ hai engine pretrained làm phương án đối chiếu khi cần gỡ lỗi.
 
@@ -238,7 +238,7 @@ Công việc đã hoàn thành trong tuần:
 - Xuất model sang ONNX, sẵn sàng cho bước triển khai trên thiết bị biên.
 
 Các điểm cần lưu ý khi đánh giá kết quả:
-- Ba con số 56,6% (topkek), 80,2% (vn_plate) và 91,9% (a1) đo trên cỡ mẫu và phân bố độ phân giải khác nhau, và mục 4.3 đã cho thấy bản thân quá trình huấn luyện có nhiễu ngẫu nhiên hơn 12 điểm phần trăm giữa các seed, nên cần đọc như xu hướng có kiểm chứng chứ không phải giá trị cố định. Con số sát điều kiện triển khai nhất là 91,9% của tập a1, không phải 56,6% của topkek. 
+- Ba con số 56,6% (topkek), 80,2% (vn_plate) và 91,9% (a1) đo trên cỡ mẫu và phân bố độ phân giải khác nhau, và mục 4.3 đã cho thấy bản thân quá trình huấn luyện có nhiễu ngẫu nhiên giữa các seed (5,2 điểm phần trăm trên vn_plate với hai seed), nên cần đọc như xu hướng có kiểm chứng chứ không phải giá trị cố định. Con số sát điều kiện triển khai nhất là 91,9% của tập a1, không phải 56,6% của topkek. 
 - Việc đánh giá end-to-end cùng model phát hiện chưa thực hiện được trong tuần này.
 
 ---

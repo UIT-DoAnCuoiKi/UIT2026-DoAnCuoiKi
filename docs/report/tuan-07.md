@@ -14,7 +14,7 @@ Chi tiết đầy đủ: [docs/research/2026-08-29-sua-loi-ky-tu-D-bien-may-dien
 - Nguyên nhân: 5 chỗ trong code dùng chung 1 regex `[^A-Z0-9]` xoá mất ký tự "Đ", cả ở bước chuẩn bị dữ liệu lẫn đường suy luận. Dataset `topkek_plate_ocr` **đã có sẵn 169 ảnh thật và 199 ảnh tổng hợp chứa "Đ"** nhưng bị đúng bug này làm sai nhãn từ trước tới giờ.
 - Sửa cả 5 vị trí, thêm "Đ" vào `CHARSET` (36 → 37 ký tự), nới giới hạn `format_display()` lên 5 ký tự phần đầu (phát hiện thêm lúc test: seri MĐ kèm số lô dài 5 ký tự bị hiển thị sai).
 - Train lại CRNN: accuracy toàn bộ `test.csv` giảm nhẹ 58,9% → 56,6%; tập độc lập `vn_plate` giảm 87,5% → 80,2%. Riêng 17 biển có "Đ" trong test.csv: 8/17 khớp hoàn toàn, nhưng 10/17 model đọc đúng ký tự "Đ" (trước đây rớt 100%).
-- **Chưa xác định được mức giảm này là do thêm "Đ" hay chỉ là nhiễu giữa các lần train** (chương 4 mục 4.3 đã ghi nhận nhiễu này có thể trên 10 điểm phần trăm). Cần train thêm seed khác để kiểm chứng, chưa làm.
+- **Chưa xác định được mức giảm này là do thêm "Đ" hay chỉ là nhiễu giữa các lần train** (chương 4 mục 4.3: hai seed cùng cấu hình lệch nhau 5,2 điểm phần trăm trên vn_plate). Cần train thêm seed khác để kiểm chứng, chưa làm.
 
 ### 2. Phát hiện và sửa bug: file `.pt` và `.onnx` là hai model khác nhau
 

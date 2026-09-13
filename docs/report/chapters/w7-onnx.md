@@ -26,7 +26,7 @@ So với model chốt trước đó trên cùng `test.csv`:
 - Accuracy toàn bộ `test.csv`: 58,9% giảm còn 56,6%.
 - Accuracy tập độc lập vn_plate: 87,5% giảm còn 80,2%.
 
-Giảm nhẹ, hợp lý vì model học thêm 1 lớp ký tự mới trong cùng số epoch, không phải dấu hiệu lỗi. Chưa xác định được mức giảm này là do thêm Đ hay chỉ là nhiễu giữa các lần train (chương 4 mục 4.3 đã ghi nhận nhiễu này có thể trên 10 điểm phần trăm); cần train thêm seed khác để kiểm chứng, chưa làm.
+Giảm nhẹ, hợp lý vì model học thêm 1 lớp ký tự mới trong cùng số epoch, không phải dấu hiệu lỗi. Chưa xác định được mức giảm này là do thêm Đ hay chỉ là nhiễu giữa các lần train (chương 4 mục 4.3: hai seed cùng cấu hình lệch nhau 5,2 điểm phần trăm trên vn_plate); cần train thêm seed khác để kiểm chứng, chưa làm.
 
 Riêng 17 biển có Đ trong `test.csv`: 8/17 khớp hoàn toàn cả biển. Soi từng ca sai thì 10/17 model đọc đúng ký tự Đ (7 đúng cả biển, 3 ca chỉ lệch 1 chữ số khác không liên quan đến Đ). 7/17 ca thực sự nhầm Đ thành ký tự khác, chủ yếu D, B, H, C. So với trước đây rớt ký tự này 100% số lần, đây là cải thiện thật dù chưa hoàn hảo.
 
