@@ -1,3 +1,3 @@
-cau_hinh,so_anh,so_luot,trung_vi_ms,p90_ms,trung_vi_o_to_ms,trung_vi_xe_may_ms,so_anh_chay_kieu_dang,giay_do,so_mau_dien,p_tb_w,p_nghi_w,e_moi_luot_j,e_tang_them_j,khop_dev_bien,khop_dev_loai_xe,khop_dev_kieu_dang
-pt_mnv3,50,250,462.4,488.0,480.3,459.2,18,117.6,113,6.674,1.632,3.139,2.372,50,50,50
-pt_resnet,50,250,478.0,546.9,537.4,473.1,18,125.3,121,6.623,1.632,3.318,2.501,50,50,50
+cau_hinh,so_anh,so_luot,trung_vi_ms,p90_ms,trung_vi_o_to_ms,trung_vi_xe_may_ms,so_anh_chay_kieu_dang,giay_do,so_mau_dien,giay_tu_moc_truoc,nhiet_do_min_5_phut_truoc_c,nhiet_do_max_c,so_mau_sut_ap_ha_xung,so_mau_nhiet_mem,xung_min_mhz,p_tb_w,p_nghi_w,e_moi_luot_j,e_tang_them_j,khop_dev_bien,khop_dev_loai_xe,khop_dev_kieu_dang
+pt_mnv3,50,250,464.4,487.7,479.1,461.5,18,118.1,114,5.7,57.9,82.6,0,3,2400.0,6.605,1.55,3.121,2.388,50,50,50
+pt_resnet,50,250,463.0,539.1,530.0,460.6,18,122.3,118,307.2,59.5,83.2,0,13,2400.0,6.639,1.55,3.247,2.489,50,50,50

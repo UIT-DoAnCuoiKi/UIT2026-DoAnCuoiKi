@@ -10,8 +10,7 @@ class InferenceOptions:
     """Cờ bật/tắt từng bước, lấy từ bảng feature_toggle.
 
     Tắt công tắc ở màn Cấu hình phải THỰC SỰ bỏ bước tính chứ không chỉ ẩn kết
-    quả: trên thiết bị biên đây là đòn bẩy hiệu năng (đo trên Raspberry Pi 5,
-    tắt vehicle_class bỏ được ~260ms trong tổng ~490ms mỗi lượt).
+    quả, vì trên thiết bị biên bỏ hẳn bước tính mới giảm được thời gian mỗi lượt.
     """
 
     read_plate: bool = True

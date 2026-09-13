@@ -3,10 +3,10 @@
   ML_INTRAOP_THREADS = 4
   Số ảnh: 50, làm nóng 3 ảnh, đo 5 vòng mỗi ảnh
 
-  tất cả     n=50  trung vị   462.4 ms  p90   488.0 ms  max   498.2 ms
-  o_to       n=25  trung vị   480.3 ms  p90   491.5 ms  max   498.2 ms
-  xe_may     n=25  trung vị   459.2 ms  p90   465.0 ms  max   469.5 ms
+  tất cả     n=50  trung vị   464.4 ms  p90   487.7 ms  max   502.8 ms
+  o_to       n=25  trung vị   479.1 ms  p90   495.4 ms  max   502.8 ms
+  xe_may     n=25  trung vị   461.5 ms  p90   467.1 ms  max   472.9 ms
   Ảnh có chạy bước kiểu dáng: 18/50
-  Vòng đo: 117.6 giây cho 250 lượt
+  Vòng đo: 118.1 giây cho 250 lượt
 
 Đã ghi /home/mn/smartpark/src/ml/experiments/pi5_anh_that/pt_mnv3.csv

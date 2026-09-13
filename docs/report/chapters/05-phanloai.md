@@ -327,12 +327,14 @@ Vì vậy, thay vì chốt cứng một lựa chọn, `CoarseVehicleDetector` h�
 
 ### Hiệu năng trên Raspberry Pi 5
 
-Đo trên Raspberry Pi 5 với 50 ảnh camera cổng thật, 4 luồng; cách đo ở `w7-onnx.md` mục 2.3. Toàn pipeline qua API mất 464 ms mỗi lượt (trung vị). Phần liên quan tới chương này là model kiểu dáng:
+Đo trên Raspberry Pi 5 với 50 ảnh camera cổng thật, 4 luồng; cách đo và log gốc ở `w7-onnx.md` mục 2.3. Toàn pipeline qua API mất 463,4 ms mỗi lượt (trung vị). Phần liên quan tới chương này là model kiểu dáng:
 
-| Model kiểu dáng | Chạy riêng, 1 luồng | Toàn pipeline, ảnh ô tô |
+| Model kiểu dáng | Chạy riêng, 1 luồng | Trong pipeline, trung vị 18 ảnh có qua bước kiểu dáng |
 |---|---:|---:|
-| ResNet18 | 129,42 ms | 537,4 ms |
-| MobileNetV3-Small | 12,61 ms | 480,3 ms |
+| ResNet18 | 129,42 ms | 536,4 ms |
+| MobileNetV3-Small | 12,61 ms | 482,0 ms |
+
+Cột chạy riêng lấy từ `src/ml/experiments/pi5/model_rieng.csv` (đầu vào ngẫu nhiên, chỉ tính đồ thị). Cột trong pipeline lấy từ lần đo 50 ảnh; so từng ảnh trong 18 ảnh này, ResNet18 chậm hơn từ 30,6 đến 68,5 ms.
 
 Trên Pi giữ `.pt` cho bước định vị xe và đặt `ML_INTRAOP_THREADS=4`.
 
@@ -352,9 +354,9 @@ Công việc đã hoàn thành:
 - **Đo lại chất lượng ở mức pipeline chứ không chỉ mức model, và sửa lỗi nặng nhất phát hiện được từ đó** (mục 5.4): bước định vị YOLO pretrained từng được đặt làm điều kiện chạy của model loại xe, khiến 57% số ảnh trong tập test không hề được phân loại dù model xử lý được. Sau khi tách hai bước độc lập và cho model loại xe chạy trên cả khung hình đúng như lúc huấn luyện, tỉ lệ ảnh có kết quả tăng từ 43% lên 100% và độ chính xác end-to-end từ 41,6% lên 98,7%, khớp đúng accuracy 98,66% của bản thân model.
 - Xuất model sang ONNX cho cả 2 kiến trúc của cả 2 bước; bản MobileNetV3-Small của bước kiểu dáng khớp `.pt` 987/987 ảnh test.
 - Viết notebook tổng hợp kết quả huấn luyện và hướng dẫn tích hợp cho bước tiếp theo.
-- Đo trên Raspberry Pi 5 với 50 ảnh camera cổng thật: đầu-cuối qua API 464 ms mỗi lượt. Số đo trên Pi dẫn tới ba quyết định có căn cứ: đặt 4 luồng, giữ `.pt` cho bước định vị xe, và chuyển bước kiểu dáng sang MobileNetV3-Small ONNX (chạy riêng trên Pi nhanh hơn khoảng 10 lần, accuracy không đổi).
+- Đo trên Raspberry Pi 5 với 50 ảnh camera cổng thật: đầu-cuối qua API 463,4 ms mỗi lượt. Số đo trên Pi dẫn tới ba quyết định: đặt 4 luồng, giữ `.pt` cho bước định vị xe, và chuyển bước kiểu dáng sang MobileNetV3-Small ONNX (accuracy ngang ResNet18, chạy riêng nhanh hơn khoảng 10 lần, trong pipeline nhanh hơn trung vị 51,3 ms trên mỗi ảnh có qua bước này).
 
-Hai điểm cần lưu ý khi đánh giá kết quả. Thứ nhất, lớp `bus` vẫn chưa có model riêng và nay cũng không còn dùng nhãn COCO làm phương án tạm (đo được nhãn đó sai 2/2 lần, mục 5.4), nên xe khách sẽ bị xếp vào một trong 3 lớp hiện có cho tới khi nhân viên sửa tay; cần bổ sung dữ liệu xe khách đúng góc camera cổng để huấn luyện nốt. Thứ hai, model kiểu dáng vẫn huấn luyện hoàn toàn trên dữ liệu ảnh dealer/showroom (B5) nên con số 90% chưa phản ánh được hiệu năng trên ảnh camera giám sát Việt Nam thật, dù model loại xe đã được kiểm chứng tốt hơn qua bộ OOD thật. Cả hai điểm này để lại cho các tuần tiếp theo, hướng cụ thể đã nêu ở mục 5.5. Hiệu năng thì đã đo trên Raspberry Pi 5 thật (mục 5.6): 464 ms mỗi lượt qua API trên 50 ảnh camera cổng.
+Hai điểm cần lưu ý khi đánh giá kết quả. Thứ nhất, lớp `bus` vẫn chưa có model riêng và nay cũng không còn dùng nhãn COCO làm phương án tạm (đo được nhãn đó sai 2/2 lần, mục 5.4), nên xe khách sẽ bị xếp vào một trong 3 lớp hiện có cho tới khi nhân viên sửa tay; cần bổ sung dữ liệu xe khách đúng góc camera cổng để huấn luyện nốt. Thứ hai, model kiểu dáng vẫn huấn luyện hoàn toàn trên dữ liệu ảnh dealer/showroom (B5) nên con số 90% chưa phản ánh được hiệu năng trên ảnh camera giám sát Việt Nam thật, dù model loại xe đã được kiểm chứng tốt hơn qua bộ OOD thật. Cả hai điểm này để lại cho các tuần tiếp theo, hướng cụ thể đã nêu ở mục 5.5. Hiệu năng thì đã đo trên Raspberry Pi 5 thật (mục 5.6): 463,4 ms mỗi lượt qua API trên 50 ảnh camera cổng.
 
 ---
 

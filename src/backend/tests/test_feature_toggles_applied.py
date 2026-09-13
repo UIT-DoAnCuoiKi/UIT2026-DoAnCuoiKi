@@ -2,9 +2,8 @@
 
 Lỗi đã gặp thật: `read_plate`, `plate_color`, `vehicle_class` được lưu vào DB và
 hiện ra ở màn Cấu hình, nhưng không có chỗ nào trong đường suy luận hỏi tới, nên
-tắt đi rồi chụp vẫn thấy màu biển và loại xe như thường. Trên thiết bị biên đây
-còn là đòn bẩy hiệu năng (đo trên Raspberry Pi 5: tắt vehicle_class bỏ được
-khoảng 260ms trong tổng 490ms mỗi lượt), nên để nó trang trí là mất thật.
+tắt đi rồi chụp vẫn thấy màu biển và loại xe như thường. Trên thiết bị biên, bỏ
+hẳn bước tính mới giảm được thời gian mỗi lượt.
 """
 import io
 

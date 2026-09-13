@@ -288,9 +288,8 @@ class OnnxAlprPipeline:
 
         Ba cờ `*_enabled` ánh xạ thẳng từ bảng feature_toggle (read_plate,
         plate_color, vehicle_class) để tắt công tắc ở màn Cấu hình là THỰC SỰ bỏ
-        bước tính, không chỉ ẩn kết quả. Trên thiết bị biên đây là đòn bẩy hiệu
-        năng thật: đo trên Raspberry Pi 5, tắt vehicle_class bỏ được khoảng 260ms
-        trong tổng 490ms mỗi lượt.
+        bước tính, không chỉ ẩn kết quả, vì trên thiết bị biên bỏ hẳn bước tính
+        mới giảm được thời gian mỗi lượt.
 
         `read_plate_enabled=False` vẫn PHÁT HIỆN biển (để còn ảnh crop làm bằng
         chứng cho nhân viên đối chiếu) nhưng bỏ bước OCR, đúng như mô tả của công

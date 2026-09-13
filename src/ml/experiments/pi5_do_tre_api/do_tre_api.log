@@ -1,6 +1,6 @@
-Lượt đầu tiên (backend nạp model): 4820 ms, HTTP 200
+Lượt đầu tiên (backend nạp model): 4813 ms, HTTP 200
 150 lượt, 0 lượt lỗi HTTP, 150 lượt có loại xe, 150 lượt có biển
-Đầu-cuối phía client       trên 50 ảnh: trung vị  464.0 ms, p90  494.1 ms, max  515.2 ms
-Suy luận (backend tự đo)   trên 50 ảnh: trung vị  446.8 ms, p90  476.2 ms, max  497.2 ms
-Ngoài suy luận             trên 50 ảnh: trung vị   16.5 ms, p90   19.8 ms, max   26.7 ms
+Đầu-cuối phía client       trên 50 ảnh: trung vị  463.4 ms, p90  487.9 ms, max  497.2 ms
+Suy luận (backend tự đo)   trên 50 ảnh: trung vị  445.8 ms, p90  465.8 ms, max  475.3 ms
+Ngoài suy luận             trên 50 ảnh: trung vị   17.5 ms, p90   22.1 ms, max   29.1 ms
 Đã ghi /home/mn/smartpark/src/ml/experiments/pi5_do_tre_api/do_tre_api.csv

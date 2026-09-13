@@ -47,6 +47,15 @@ def main() -> None:
     def mau(t0: float, t1: float) -> list[float]:
         return [float(m["p_tong_w"]) for m in dien if t0 <= float(m["t_unix"]) <= t1]
 
+    def dem_co(t0: float, t1: float, mat_na: int) -> int:
+        # get_throttled bit 0 sụt áp, bit 1 đang giới hạn xung, bit 2 đang hạ xung, bit 3 chạm ngưỡng nhiệt mềm.
+        # Chỉ bit 3 bật mà xung vẫn tối đa thì CPU chưa chạy chậm lại.
+        return sum(1 for m in dien if t0 <= float(m["t_unix"]) <= t1 and int(m["throttled"], 16) & mat_na)
+
+    def nhiet_do_min_5_phut_truoc(t0: float) -> float:
+        # Script chờ nhiệt độ (phần nguyên) <= 58°C tối đa 5 phút, min trong 5 phút trước cho biết có đạt không
+        return min(float(m["nhiet_do_c"]) for m in dien if t0 - 300 <= float(m["t_unix"]) < t0)
+
     p_nghi = statistics.median(mau(*moc["nghi_truoc"]) + mau(*moc["nghi_sau"]))
     hang = []
     for ten in [k for k in moc if not k.startswith("nghi_")]:
@@ -64,6 +73,11 @@ def main() -> None:
             "trung_vi_xe_may_ms": round(statistics.median(float(r["trung_vi_ms"]) for r in rows if r["nhom"] == "xe_may"), 1),
             "so_anh_chay_kieu_dang": sum(1 for r in rows if r["kieu_dang"]),
             "giay_do": round(dai, 1), "so_mau_dien": len(p),
+            "giay_tu_moc_truoc": round(t0 - max(t for _, t in moc.values() if t <= t0), 1),
+            "nhiet_do_min_5_phut_truoc_c": nhiet_do_min_5_phut_truoc(t0),
+            "nhiet_do_max_c": max(float(m["nhiet_do_c"]) for m in dien if t0 <= float(m["t_unix"]) <= t1),
+            "so_mau_sut_ap_ha_xung": dem_co(t0, t1, 0x7), "so_mau_nhiet_mem": dem_co(t0, t1, 0x8),
+            "xung_min_mhz": min(float(m["xung_mhz"]) for m in dien if t0 <= float(m["t_unix"]) <= t1),
             "p_tb_w": round(p_tb, 3), "p_nghi_w": round(p_nghi, 3),
             "e_moi_luot_j": round(p_tb * dai / so_luot, 3),
             "e_tang_them_j": round((p_tb - p_nghi) * dai / so_luot, 3),

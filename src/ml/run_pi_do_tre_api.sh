@@ -6,6 +6,9 @@
 # lượt gọi /captures/infer đều ghi dữ liệu. Backend chính được dừng trong lúc đo để
 # không tranh CPU, đo xong bật lại.
 #
+# Chờ SoC nguội dưới 58°C trước khi đo và ghi log cờ hạ xung song song, để biết số thời
+# gian có bị hạ xung làm lệch không.
+#
 # Chạy trên Pi:  bash src/ml/run_pi_do_tre_api.sh
 set -euo pipefail
 
@@ -13,12 +16,14 @@ REPO="${REPO:-$HOME/smartpark}"
 PY="${PY:-$HOME/sp-venv/bin/python}"
 OUT="${OUT:-$REPO/src/ml/experiments/pi5_do_tre_api}"
 CONG=8001
+NGUONG_NGUOI_C=58
 TAM=$(mktemp -d)
 mkdir -p "$OUT"
 
 systemctl --user stop smartpark-backend
 cleanup() {
   [ -n "${PID_BE:-}" ] && kill "$PID_BE" 2>/dev/null || true
+  [ -n "${PID_DIEN:-}" ] && kill "$PID_DIEN" 2>/dev/null || true
   rm -rf "$TAM"
   systemctl --user start smartpark-backend
 }
@@ -46,5 +51,13 @@ ADMIN_USERNAME=$(grep -E '^ADMIN_USERNAME=' .env | cut -d= -f2-)
 ADMIN_PASSWORD=$(grep -E '^ADMIN_PASSWORD=' .env | cut -d= -f2-)
 export ADMIN_USERNAME ADMIN_PASSWORD
 
+han=$((SECONDS + 300))
+while [ $(( $(cat /sys/class/thermal/thermal_zone0/temp) / 1000 )) -gt "$NGUONG_NGUOI_C" ] && [ "$SECONDS" -lt "$han" ]; do
+  sleep 5
+done
+
 cd "$REPO"
+"$PY" src/ml/pi_power_monitor.py --out "$OUT/nhat_ky_dien.csv" --interval 1.0 &
+PID_DIEN=$!
+sleep 2
 "$PY" src/ml/do_tre_api.py --url "http://127.0.0.1:$CONG" --so-vong 3 --out "$OUT/do_tre_api.csv" | tee "$OUT/do_tre_api.log"

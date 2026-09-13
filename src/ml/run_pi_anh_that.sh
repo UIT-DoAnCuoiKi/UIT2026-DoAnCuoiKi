@@ -5,6 +5,9 @@
 # mẫu, và trong mỗi mốc thời gian chỉ có vòng gọi run(), nên công suất trong mốc là của
 # riêng suy luận chứ không trộn với phần đo từng model hay từng bước.
 #
+# Trước mỗi cấu hình chờ SoC nguội dưới 58°C. Lần chạy đầu không chờ: cấu hình chạy sau
+# nóng tới 84,8°C, bị hạ xung và chậm dần qua các vòng, nên so hai cấu hình không công bằng.
+#
 # Bố cục: nghỉ 60 giây -> từng cấu hình (4 luồng) -> nghỉ 60 giây.
 # Chạy trên Pi:  bash src/ml/run_pi_anh_that.sh
 set -euo pipefail
@@ -13,6 +16,7 @@ REPO="${REPO:-$HOME/smartpark}"
 PY="${PY:-$HOME/sp-venv/bin/python}"
 OUT="${OUT:-$REPO/src/ml/experiments/pi5_anh_that}"
 SO_VONG="${SO_VONG:-5}"
+NGUONG_NGUOI_C=58
 mkdir -p "$OUT"
 cd "$REPO"
 
@@ -22,6 +26,13 @@ CAU_HINH=(
   "pt_resnet|yolov8n.pt|vehicle-style-resnet18.onnx"
 )
 
+nhiet_do() { echo $(( $(cat /sys/class/thermal/thermal_zone0/temp) / 1000 )); }
+
+cho_nguoi() {  # tối đa 5 phút
+  local han=$((SECONDS + 300))
+  while [ "$(nhiet_do)" -gt "$NGUONG_NGUOI_C" ] && [ "$SECONDS" -lt "$han" ]; do sleep 5; done
+}
+
 echo "nhan,t_bat_dau,t_ket_thuc" > "$OUT/moc_thoi_gian.csv"
 "$PY" src/ml/pi_power_monitor.py --out "$OUT/nhat_ky_dien.csv" --interval 1.0 &
 PID_DIEN=$!
@@ -30,6 +41,7 @@ sleep 3
 
 nghi() {  # nghi <nhãn>
   local t0 t1
+  cho_nguoi
   t0=$(date +%s.%N); sleep 60; t1=$(date +%s.%N)
   echo "$1,$t0,$t1" >> "$OUT/moc_thoi_gian.csv"
 }
@@ -37,6 +49,7 @@ nghi() {  # nghi <nhãn>
 nghi nghi_truoc
 for ch in "${CAU_HINH[@]}"; do
   IFS="|" read -r ten coarse style <<< "$ch"
+  cho_nguoi
   echo "### $ten bắt đầu $(date -Is)" >&2
   env ML_INTRAOP_THREADS=4 \
     ML_COARSE_WEIGHTS="src/ml/weights/$coarse" ML_STYLE_ONNX="src/ml/weights/$style" \

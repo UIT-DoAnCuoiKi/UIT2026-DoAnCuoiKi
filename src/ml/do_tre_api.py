@@ -6,8 +6,9 @@ gian nhân viên chờ sau khi bấm chụp. Chạy cùng máy với backend (lo
 độ trễ mạng LAN.
 
 Phần ngoài suy luận tính trên cùng một request: khi bật dev_mode, phản hồi có
-`timings_ms.tong` là thời gian suy luận do backend tự đo, nên
+`timings_ms.tong` là tổng thời gian các bước pipeline có bấm giờ, nên
     ngoài suy luận = thời gian phía client - timings_ms.tong
+Phần này gồm HTTP, giải mã ảnh, ghi cơ sở dữ liệu và đoạn code không bấm giờ giữa các bước.
 Không so với một lần chạy benchmark khác, vì hai lần chạy ở hai thời điểm khác nhau.
 
 Lượt đầu tiên ghi riêng: backend nạp model lười ở lượt chụp đầu nên lượt này chậm hơn hẳn.
@@ -107,7 +108,7 @@ def main() -> None:
     print(f"Lượt đầu tiên (backend nạp model): {dau['ms']:.0f} ms, HTTP {dau['http']}")
     print(f"{len(hang)} lượt, {len(hang) - len(ok)} lượt lỗi HTTP, "
           f"{sum(1 for h in ok if h['loai_xe'])} lượt có loại xe, {sum(1 for h in ok if h['bien'])} lượt có biển")
-    for nhan, truong in [("Đầu-cuối phía client", "ms"), ("Suy luận (backend tự đo)", "suy_luan_backend_ms"),
+    for nhan, truong in [("Đầu-cuối phía client", "ms"), ("Các bước suy luận (tong)", "suy_luan_backend_ms"),
                          ("Ngoài suy luận", "ngoai_suy_luan_ms")]:
         tv = trung_vi_theo_anh(truong)
         if tv:
