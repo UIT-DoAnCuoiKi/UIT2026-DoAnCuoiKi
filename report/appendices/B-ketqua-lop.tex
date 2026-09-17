@@ -1,4 +1,81 @@
 % ---------- Phụ lục B: kết quả theo từng lớp ----------
 \chapter{Kết Quả Theo Từng Lớp}
 \label{app:ketqualop}
-\wip{Bảng precision/recall/mAP theo từng lớp biển/loại xe; ma trận nhầm lẫn đầy đủ.}
+
+Phụ lục này trình bày kết quả chi tiết theo từng lớp cho các mô hình phân loại, bổ sung cho phần tóm tắt và ma trận nhầm lẫn dạng hình ở Chương~\ref{ch:phanloai}. Các giá trị precision, recall và F1 được tính trực tiếp từ ma trận nhầm lẫn trên tập kiểm tra.
+
+\section{Bước loại xe}
+
+Bảng~\ref{tab:app-type-perclass} liệt kê precision, recall và F1 từng lớp của hai kiến trúc ở bước loại xe.
+
+\begin{table}[htbp]
+\centering
+\caption{Precision, recall và F1 theo từng lớp ở bước loại xe (tập test 149 ảnh).}
+\label{tab:app-type-perclass}
+
+\vspace{4pt}
+\begin{tabular}{@{}llrrr@{}}
+\toprule
+\textbf{Mô hình} & \textbf{Lớp} & \textbf{Precision} & \textbf{Recall} & \textbf{F1} \\
+\midrule
+\multirow{3}{*}{ResNet18}
+ & Ô tô (car)        & 98,53\% & 100,00\% & 99,26\% \\
+ & Xe máy (motorbike)& 98,61\% & 100,00\% & 99,30\% \\
+ & Xe tải (truck)    & 100,00\% & 81,82\% & 90,00\% \\
+\midrule
+\multirow{3}{*}{MobileNetV3-Small}
+ & Ô tô (car)        & 97,10\% & 100,00\% & 98,53\% \\
+ & Xe máy (motorbike)& 98,59\% & 98,59\% & 98,59\% \\
+ & Xe tải (truck)    & 100,00\% & 81,82\% & 90,00\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Lớp xe tải yếu hơn do chỉ có 11 ảnh test, hai ảnh bị nhầm sang ô tô và xe máy (Bảng~\ref{tab:app-type-cm}).
+
+\begin{table}[htbp]
+\centering
+\caption{Ma trận nhầm lẫn bước loại xe (hàng: nhãn thật; cột: dự đoán).}
+\label{tab:app-type-cm}
+
+\vspace{4pt}
+\begin{tabular}{@{}lrrrcrrr@{}}
+\toprule
+& \multicolumn{3}{c}{\textbf{ResNet18}} & & \multicolumn{3}{c}{\textbf{MobileNetV3-Small}} \\
+\textbf{Thật/Dự đoán} & Ô tô & Xe máy & Xe tải & & Ô tô & Xe máy & Xe tải \\
+\midrule
+Ô tô   & 67 & 0  & 0 & & 67 & 0  & 0 \\
+Xe máy & 0  & 71 & 0 & & 1  & 70 & 0 \\
+Xe tải & 1  & 1  & 9 & & 1  & 1  & 9 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Bước kiểu dáng}
+
+Bảng~\ref{tab:app-style-perclass} liệt kê precision, recall và F1 từng lớp của hai kiến trúc ở bước kiểu dáng.
+
+\begin{table}[htbp]
+\centering
+\caption{Precision, recall và F1 theo từng lớp ở bước kiểu dáng (tập test B5, 987 ảnh).}
+\label{tab:app-style-perclass}
+
+\vspace{4pt}
+\begin{tabular}{@{}llrrr@{}}
+\toprule
+\textbf{Mô hình} & \textbf{Lớp} & \textbf{Precision} & \textbf{Recall} & \textbf{F1} \\
+\midrule
+\multirow{3}{*}{MobileNetV3-Small}
+ & Gầm cao & 87,15\% & 83,23\% & 85,15\% \\
+ & Sedan   & 91,22\% & 93,15\% & 92,18\% \\
+ & Xe tải  & 93,10\% & 96,43\% & 94,74\% \\
+\midrule
+\multirow{3}{*}{ResNet18}
+ & Gầm cao & 89,56\% & 79,64\% & 84,31\% \\
+ & Sedan   & 89,88\% & 95,25\% & 92,49\% \\
+ & Xe tải  & 91,95\% & 95,24\% & 93,57\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Ở cả hai mô hình, lớp Gầm cao yếu nhất và chủ yếu bị nhầm sang Sedan (Hình~\ref{fig:phanloai-confusion}), do crossover cỡ nhỏ có dáng gần sedan.

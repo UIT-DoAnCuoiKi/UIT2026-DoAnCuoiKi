@@ -24,6 +24,17 @@ def get_stats(
     return stats_service.summary(db, from_, to)
 
 
+@router.get("/breakdown")
+def get_breakdown(
+    from_: datetime | None = Query(None, alias="from"),
+    to: datetime | None = Query(None),
+    by: str = Query("vehicle_group"),
+    db: Session = Depends(get_db),
+    user: User = Depends(admin_only),
+) -> list[dict]:
+    return stats_service.breakdown(db, from_, to, by)
+
+
 @router.get("/export")
 def export_stats(
     from_: datetime | None = Query(None, alias="from"),

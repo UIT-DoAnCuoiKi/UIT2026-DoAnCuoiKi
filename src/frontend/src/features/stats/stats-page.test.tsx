@@ -15,6 +15,11 @@ vi.mock("@/lib/auth", async (orig) => ({
 vi.mock("./stats-export", () => ({
   downloadStatsCsv: vi.fn(),
   fetchDailyRows: vi.fn().mockResolvedValue([]),
+  fetchBreakdown: vi.fn().mockResolvedValue([]),
+}));
+vi.mock("@/lib/vehicle-groups", () => ({
+  useVehicleGroupMap: () => ({ xe_may: "Xe máy" }),
+  groupLabel: (map: Record<string, string>, code?: string | null) => (code ? map[code] ?? code : "—"),
 }));
 
 test("staff sees KPIs but not export button", () => {

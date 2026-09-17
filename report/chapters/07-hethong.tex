@@ -1,13 +1,7 @@
 % =====================================================================
 %  CHƯƠNG 7. HỆ THỐNG QUẢN LÝ BÃI GIỮ XE       | Phụ trách: Đức
-%  Ngân sách: mục tiêu 12 trang, trần 14 trang
-%  Nguồn chính:
-%    src/backend/app/models/*.py        — lược đồ bảng thật
-%    src/backend/app/routers/{captures,sessions,payments,stats}.py — logic
-%    src/backend/app/services/{fee,matching}.py   — thuật toán nghiệp vụ
-%    src/ml/pipeline/onnx_pipeline.py             — OnnxAlprPipeline
-%    docs/architecture/current-architecture.md    — kiến trúc và GAP
-%    docs/report/tuan-08.md                       — trạng thái triển khai
+%  Ngân sách: mục tiêu 6 trang. Viết high-level, không đi sâu vào mã nguồn.
+%  Nội dung dựa trên thiết kế backend (FastAPI, PostgreSQL) và dashboard (React).
 % =====================================================================
 \chapter{Hệ Thống Quản Lý Bãi Giữ Xe}
 \label{ch:hethong}
@@ -17,150 +11,119 @@
 \label{sec:kientruc}
 % -------------------------------------------------------------------
 
-Hệ thống được tổ chức theo mô hình ba lớp: lớp thu nhận ảnh tại cổng, lớp backend xử lý nghiệp vụ, và lớp cơ sở dữ liệu. Điểm khác biệt so với các giải pháp thông thường là đề tài dùng hai đường thu nhận ảnh song song cùng đổ về một backend FastAPI duy nhất, và cả hai đường dùng chung một bộ runner suy luận (Hình~\ref{fig:kientruc}).
+Hệ thống tổ chức theo ba lớp: thu nhận ảnh tại cổng, backend xử lý nghiệp vụ, và cơ sở dữ
+liệu. Điểm khác biệt là hai đường thu nhận ảnh song song cùng đổ về một backend duy nhất và
+dùng chung một bộ suy luận (Hình~\ref{fig:kientruc}). Đường thứ nhất là kiosk trên máy tính:
+giao diện cổng chụp ảnh từ webcam, gửi lên backend để suy luận ngay trong tiến trình và trả
+kết quả. Đường thứ hai là cổng tự động trên thiết bị biên: worker chạy suy luận tại chỗ rồi
+gửi kết quả kèm ảnh về backend, backend không suy luận lại mà chỉ ghi nhận và xử lý nghiệp
+vụ. Cả hai đường dùng chung một pipeline nhận diện, nên kết quả nhất quán bất kể ảnh được xử
+lý ở đâu.
 
-\textbf{Đường A (kiosk trên máy tính).} Giao diện cổng trên trình duyệt truy cập webcam của máy chủ, chụp khung hình JPEG rồi gửi tới \texttt{POST /captures/infer}. Backend nhận ảnh thô, khởi chạy \texttt{OnnxAlprPipeline.run()} trong tiến trình (in-process) và trả về kết quả suy luận. Đường này phù hợp với trạm có người trực, không cần phần cứng chuyên biệt.
-
-\textbf{Đường B (cổng tự động trên thiết bị biên).} Worker trên Raspberry Pi~5 kết nối camera và tín hiệu kích hoạt qua GPIO, chạy pipeline suy luận tại chỗ, rồi gửi payload đã suy luận kèm ảnh JPEG về \texttt{POST /captures} với header xác thực \texttt{X-Edge-Key}. Backend nhận dữ liệu mà không suy luận lại, chỉ ghi nhận và xử lý nghiệp vụ.
-
-Cả hai đường đều tái dùng \texttt{OnnxAlprPipeline} từ \texttt{src/ml/pipeline/onnx\_pipeline.py} và chia sẻ cùng lược đồ payload \texttt{PipelinePayload}. Kênh WebSocket \texttt{/gate\_ws} đẩy kết quả nhận diện về giao diện cổng theo thời gian thực.
-
-% Hình: TikZ nằm ở figures/uml-kientruc.tikz để tránh cổng dash-ligature
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.9\textwidth]{uml-kientruc.png}
-\caption{Kiến trúc tổng thể hệ thống: hai đường thu nhận ảnh cùng đổ về backend FastAPI.}
+\caption{Kiến trúc tổng thể hệ thống: hai đường thu nhận ảnh cùng đổ về một backend.}
 \label{fig:kientruc}
 
-\footnotesize Nguồn: suy từ \texttt{docs/architecture/current-architecture.md} và \texttt{src/backend/app/routers/captures.py}.
 \end{figure}
 
-% -------------------------------------------------------------------
-\section{Pipeline Nhận Diện Hợp Nhất}
-\label{sec:pipeline-unified}
-% -------------------------------------------------------------------
+Cùng một bộ mã chạy trên hai cấu hình triển khai, chọn qua cấu hình mà không sửa mã
+(Bảng~\ref{tab:cauhinh-trienkhai}): trên máy tính, các thành phần chạy trong container với
+PostgreSQL; trên Raspberry Pi~5, backend và giao diện chạy trực tiếp trên hệ điều hành với
+SQLite và tăng số luồng suy luận để tận dụng bốn nhân.
 
-Toàn bộ logic suy luận được gói trong lớp \texttt{OnnxAlprPipeline} (\texttt{src/ml/pipeline/onnx\_pipeline.py}). Lớp này nạp ba mô hình một lần khi khởi động, sau đó phương thức \texttt{run(image\_bgr)} chạy toàn chuỗi trên mỗi khung BGR và trả về dict trùng khớp lược đồ \texttt{PipelinePayload}.
+\begin{table}[htbp]
+\centering
+\caption{Hai cấu hình triển khai của hệ thống.}
+\label{tab:cauhinh-trienkhai}
 
-Bốn mô hình trong pipeline:
-\begin{enumerate}[leftmargin=*, label=(\arabic*)]
-  \item \textbf{Detector biển số} (YOLOv8n, trọng số \texttt{.pt} qua Ultralytics): phát hiện và phân loại vùng biển (biển một hàng hoặc hai hàng).
-  \item \textbf{OCR biển số} (CRNN \texttt{.onnx} qua ONNX Runtime): đọc ký tự sau khi tách dòng và chuẩn hóa; dùng bảng 37 ký tự hỗ trợ chữ ``Đ'' của biển xe máy điện.
-  \item \textbf{Phân loại loại xe} (ResNet18 \texttt{.onnx} qua ONNX Runtime): model tự huấn luyện, chạy trên cả khung hình, cho nhãn \texttt{car}/\texttt{motorbike}/\texttt{truck} (chi tiết tại Chương~\ref{ch:phanloai}).
-  \item \textbf{Phân loại kiểu dáng xe} (ResNet18 \texttt{.onnx} qua ONNX Runtime): chỉ kích hoạt khi bước~(3) ra \texttt{car} và có vùng xe đã cắt; không chạy cho xe máy hoặc xe tải.
-\end{enumerate}
+\vspace{4pt}
+\begin{tabular}{lll}
+\toprule
+\textbf{Thành phần} & \textbf{Máy tính} & \textbf{Raspberry Pi 5} \\
+\midrule
+Backend & Container FastAPI & FastAPI chạy trực tiếp \\
+Cơ sở dữ liệu & PostgreSQL & SQLite \\
+Phát hiện biển số & YOLOv8n & YOLOv8n \\
+Đọc ký tự, loại xe, kiểu dáng & ONNX Runtime & ONNX Runtime \\
+Số luồng mỗi mô hình & 1 & 4 \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-Model YOLOv8n COCO (\texttt{predict\_vehicle.detect\_vehicle\_crop}) chỉ dùng để định vị và cắt vùng xe cho bước~(4) và làm bằng chứng có xe trong khung hình; nhãn lớp COCO của nó không dùng làm loại xe (lý do đo được trình bày tại Chương~\ref{ch:phanloai}). Màu nền biển được nhận diện qua \texttt{plate\_color.process\_plate} bằng phân tích không gian màu HSV kết hợp CLAHE (chi tiết tại Chương~\ref{ch:ocr}).
-
-Thiết kế tách biệt suy luận khỏi lớp vận chuyển (transport) giúp runner không thay đổi khi chuyển giữa đường A và đường B: backend gọi \texttt{engine.infer(raw)}, edge worker gọi \texttt{pipeline.run(frame)}, kết quả cùng được serialize theo một lược đồ duy nhất trước khi ghi vào cơ sở dữ liệu qua \texttt{ingest\_reading}.
+Pipeline nạp các mô hình một lần khi khởi động rồi chạy trọn chuỗi nhận diện
+(Mục~\ref{sec:donggop}) trên mỗi khung ảnh; nhờ tách khỏi lớp vận chuyển, cùng một pipeline
+phục vụ cả kiosk lẫn worker biên.
 
 % -------------------------------------------------------------------
 \section{Cơ Sở Dữ Liệu}
 \label{sec:csdl}
 % -------------------------------------------------------------------
 
-Cơ sở dữ liệu sử dụng PostgreSQL với các mô hình SQLAlchemy. Bảng~\ref{tab:bang-chinh} liệt kê tám bảng trung tâm của hệ thống.
+Cơ sở dữ liệu tổ chức quanh tám thực thể trung tâm (Bảng~\ref{tab:bang-chinh}), với sơ đồ
+quan hệ ở Hình~\ref{fig:uml-er}. Ngoài ra còn các bảng hỗ trợ cho nhóm xe và bảng giá, vé
+tháng, danh sách trắng và đen, sự cố, thiết bị cổng và cấu hình bãi.
 
-% Nguồn: src/backend/app/models/*.py — tên bảng và trường lấy trực tiếp từ code
 \begin{table}[htbp]
 \centering
-\caption{Các bảng chính trong cơ sở dữ liệu hệ thống.}
+\caption{Các thực thể trung tâm trong cơ sở dữ liệu.}
 \label{tab:bang-chinh}
 
-\footnotesize Nguồn: suy từ \texttt{src/backend/app/models/}.
 \vspace{4pt}
-\begin{tabular}{llp{6.8cm}}
+\begin{tabular}{lp{9.5cm}}
 \toprule
-\textbf{Bảng} & \textbf{Trường chính} & \textbf{Vai trò} \\
+\textbf{Thực thể} & \textbf{Vai trò} \\
 \midrule
-\texttt{session} &
-  \texttt{plate\_hash}, \texttt{plate\_ciphertext}, \texttt{status}, \texttt{fee\_amount}, \texttt{fee\_rule\_snapshot} &
-  Phiên gửi xe; trạng thái vòng đời; phí chốt và snapshot quy tắc \\
-\texttt{plate\_reading} &
-  \texttt{capture\_id}, \texttt{direction}, \texttt{plate\_hash}, \texttt{review\_state}, \texttt{raw\_pipeline\_json} &
-  Một lượt đọc biển tại cổng; lưu kết quả pipeline \\
-\texttt{payment} &
-  \texttt{session\_id}, \texttt{amount}, \texttt{method}, \texttt{kind}, \texttt{shift\_id} &
-  Giao dịch thu tiền, hoàn trả hoặc điều chỉnh theo ca \\
-\texttt{price\_rule} &
-  \texttt{vehicle\_group}, \texttt{mode}, \texttt{unit\_price}, \texttt{block\_minutes}, \texttt{grace\_minutes}, \texttt{daily\_cap} &
-  Quy tắc tính phí theo nhóm xe \\
-\texttt{image\_asset} &
-  \texttt{path}, \texttt{encrypted}, \texttt{sha256}, \texttt{retention\_delete\_after} &
-  Ảnh toàn cảnh và ảnh cắt biển; kiểm soát xóa theo thời hạn \\
-\texttt{shift} &
-  \texttt{staff\_id}, \texttt{opened\_at}, \texttt{closed\_at}, \texttt{status} &
-  Ca trực nhân viên; gắn với giao dịch thu tiền \\
-\texttt{users} &
-  \texttt{username}, \texttt{password\_hash}, \texttt{role} &
-  Tài khoản với vai \texttt{staff}, \texttt{manager} hoặc \texttt{root} \\
-\texttt{audit\_log} &
-  \texttt{user\_id}, \texttt{action}, \texttt{entity\_type}, \texttt{entity\_id} &
-  Nhật ký hành động nhạy cảm để đối soát sau sự cố \\
+Phiên gửi xe & Vòng đời một lượt gửi xe: trạng thái, phí chốt và bản ghi quy tắc giá tại thời điểm chốt \\
+Lượt đọc biển & Một lần đọc biển tại cổng (vào hoặc ra), lưu kết quả nhận diện và trạng thái duyệt \\
+Thanh toán & Giao dịch thu tiền, hoàn trả hoặc điều chỉnh theo ca trực \\
+Quy tắc giá & Bảng giá theo nhóm xe: chế độ tính, đơn giá, khối thời gian, thời gian miễn phí, mức trần ngày \\
+Ảnh bằng chứng & Ảnh toàn cảnh và ảnh cắt biển; trạng thái mã hóa và thời hạn xóa \\
+Ca trực & Ca làm việc của nhân viên, gắn với các giao dịch thu tiền \\
+Người dùng & Tài khoản và vai (nhân viên, quản lý, quản trị) \\
+Nhật ký kiểm toán & Ghi lại các thao tác nhạy cảm để đối soát sau sự cố \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Ngoài ra, hệ thống còn có các bảng hỗ trợ: \texttt{vehicle\_group} (danh mục nhóm xe là nguồn duy nhất cho bảng giá), \texttt{monthly\_pass} (vé tháng), \texttt{plate\_whitelist} và \texttt{plate\_blacklist} (danh sách kiểm soát biển), \texttt{incident} (sự cố tại bãi), \texttt{device} (thiết bị cổng) và \texttt{parking\_lot} cùng \texttt{zone} (cấu hình bãi và khu).
-
-Sơ đồ quan hệ thực thể (entity-relationship) của các bảng trung tâm được trình bày ở Hình~\ref{fig:uml-er}.
-
-% Hình ER: TikZ nằm ở figures/uml-er.tikz
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.9\textwidth]{uml-er.png}
-\caption{Sơ đồ quan hệ thực thể (ER) các bảng trung tâm. Mũi tên nét đứt là khóa ngoại; mũi tên chấm là liên kết qua chuỗi \texttt{vehicle\_group}.}
+\caption{Sơ đồ quan hệ thực thể của các bảng trung tâm.}
 \label{fig:uml-er}
 
-\footnotesize Nguồn: suy từ \texttt{src/backend/app/models/parking\_session.py}, \texttt{plate\_reading.py}, \texttt{payment.py}, \texttt{price\_rule.py}, \texttt{image\_asset.py}, \texttt{shift.py}, \texttt{user.py}.
 \end{figure}
 
-\subsection{Bảo mật dữ liệu cá nhân}
-
-Biển số xe và ảnh phương tiện là dữ liệu cá nhân theo Luật Bảo vệ dữ liệu cá nhân có hiệu lực từ ngày 01/01/2026~\autocite{vn2025lutbvdlcn}. Hệ thống áp dụng ba biện pháp bảo vệ đồng thời.
-
-Thứ nhất, tách băm và mã hóa: trường \texttt{plate\_hash} (SHA-256 của chuỗi biển đã chuẩn hóa) chỉ dùng để đối chiếu nhanh, trong khi \texttt{plate\_ciphertext} lưu bản mã hóa đối xứng của chuỗi biển thật. Hai trường không thể kết hợp để suy ngược biển số nếu chỉ lộ một trong hai. Thiết kế này áp dụng đồng nhất cho cả bảng \texttt{session}, \texttt{plate\_reading}, \texttt{monthly\_pass}, \texttt{plate\_whitelist} và \texttt{plate\_blacklist}.
-
-Thứ hai, ảnh bằng chứng được mã hóa khi lưu (\texttt{image\_asset.encrypted = True}); đường dẫn thực không bao giờ trả về trực tiếp qua API mà truy cập qua endpoint được kiểm tra quyền.
-
-Thứ ba, worker xóa theo thời hạn: khi một phiên kết thúc, hàm \texttt{\_set\_retention} ghi trường \texttt{retention\_delete\_after} của mọi \texttt{image\_asset} liên quan bằng \texttt{exit\_time + retention\_days}. Worker nền quét định kỳ và xóa các bản ghi quá hạn, đảm bảo dữ liệu cá nhân không lưu quá thời hạn quy định.
+\textbf{Bảo mật dữ liệu cá nhân.} Biển số và ảnh phương tiện là dữ liệu cá nhân theo Luật Bảo
+vệ dữ liệu cá nhân~\autocite{vn2025lutbvdlcn}. Mỗi chuỗi biển được lưu đồng thời dạng băm (để
+đối chiếu) và dạng mã hóa (để hiển thị khi có quyền); ảnh bằng chứng được mã hóa và chỉ truy
+cập qua endpoint có kiểm tra quyền; một tiến trình nền xóa dữ liệu quá hạn tính từ lúc xe ra.
+Đối chiếu đầy đủ với nghĩa vụ theo luật ở Phụ lục~\ref{app:baomat}.
 
 % -------------------------------------------------------------------
-\section{Logic Vào/Ra và Chống Gian Lận}
+\section{Logic Vào Ra và Chống Gian Lận}
 \label{sec:logic-vaora}
 % -------------------------------------------------------------------
 
-\subsection{Trạng thái phiên và cờ đối chiếu}
+Mỗi phiên gửi xe đi qua các trạng thái: đang trong bãi, chờ xử lý thủ công (khi không đọc
+được biển), hoàn thành, và tranh chấp. Khi xe vào, hệ thống tạo phiên mới và cảnh báo nếu
+biển trùng một phiên đang trong bãi hoặc nằm trong danh sách đen.
 
-Vòng đời của một phiên gửi xe (\texttt{session}) được điều phối qua hai trường: \texttt{status} và \texttt{match\_flag}. Trường \texttt{status} nhận bốn giá trị: \texttt{in\_lot} (đang trong bãi), \texttt{pending\_manual} (cần xử lý thủ công do không đọc được biển), \texttt{completed} (đã hoàn thành), và \texttt{disputed} (tranh chấp). Trường \texttt{match\_flag} ghi lại cơ chế đối chiếu: \texttt{exact} (khớp hash chính xác), \texttt{auto\_corrected} (khớp sau sửa lỗi bằng khoảng cách chỉnh sửa), \texttt{manual} (nhân viên xác nhận thủ công), hoặc \texttt{lost\_ticket} (xe mất biên lai).
+Khi xe ra, hệ thống đối chiếu biển theo ba cấp (Hình~\ref{fig:uml-seq}). Trước hết là khớp
+chính xác qua giá trị băm; nếu không khớp, hệ thống so khoảng cách chỉnh sửa giữa chuỗi biển
+ra và các phiên đang trong bãi cùng nhóm xe, chấp nhận khi lệch không quá một ký tự (xử lý
+sai sót nhỏ của OCR); nếu vẫn không rõ ràng, hệ thống đưa danh sách ứng viên cho nhân viên
+chọn hoặc chuyển phiên sang trạng thái tranh chấp. Mỗi lượt đọc đều gắn ảnh toàn cảnh và ảnh
+cắt biển làm bằng chứng khi cần đối soát; trường hợp mất vé được xử lý thành phiên riêng có
+phí phạt và ghi nhật ký.
 
-\subsection{Luồng vào và kiểm tra trùng lặp}
-
-Khi nhân viên xác nhận lượt vào qua \texttt{POST /sessions/entry}, hệ thống kiểm tra xem \texttt{plate\_hash} của reading đó đã có phiên \texttt{in\_lot} nào chưa. Nếu có, yêu cầu thêm cờ \texttt{override\_duplicate = true} để tiếp tục; nếu thiếu cờ, hệ thống từ chối với mã \texttt{409} để tránh trường hợp đăng ký trùng. Hệ thống cũng kiểm tra danh sách đen (\texttt{plate\_blacklist}) và ghi cảnh báo vào phiên.
-
-\subsection{Đối chiếu biển khi ra}
-
-Khi xử lý lượt ra qua \texttt{POST /sessions/exit}, logic đối chiếu trong \texttt{services/matching.py} thực hiện theo ba cấp:
-\begin{enumerate}[leftmargin=*, label=(\arabic*)]
-  \item \textbf{Khớp hash chính xác:} nếu tìm được đúng một phiên \texttt{in\_lot} có \texttt{plate\_hash} bằng hash của reading ra, hệ thống đóng phiên với \texttt{match\_flag = exact}.
-  \item \textbf{Khớp tự động:} nếu không khớp hash, hệ thống tính khoảng cách chỉnh sửa (Levenshtein) giữa chuỗi biển ra và chuỗi biển của các phiên \texttt{in\_lot} cùng nhóm xe; nếu có đúng một phiên với khoảng cách không quá 1, đóng phiên với \texttt{match\_flag = auto\_corrected}.
-  \item \textbf{Đề xuất thủ công hoặc tranh chấp:} khi không tìm được kết quả rõ ràng, hệ thống hoặc trả về danh sách ứng viên để nhân viên chọn, hoặc tạo phiên trạng thái \texttt{disputed}.
-\end{enumerate}
-
-\subsection{Lưu ảnh bằng chứng và xử lý ngoại lệ}
-
-Mỗi reading đều gắn \texttt{image\_asset\_id} (ảnh toàn cảnh) và \texttt{plate\_crop\_asset\_id} (ảnh cắt vùng biển). Bộ ảnh này là bằng chứng vật lý khi phát sinh tranh chấp. Nhân viên có thể kéo phiên \texttt{disputed} về \texttt{completed} qua \texttt{POST /sessions/\{id\}/resolve} sau khi xác minh bằng ảnh. Trường hợp xe mất biên lai được xử lý qua \texttt{POST /sessions/lost-ticket}, tạo phiên riêng với phí phạt và ghi nhật ký kiểm toán.
-
-Sơ đồ tuần tự cho một lượt xe hoàn chỉnh được trình bày ở Hình~\ref{fig:uml-seq}.
-
-% Hình tuần tự: TikZ nằm ở figures/uml-seq.tikz
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.9\textwidth]{uml-seq.png}
 \caption{Sơ đồ tuần tự một lượt xe từ vào đến ra: thu nhận ảnh, tạo phiên, đối chiếu biển, tính phí và ghi thanh toán.}
 \label{fig:uml-seq}
 
-\footnotesize Nguồn: suy từ \texttt{src/backend/app/routers/captures.py} và \texttt{sessions.py}.
 \end{figure}
 
 % -------------------------------------------------------------------
@@ -168,112 +131,106 @@ Sơ đồ tuần tự cho một lượt xe hoàn chỉnh được trình bày �
 \label{sec:tinphi}
 % -------------------------------------------------------------------
 
-Quy tắc tính phí được lưu trong bảng \texttt{price\_rule}, mỗi nhóm xe (\texttt{vehicle\_group}: \texttt{xe\_may}, \texttt{o\_to\_con}, \texttt{xe\_tai}, \texttt{xe\_khach}) có một bản ghi quy tắc đang kích hoạt (\texttt{active = True}). Hàm \texttt{compute\_fee} trong \texttt{services/fee.py} hỗ trợ hai chế độ tính phí.
-
-\textbf{Chế độ phẳng (flat):} thu đúng \texttt{unit\_price} cho mỗi lượt gửi, bất kể thời gian. Phù hợp với bãi xe ngắn hạn không tính theo giờ.
-
-\textbf{Chế độ theo khối (block):} chia thời gian gửi xe thành các khối \texttt{block\_minutes} phút. Số khối được làm tròn lên (\texttt{math.ceil}), nhân với \texttt{unit\_price}. Nếu có \texttt{daily\_cap}, tổng phí bị chặn tại \texttt{daily\_cap} nhân số ngày.
-
-Trường \texttt{grace\_minutes} xác định khoảng thời gian miễn phí: nếu xe gửi ngắn hơn hoặc bằng \texttt{grace\_minutes}, phí bằng không và snapshot ghi nhận \texttt{free: True}.
-
-Khi phiên kết thúc, toàn bộ quy tắc được chốt vào trường JSON \texttt{fee\_rule\_snapshot} của phiên cùng thời điểm. Điều này đảm bảo rằng nếu bảng giá thay đổi sau đó, phí đã tính của các phiên cũ không bị ảnh hưởng và có thể đối soát bất kỳ lúc nào. Trường \texttt{updated\_by} trong \texttt{price\_rule} ghi lại người cuối cùng sửa bảng giá để phục vụ kiểm toán.
-
-Xe thuộc danh sách miễn phí (\texttt{plate\_whitelist} kết hợp kiểm tra \texttt{is\_exempt()}) được đặt phí bằng không với snapshot \texttt{\{"exempt": True\}}, tránh nhầm lẫn với phí thật sự bằng không.
+Mỗi nhóm xe (xe máy, ô tô con, xe tải, xe khách) có một quy tắc giá đang kích hoạt. Hệ thống
+hỗ trợ hai chế độ: chế độ phẳng thu cố định mỗi lượt, và chế độ theo khối thời gian nhân đơn
+giá với số khối làm tròn lên, có thể chặn tại mức trần theo ngày. Khoảng thời gian miễn phí
+đầu (grace period) cho phép ra trong ít phút mà không mất phí. Khi phiên kết thúc, toàn bộ
+quy tắc được chốt kèm phiên tại thời điểm đó, nên thay đổi bảng giá về sau không ảnh hưởng
+phí đã tính của các phiên cũ và vẫn đối soát được. Xe thuộc danh sách miễn phí được ghi rõ
+lý do miễn để phân biệt với phí thật sự bằng không.
 
 % -------------------------------------------------------------------
 \section{Dashboard Quản Lý và Thống Kê}
 \label{sec:dashboard}
 % -------------------------------------------------------------------
 
-\subsection{Phân quyền và các vai}
+Hệ thống phân ba vai người dùng cùng một tác nhân thiết bị biên
+(Bảng~\ref{tab:vaitro}, sơ đồ use case ở Hình~\ref{fig:uml-usecase}). Nhân viên xử lý nghiệp
+vụ cổng; quản lý thêm quyền cấu hình bảng giá, tra cứu thống kê và xuất dữ liệu; quản trị
+quản lý tài khoản. Thiết bị biên là tác nhân riêng, xác thực bằng khóa riêng thay vì tài
+khoản người dùng.
 
-Hệ thống phân ba vai người dùng gắn với JWT, định nghĩa tại \texttt{routers/users.py} (hằng \texttt{\_ROLES}): \texttt{staff} (nhân viên cổng, xử lý nghiệp vụ thu phí và nhập liệu thủ công), \texttt{manager} (quản lý, thêm quyền tra cứu thống kê và xuất dữ liệu) và \texttt{root} (quản trị cao nhất, quản lý tài khoản). Hàm \texttt{require\_role} tại \texttt{deps.py} chặn truy cập bằng mã 403 khi vai không đủ quyền. Endpoint \texttt{GET /stats} và \texttt{GET /stats/export} yêu cầu vai \texttt{manager} hoặc \texttt{root}; phần còn lại chỉ yêu cầu xác thực JWT hợp lệ.
+\begin{table}[htbp]
+\centering
+\caption{Các tác nhân và quyền chính trong hệ thống.}
+\label{tab:vaitro}
 
-Sơ đồ use case được trình bày ở Hình~\ref{fig:uml-usecase}.
+\vspace{4pt}
+\begin{tabular}{lp{9.5cm}}
+\toprule
+\textbf{Tác nhân} & \textbf{Quyền chính} \\
+\midrule
+Nhân viên & Chụp và nhận diện, xác nhận vào ra, thu tiền, sửa biển, mở và chốt ca, tra cứu phiên \\
+Quản lý & Toàn bộ quyền nhân viên; bảng giá, nhóm xe, vé tháng, danh sách trắng và đen, giải quyết tranh chấp, thống kê và xuất CSV, tạo tài khoản nhân viên \\
+Quản trị & Toàn bộ quyền quản lý; quản lý tài khoản vai quản lý và quản trị \\
+Thiết bị biên & Gửi kết quả nhận diện kèm ảnh và tín hiệu hoạt động; xác thực bằng khóa riêng \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-% Hình use case: TikZ nằm ở figures/uml-usecase.tikz
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.9\textwidth]{uml-usecase.png}
-\caption{Sơ đồ use case hệ thống: nhân viên thực hiện nghiệp vụ cổng; quản lý thêm quyền tra cứu và thống kê.}
+\caption{Sơ đồ use case: nhân viên thực hiện nghiệp vụ cổng, quản lý thêm quyền cấu hình và thống kê.}
 \label{fig:uml-usecase}
 
-\footnotesize Nguồn: suy từ \texttt{src/backend/app/deps.py}, \texttt{routers/sessions.py}, \texttt{routers/stats.py}.
 \end{figure}
 
-\subsection{Màn cổng và tra cứu phiên}
+Giao diện gồm bốn nhóm màn hình chính. Màn cổng chia khung vào và khung ra, hiển thị kết quả
+nhận diện theo thời gian thực: biển số, loại xe, màu nền, ảnh biển đã xử lý và phí đề xuất
+(Hình~\ref{fig:dash-gate-in}); khi xe ra, khung ra đặt ảnh lúc vào cạnh ảnh lúc ra để đối
+chiếu trước khi thu phí (Hình~\ref{fig:dash-gate-out}). Trang tra cứu phiên lọc theo nhóm xe,
+thời gian, trạng thái và cách khớp biển (Hình~\ref{fig:dash-sessions}); trang chi tiết giữ
+ảnh bằng chứng của cả hai lượt cùng phí và quy tắc giá lúc chốt
+(Hình~\ref{fig:dash-detail}). Trang thống kê tổng hợp số xe vào ra và doanh thu theo ngày,
+kèm xuất CSV (Hình~\ref{fig:dash-stats}). Trang cấu hình quản lý bảng giá, tài khoản và công
+tắc các bước AI, đồng thời nêu rõ chính sách tự xóa dữ liệu phiên sau thời hạn quy định
+(Hình~\ref{fig:dash-config}).
 
-Trang cổng (\texttt{features/gate}) cho phép nhân viên chọn camera, xem trước khung hình, chụp và gửi tới backend để suy luận. Kênh WebSocket \texttt{/gate\_ws} đẩy kết quả nhận diện về giao diện theo thời gian thực không cần làm mới trang. Bảng quyết định hiển thị biển số, nhóm xe và phí; nhân viên xác nhận cho qua hoặc mở hộp thoại thu tiền khi xe ra. Bố cục hỗ trợ phím tắt theo ngữ cảnh.
-
-Trang tra cứu phiên (\texttt{features/sessions}) cung cấp bộ lọc theo nhóm xe, khoảng thời gian vào, trạng thái phiên và cờ đối chiếu (\texttt{match\_flag}). Trang chi tiết phiên hiển thị ảnh bằng chứng, thông tin nhân viên xử lý, bãi và khu, lịch sử thanh toán, cùng snapshot quy tắc giá tại thời điểm chốt.
-
-\subsection{Thống kê và xuất dữ liệu}
-
-Endpoint \texttt{GET /stats} trả về bản tóm tắt số xe vào, số xe ra và doanh thu cho khoảng thời gian tùy chọn. Endpoint \texttt{GET /stats/export} xuất dữ liệu theo ngày ra file CSV với các cột \texttt{date}, \texttt{entries}, \texttt{exits}, \texttt{revenue}; chỉ dành cho vai quản lý và vai gốc. Trang thống kê (\texttt{features/stats}) trên giao diện hiển thị dữ liệu này và cho phép tải file CSV trực tiếp.
-
-\wip{cần ảnh chụp dashboard}
-
-% -------------------------------------------------------------------
-\section{Tích Hợp End-to-End trên PC}
-\label{sec:e2e-pc}
-% -------------------------------------------------------------------
-
-\subsection{Luồng kiosk trên máy tính}
-
-Trên máy tính, toàn bộ ngăn xếp (stack) chạy trong Podman gồm hai container frontend và backend cùng một container PostgreSQL. Trình duyệt truy cập giao diện React qua cổng 5173 (nginx proxy từ cổng 80 của container). Khi nhân viên chụp ảnh, trình duyệt gửi JPEG tới backend. Backend gọi \texttt{engine.infer(raw)}, trả về kết quả suy luận, rồi ghi \texttt{plate\_reading} và trả \texttt{CaptureResponse} về giao diện.
-
-\subsection{GAP đã biết: thiếu thư viện suy luận trong image backend}
-
-Image backend hiện được build từ context \texttt{./src/backend} và chỉ cài \texttt{requirements.txt}. Do đó:
-\begin{itemize}[leftmargin=*]
-  \item không có các gói \texttt{ultralytics}, \texttt{onnxruntime} và \texttt{torch} trong image,
-  \item không có thư mục \texttt{src/ml} (mã nguồn pipeline và trọng số mô hình) trong image.
-\end{itemize}
-
-Hệ quả là khi biến môi trường \texttt{INFERENCE\_ENGINE=ml} được bật, \texttt{POST /captures/infer} trả về lỗi 500 do thiếu phụ thuộc. Đây là GAP đã biết, được ghi nhận trong \texttt{docs/architecture/current-architecture.md}. Để vận hành đường kiosk trong container, cần dựng image \texttt{ml-backend} với context là thư mục gốc của repo, sao chép \texttt{src/ml} vào image và cài thêm \texttt{requirements-ml.txt}. Image này cũng là image dùng chung khi triển khai trên Raspberry Pi~5 theo mô hình single-box.
-
-Sơ đồ lớp các thành phần suy luận và dịch vụ được trình bày ở Hình~\ref{fig:uml-class}.
-
-% Hình lớp: TikZ nằm ở figures/uml-class.tikz
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.9\textwidth]{uml-class.png}
-\caption{Sơ đồ lớp các thành phần runner và dịch vụ: \texttt{OnnxAlprPipeline} trong \texttt{src/ml} được \texttt{InferenceEngine} của backend tải và sử dụng in-process.}
-\label{fig:uml-class}
+\includegraphics[width=0.92\textwidth]{dashboard-gate-in.png}
+\caption{Màn cổng, khung vào: kết quả nhận diện thời gian thực gồm biển số, loại xe, màu nền, ảnh biển đã xử lý và phí đề xuất.}
+\label{fig:dash-gate-in}
 
-\footnotesize Nguồn: suy từ \texttt{src/ml/pipeline/onnx\_pipeline.py} và \texttt{src/backend/app/services/inference.py}.
 \end{figure}
 
-\subsection{Độ trễ end-to-end trên PC}
-\label{subsec:e2e-pc-latency}
-
-Đề tài đo độ trễ phần tính toán của toàn pipeline suy luận trên máy tính (CPU, không GPU) bằng \texttt{src/ml/benchmark\_pipeline.py}, đúng cách backend và edge worker gọi \texttt{OnnxAlprPipeline.run()}. Phép đo dùng đồng hồ đơn điệu \texttt{time.perf\_counter()}, bỏ 5 lượt làm nóng (warm-up) rồi lấy trung vị của 30 lượt để tránh ảnh hưởng của tiến trình nền. Phạm vi đo chỉ gồm phần suy luận: không tính thời gian truyền HTTP, mã hóa JPEG hay ghi cơ sở dữ liệu (các phần này cộng thêm khi tính độ trễ nhân viên cảm nhận tại màn cổng).
-
-% Nguồn số: chạy src/ml/benchmark_pipeline.py --runs 30 --warmup 5 ngày 13 tháng 9
-% năm 2026 trên máy dev Apple M-series (ARM), 8 lõi logic, macOS; onnxruntime 1.29.0
-% CPUExecutionProvider; ML_INTRAOP_THREADS=1; ảnh 1_bomaich_detect.png (1200x600,
-% phát hiện 12 biển). Trung vị của 30 lượt sau 5 lượt warm-up. KHÔNG phải số Pi 5.
-\begin{table}[htbp]
+\begin{figure}[htbp]
 \centering
-\caption{Phân rã độ trễ theo bước của pipeline suy luận trên máy tính (CPU dev).}
-{\footnotesize Nguồn: \texttt{src/ml/benchmark\_pipeline.py} chạy ngày 13 tháng 9 năm 2026 trên máy dev CPU Apple ARM (8 lõi logic, \texttt{onnxruntime} 1.29.0 CPUExecutionProvider, \texttt{ML\_INTRAOP\_THREADS=1}); ảnh \texttt{1\_bomaich\_detect.png} (1200$\times$600, phát hiện 12 biển); trung vị 30 lượt sau 5 lượt warm-up. Số latency đo trên máy dev, không phải Raspberry Pi~5.}
-\label{tab:e2e-pc-latency}
-\begin{tabular}{lrr}
-\toprule
-\textbf{Bước trong pipeline} & \textbf{Trung vị (ms)} & \textbf{Tỉ lệ} \\
-\midrule
-Phát hiện biển số (ONNX)          & 119,6 & 39,1\% \\
-Màu biển + OCR (12 biển)          &  56,8 & 18,6\% \\
-Phân loại kiểu dáng (ResNet18)    &  48,9 & 16,0\% \\
-Phân loại loại xe (ResNet18)      &  47,7 & 15,6\% \\
-Định vị + cắt vùng xe (YOLO)      &  29,6 &  9,7\% \\
-Tiền xử lý ảnh cho classifier     &   2,9 &  1,0\% \\
-Chuyển màu BGR sang RGB           &   0,5 &  0,2\% \\
-\bottomrule
-\end{tabular}
-% Nguồn: benchmark_pipeline.py mục 2 (từng bước trong pipeline thật).
-\end{table}
+\includegraphics[width=0.92\textwidth]{dashboard-gate-out.png}
+\caption{Khung ra đối chiếu ảnh lúc vào và lúc ra của cùng một xe trước khi thu phí.}
+\label{fig:dash-gate-out}
 
-Đo toàn pipeline như một lời gọi tích hợp (Bảng~\ref{tab:e2e-pc-latency} là phép đo từng bước riêng nên phục vụ chẩn đoán, không cộng dồn thành số tích hợp), độ trễ phần tính toán đạt \textbf{trung vị 260,2 ms mỗi khung} (min 256,1 ms; max 335,2 ms). Lượt đầu tiên có nạp trọng số từ đĩa mất 315,9 ms. Tỉ số CPU-time trên thời gian đồng hồ xấp xỉ 1,1, xác nhận pipeline chạy gần như đơn luồng ở cấu hình một luồng mỗi model, không bị toả luồng quá mức.
+\end{figure}
 
-Phân rã theo bước cho thấy phát hiện biển số chiếm phần lớn nhất (38,8\%), kế đến là hai bộ phân loại ResNet18 (cộng lại 31,6\%). Bước OCR và tính màu tỉ lệ thuận với số biển trên khung: ảnh đo có 12 biển (mật độ cao bất thường so với một lượt xe điển hình chỉ có một biển), nên trên khung cổng thực tế phần này sẽ nhỏ hơn đáng kể. Kết quả này khẳng định phần tính toán trên máy tính nằm rất sâu dưới ngân sách hai giây mỗi lượt xe; tuy nhiên đây là số trên CPU máy dev, không ánh xạ trực tiếp sang Raspberry Pi~5. Độ trễ đo trực tiếp trên thiết bị biên và bảng đối chiếu PC với Pi được trình bày ở Chương~\ref{ch:trienkhai}.
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\textwidth]{dashboard-sessions.png}
+\caption{Trang tra cứu phiên: bộ lọc và danh sách phiên với biển số, thời gian vào ra, phí, cách khớp và trạng thái.}
+\label{fig:dash-sessions}
+
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.92\textwidth]{dashboard-session-detail.png}
+\caption{Chi tiết một phiên gửi xe: thông tin phiên, phân loại và ảnh bằng chứng lúc vào, lúc ra.}
+\label{fig:dash-detail}
+
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\textwidth]{dashboard-stats-new.png}
+\caption{Trang thống kê: thẻ tổng hợp, biểu đồ lưu lượng và doanh thu theo ngày, nút xuất CSV.}
+\label{fig:dash-stats}
+
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\textwidth]{dashboard-config.png}
+\caption{Trang cấu hình bảng giá theo nhóm xe, kèm ghi chú tự xóa dữ liệu phiên theo Luật Bảo vệ dữ liệu cá nhân.}
+\label{fig:dash-config}
+
+\end{figure}

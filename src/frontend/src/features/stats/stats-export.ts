@@ -13,6 +13,15 @@ export async function downloadStatsCsv(from?: string, to?: string): Promise<void
   URL.revokeObjectURL(url);
 }
 
+export type GroupCount = { group: string; count: number };
+
+export async function fetchBreakdown(from?: string, to?: string): Promise<GroupCount[]> {
+  const res = await AXIOS_INSTANCE.get("/stats/breakdown", {
+    params: { from: from || undefined, to: to || undefined },
+  });
+  return (res.data as GroupCount[]) ?? [];
+}
+
 export type DailyRow = { date: string; entries: number; exits: number; revenue: number };
 
 export async function fetchDailyRows(from?: string, to?: string): Promise<DailyRow[]> {

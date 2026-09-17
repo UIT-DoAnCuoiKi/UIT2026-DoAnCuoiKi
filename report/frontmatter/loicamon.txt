@@ -1,1 +1,6 @@
-[TODO loi cam on] Nhom xin cam on giang vien huong dan va Truong Dai hoc Cong nghe Thong tin.
+Trước hết, nhóm chúng em xin gửi lời cảm ơn chân thành đến ThS. Phan Đình Duy, giảng viên hướng dẫn, đã định hướng đề tài và góp ý cho nhóm trong suốt quá trình thực hiện.
+Nhóm xin cảm ơn quý thầy cô Khoa Khoa học Máy tính, Trường Đại học Công nghệ Thông tin, Đại học Quốc gia Thành phố Hồ Chí Minh đã truyền đạt kiến thức nền tảng trong những năm học vừa qua, giúp nhóm có đủ nền để thực hiện đồ án này.
+Nhóm cũng cảm ơn các tác giả đã công bố những bộ dữ liệu biển số và phương tiện được dùng trong đề tài, cùng gia đình và bạn bè đã động viên nhóm trong thời gian làm đồ án.
+Dù đã cố gắng, báo cáo khó tránh khỏi thiếu sót. Nhóm rất mong nhận được góp ý của quý thầy cô để hoàn thiện hơn.
+Thành phố Hồ Chí Minh, tháng 9 năm 2026
+Nguyễn Minh Nhật, Lê Quang Hoài Đức

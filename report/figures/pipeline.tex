@@ -1,10 +1,12 @@
 % Sơ đồ pipeline nhận diện phương tiện.
 % Dựng theo src/ml/pipeline/onnx_pipeline.py phương thức run():
-%   - nhánh xe:  detect_vehicle_crop (YOLOv8n COCO, .pt)
-%                  -> nếu yolo_class == "car": classifier kiểu dáng (ResNet18, ONNX)
-%   - nhánh biển: PlateDetector (YOLOv8n, .pt)
+%   - nhánh biển (chạy trước): PlateDetector (YOLOv8n)
 %                  -> process_plate (HSV + CLAHE + Otsu) -> màu nền
 %                  -> read_plate (tách dòng) -> CRNN CTC (ONNX) -> chuỗi biển
+%   - nhánh xe (chạy khi có bằng chứng xe: YOLO thấy xe HOẶC đã phát hiện biển):
+%                  detect_vehicle_crop (YOLOv8n COCO) định vị + cắt vùng xe
+%                  -> ResNet18 (ONNX) phân loại LOẠI xe (chạy trên cả khung hình)
+%                  -> nếu loại xe == ô tô: MobileNetV3-Small (ONNX) phân loại KIỂU DÁNG
 % Biên dịch riêng: xelatex pipeline.tex  (xuất pipeline.pdf, rồi sips ra .png)
 \documentclass[border=6pt]{standalone}
 \usepackage{fontspec}
@@ -28,29 +30,31 @@
 
 \node[box, fill=black!4] (in) {Khung ảnh BGR};
 
-% nhánh xe (trên)
-\node[box, above right=7mm and 14mm of in] (vdet) {Phát hiện xe\\{\footnotesize YOLOv8n COCO, .pt}};
-\node[dec, right=of vdet] (iscar) {yolo\_class\\= ``car''?};
-\node[box, right=of iscar] (style) {Phân loại kiểu dáng\\{\footnotesize ResNet18, ONNX}};
+% nhánh biển (trên) — chạy trước
+\node[box, above right=7mm and 14mm of in] (pdet) {Phát hiện biển số\\{\footnotesize YOLOv8n}};
+\node[box, right=of pdet] (proc) {Nhận màu nền\\{\footnotesize HSV + CLAHE + Otsu}\\$\rightarrow$ màu nền};
+\node[box, right=of proc] (ocr) {Đọc biển\\{\footnotesize tách dòng, CRNN CTC}\\$\rightarrow$ chuỗi biển};
 
-% nhánh biển (dưới)
-\node[box, below right=7mm and 14mm of in] (pdet) {Phát hiện biển số\\{\footnotesize YOLOv8n, .pt}};
-\node[box, right=of pdet] (proc) {Xử lý biển\\{\footnotesize HSV + CLAHE + Otsu}\\$\rightarrow$ màu nền};
-\node[box, right=of proc] (ocr) {Đọc biển\\{\footnotesize tách dòng, CRNN CTC, ONNX}\\$\rightarrow$ chuỗi biển};
+% nhánh xe (dưới) — chạy khi có bằng chứng xe
+\node[box, below right=7mm and 14mm of in] (vdet) {Định vị + cắt vùng xe\\{\footnotesize YOLOv8n COCO}};
+\node[box, right=of vdet] (vtype) {Loại xe\\{\footnotesize ResNet18, ONNX}};
+\node[dec, right=of vtype] (iscar) {loại xe\\= ô tô?};
+\node[box, right=of iscar] (style) {Kiểu dáng\\{\footnotesize MobileNetV3-Small, ONNX}};
 
 % tổng hợp kết quả, đặt bên phải, giữa hai nhánh
-\node[outbox] (res) at ($(style.east)!0.5!(ocr.east) + (34mm,0)$)
-  {Kết quả mỗi xe:\\loại xe, kiểu dáng,\\màu nền, chuỗi biển};
+\node[outbox] (res) at ($(ocr.east)!0.5!(style.east) + (30mm,0)$)
+  {Kết quả mỗi xe:\\chuỗi biển, màu nền,\\loại xe, kiểu dáng};
 
-\draw[arr] (in.north) |- (vdet.west);
-\draw[arr] (in.south) |- (pdet.west);
-\draw[arr] (vdet) -- (iscar);
-\draw[arr] (iscar) -- node[above, font=\footnotesize] {có} (style);
+\draw[arr] (in.north) |- (pdet.west);
+\draw[arr] (in.south) |- (vdet.west);
 \draw[arr] (pdet) -- (proc);
 \draw[arr] (proc) -- (ocr);
+\draw[arr] (vdet) -- (vtype);
+\draw[arr] (vtype) -- (iscar);
+\draw[arr] (iscar) -- node[above, font=\footnotesize] {có} (style);
 
-\draw[arr] (style.east) -| (res.north);
-\draw[arr] (ocr.east) -| (res.south);
+\draw[arr] (ocr.east) -| (res.north);
+\draw[arr] (style.east) -| (res.south);
 \draw[arr] (iscar.south) to[out=-90,in=180] node[pos=0.42, below, font=\footnotesize] {không} (res.west);
 
 \end{tikzpicture}

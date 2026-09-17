@@ -28,6 +28,24 @@ def summary(db: Session, start: datetime | None, end: datetime | None) -> dict:
     return {"in_lot": int(in_lot or 0), "entries": int(entries or 0), "exits": int(exits or 0), "revenue": int(revenue or 0)}
 
 
+def breakdown(db: Session, start: datetime | None, end: datetime | None, by: str = "vehicle_group") -> list[dict]:
+    """Cơ cấu số phiên theo nhóm xe (hoặc màu biển) trong khoảng thời gian.
+
+    Đếm theo giờ VÀO giống summary.entries, nên donut ăn khớp với chart lưu
+    lượng: cùng tập phiên có entry_time trong [start, end]. Phiên tranh chấp
+    không có giờ vào nên không tính vào cơ cấu, đúng như chúng không xuất hiện
+    ở đường lưu lượng."""
+    lo, hi = _bounds(start, end)
+    col = ParkingSession.color if by == "color" else ParkingSession.vehicle_group
+    rows = db.execute(
+        select(col, func.count())
+        .where(ParkingSession.entry_time.is_not(None), ParkingSession.entry_time >= lo, ParkingSession.entry_time <= hi)
+        .group_by(col)
+        .order_by(func.count().desc())
+    ).all()
+    return [{"group": (key or "unknown"), "count": int(count)} for key, count in rows]
+
+
 def daily_rows(db: Session, start: datetime | None, end: datetime | None) -> list[dict]:
     lo, hi = _bounds(start, end)
     sessions = db.scalars(select(ParkingSession)).all()

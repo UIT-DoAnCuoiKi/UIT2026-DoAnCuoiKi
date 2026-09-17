@@ -1,5 +1,88 @@
 % ---------- Phụ lục A: thông số huấn luyện chi tiết ----------
 \chapter{Thông Số Huấn Luyện Chi Tiết}
 \label{app:huanluyen}
-\wip{Bảng đầy đủ siêu tham số từng thí nghiệm (detection, OCR, phân loại); cấu hình phần cứng
-huấn luyện; lệnh/tệp cấu hình. Trích từ src/ml/experiments.csv.}
+
+Phụ lục này bổ sung siêu tham số huấn luyện cho Chương~\ref{ch:phathien}, \ref{ch:ocr} và~\ref{ch:phanloai}.
+
+\section{Phát hiện biển số (YOLOv8n và YOLO26n)}
+
+Siêu tham số chính của detector ở Bảng~\ref{tab:det-hyperparam}; Bảng~\ref{tab:app-det-aug} liệt kê bộ augmentation mặc định của Ultralytics được dùng.
+
+\begin{table}[htbp]
+\centering
+\caption{Chi tiết augmentation khi huấn luyện detector biển số.}
+\label{tab:app-det-aug}
+
+\vspace{4pt}
+\begin{tabular}{@{}p{6.5cm}p{6.5cm}@{}}
+\toprule
+\textbf{Phép biến đổi} & \textbf{Tham số} \\
+\midrule
+Biến đổi màu HSV & hue $\pm$0,015; saturation $\pm$0,70; value $\pm$0,50 \\
+Dịch chuyển (translate) & 0,10 \\
+Co giãn (scale) & 0,50 \\
+Lật ngang (fliplr) & xác suất 0,50 \\
+Mosaic (ghép 4 ảnh) & xác suất 1,00 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{OCR biển số (CRNN + CTC)}
+
+Bảng~\ref{tab:app-ocr} liệt kê cấu hình huấn luyện mô hình đọc ký tự. Mô hình cuối (seed 42) được chọn theo chỉ số CER dòng trên tập kiểm định, độc lập với tập kiểm tra, để tránh biến tập kiểm tra thành công cụ chọn mô hình.
+
+\begin{table}[htbp]
+\centering
+\caption{Siêu tham số huấn luyện mô hình OCR CRNN.}
+\label{tab:app-ocr}
+
+\vspace{4pt}
+\begin{tabular}{@{}p{5cm}p{8.5cm}@{}}
+\toprule
+\textbf{Thành phần} & \textbf{Giá trị} \\
+\midrule
+Kiến trúc & CNN 5 lớp (32, 64, 96, 96, 96 kênh) cộng BiLSTM 1 lớp (96 ẩn) cộng CTC \\
+Đầu vào & ảnh xám 1 kênh, 48$\times$128; chuỗi đặc trưng 32 bước thời gian \\
+Bảng ký tự & 36 ký tự cơ bản (0 đến 9, A đến Z); mở rộng lên 37 khi thêm ``Đ'' ở bản triển khai (Chương~\ref{ch:ocr}) \\
+Số epoch & 40 \\
+Batch size & 64 \\
+Optimizer & Adam, learning rate 0,001 \\
+Hàm mất mát & CTC \\
+Augmentation & xoay $\pm$4 độ; biến dạng phối cảnh nhẹ; chỉnh sáng $\pm$25; làm mờ Gauss 3$\times$3 (xác suất 30\%) \\
+Dữ liệu & crop thật từ bộ topkek\_plate\_ocr cộng ảnh sinh tổng hợp đã hạ cấp độ phân giải về đúng phân phối ảnh thật \\
+Seed & 42 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Phân loại phương tiện (ResNet18 và MobileNetV3-Small)}
+
+Bước loại xe và bước kiểu dáng dùng chung cấu hình huấn luyện (Bảng~\ref{tab:app-cls}), chỉ khác nguồn dữ liệu và kích thước tập. Hai kiến trúc được so sánh trong cả hai bước: ResNet18 (11.178.051 tham số) và MobileNetV3-Small (1.520.931 tham số), cùng fine-tune từ trọng số ImageNet.
+
+\begin{table}[htbp]
+\centering
+\caption{Siêu tham số huấn luyện hai bước phân loại phương tiện.}
+\label{tab:app-cls}
+
+\vspace{4pt}
+\begin{tabular}{@{}p{4.5cm}p{9cm}@{}}
+\toprule
+\textbf{Thành phần} & \textbf{Giá trị} \\
+\midrule
+Đầu vào & ảnh RGB 224$\times$224, chuẩn hóa theo thống kê ImageNet \\
+Số epoch & 15 \\
+Batch size & 32 \\
+Optimizer & Adam, learning rate 0,0001 \\
+Hàm mất mát & CrossEntropyLoss có trọng số lớp (nghịch tỉ lệ số mẫu mỗi lớp) \\
+Augmentation & cắt kèm đổi kích thước ngẫu nhiên (scale 0,8 đến 1,0); lật ngang; xoay $\pm$10 độ; thay đổi độ sáng, tương phản, bão hòa (0,2) \\
+Dữ liệu bước loại xe & bộ A1 (ô tô, xe máy, xe tải) \\
+Dữ liệu bước kiểu dáng & B5 Vehicle Body Style Dataset, gộp 12 kiểu dáng gốc thành 3 lớp \\
+Thời gian huấn luyện (loại xe) & ResNet18 2,66 phút; MobileNetV3-Small 2,62 phút \\
+Thời gian huấn luyện (kiểu dáng) & ResNet18 6,09 phút; MobileNetV3-Small 6,09 phút \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Cấu hình phần cứng}
+
+Huấn luyện mọi mô hình thực hiện trên máy tính Intel Core i7-13700K với GPU NVIDIA GeForce RTX 4070. Đo hiệu năng suy luận thực hiện trên CPU của máy tính này và trực tiếp trên Raspberry Pi~5 Model~B Rev~1.1 (16 GB RAM, Debian GNU/Linux 13, kernel 6.18.34); cấu hình đầy đủ tại Bảng~\ref{tab:moi-truong}, Chương~\ref{ch:trienkhai}.

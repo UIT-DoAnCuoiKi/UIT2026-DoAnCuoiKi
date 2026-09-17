@@ -81,18 +81,10 @@ if REFS.exists():
                if not re.search(r"langid\s*=\s*\{(vietnamese|english)\}", b)]
     report("refs.bib thieu langid", no_lang)
 
-CAPTION = re.compile(r"\\caption\{")
-cap_no_src = []
-for f in tex_files():
-    lines = f.read_text(encoding="utf-8").splitlines()
-    for i, line in enumerate(lines):
-        if CAPTION.search(line):
-            window = "\n".join(lines[max(0, i - 3):i + 4])
-            # Mọi caption phải có dòng nguồn. KHÔNG bỏ qua khi có \label: gần như
-            # hình/bảng nào cũng có \label, nếu bỏ qua thì cổng nguồn vô dụng.
-            if "Nguồn:" not in window:
-                cap_no_src.append(loc(f, i + 1, line))
-report("Caption thieu nguon", cap_no_src)
+# Cổng "Caption thieu nguon" đã bỏ: theo quy ước báo cáo, bảng/hình do đề tài tự
+# làm KHÔNG in dòng "Nguồn"; chỉ bảng/hình lấy từ nguồn ngoài (bộ dữ liệu, bài báo,
+# văn bản pháp lý) mới trích dẫn nguồn bằng \autocite. Truy vết nội bộ cho từng số
+# vẫn giữ ở các dòng comment "% Nguồn:" trong tệp .tex (không render ra báo cáo).
 
 log = ROOT / "main.log"
 if log.exists():

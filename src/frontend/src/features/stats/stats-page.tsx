@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getRole } from "@/lib/auth";
 import { formatVnd } from "@/lib/format";
-import { downloadStatsCsv, fetchDailyRows, type DailyRow } from "./stats-export";
+import { downloadStatsCsv, fetchBreakdown, fetchDailyRows, type DailyRow, type GroupCount } from "./stats-export";
+import { groupLabel, useVehicleGroupMap } from "@/lib/vehicle-groups";
 import { TrafficLineChart } from "@/components/charts/line-chart";
 import { RevenueBarChart } from "@/components/charts/bar-chart";
 import { GroupDonutChart } from "@/components/charts/donut-chart";
@@ -42,12 +43,19 @@ export function StatsPage() {
   const role = getRole();
   const isAdmin = role === "manager" || role === "root";
   const [rows, setRows] = useState<DailyRow[]>([]);
+  const [breakdown, setBreakdown] = useState<GroupCount[]>([]);
+  const groupMap = useVehicleGroupMap();
 
   useEffect(() => {
     fetchDailyRows(from, to)
       .then(setRows)
       .catch(() => setRows([]));
+    fetchBreakdown(from, to)
+      .then(setBreakdown)
+      .catch(() => setBreakdown([]));
   }, [from, to]);
+
+  const groupData = breakdown.map((b) => ({ name: groupLabel(groupMap, b.group), value: b.count }));
 
   return (
     <div className="space-y-[18px]">
@@ -133,7 +141,7 @@ export function StatsPage() {
         </SurfaceCard>
         <SurfaceCard variant="white">
           <h2 className="mb-3 text-sm font-semibold">Cơ cấu nhóm xe</h2>
-          <GroupDonutChart data={[]} />
+          <GroupDonutChart data={groupData} />
         </SurfaceCard>
       </div>
     </div>

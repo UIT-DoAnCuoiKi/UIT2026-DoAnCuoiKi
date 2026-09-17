@@ -2,19 +2,19 @@
 \chapter*{Tóm tắt nội dung}
 \addcontentsline{toc}{chapter}{Tóm tắt nội dung}
 
-\wip{Viết cuối cùng (Tuần 10), khoảng 200 đến 300 từ, 3 đến 4 đoạn theo cấu trúc mẫu:}
-\begin{itemize}[nosep]
-  \item \textbf{Bối cảnh \& vấn đề:} quản lý bãi giữ xe thủ công tại Việt Nam; nhu cầu
-        tự động hóa nhận diện phương tiện; ưu tiên triển khai trên thiết bị biên (Edge AI).
-  \item \textbf{Phương pháp:} pipeline phát hiện biển số (YOLOv8/YOLO26) $\rightarrow$ OCR
-        $\rightarrow$ phân loại loại xe (ResNet/MobileNet) + màu nền biển (HSV); CSDL, logic
-        vào/ra, đối chiếu chống gian lận, tính phí, dashboard; tối ưu ONNX + quantization.
-  \item \textbf{Kết quả (điền số thật):} độ chính xác đọc biển \ph{$>$90\%}; độ trễ
-        end-to-end \ph{$<$2 s}/lượt xe trên Raspberry Pi 5; so sánh PC vs Edge.
-  \item \textbf{Đóng góp:} hệ thống end-to-end khả chuyển + bộ dữ liệu tự thu thập +
-        bằng chứng khả thi triển khai biên chi phí thấp.
-\end{itemize}
+Đề tài
+xây dựng hệ thống quản lý bãi giữ xe thông minh nhận diện phương tiện bằng thị giác máy
+tính, thiết kế độc lập nền tảng và ưu tiên thiết bị biên (Edge AI) nhằm giảm phụ thuộc
+máy chủ và bảo vệ dữ liệu cá nhân theo Luật Bảo vệ dữ liệu cá nhân.
 
-\vspace{0.8em}
-\noindent\textbf{Từ khóa:} nhận diện biển số xe, ALPR, YOLOv8, OCR, phân loại phương tiện,
-Edge AI, Raspberry Pi 5, quản lý bãi giữ xe, thị giác máy tính.
+Hệ thống thực hiện năm bước suy luận trên cùng khung ảnh: phát hiện xe, phân loại loại
+xe và kiểu dáng, phát hiện biển số, nhận màu nền biển và đọc ký tự (OCR), với bảng ký
+tự OCR mở rộng 37 ký tự. Nghiệp vụ gồm cơ sở dữ liệu, logic vào
+ra, đối chiếu chống gian lận, tính phí và dashboard; toàn bộ pipeline xuất ONNX để dùng
+chung một bộ mã trên máy tính lẫn Raspberry Pi 5.
+
+Phát hiện biển đạt mAP@0,5 bằng 0,983 sau khử trùng lặp gần; OCR đọc đúng cả biển
+91,9\% trên tập ảnh camera cổng, 80,2\% và 56,6\% trên hai tập độc lập; phân loại loại
+xe 98,66\% (ResNet18) và kiểu dáng 90,07\% (MobileNetV3-Small). Trên Raspberry Pi 5, độ
+trễ đầu cuối trung vị 0,464 giây mỗi lượt xe, dưới ngưỡng hai giây, kết quả khớp tuyệt
+đối máy tính trên toàn bộ ảnh cổng thử nghiệm.

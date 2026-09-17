@@ -1,5 +1,39 @@
 % ---------- Phụ lục C: tuân thủ bảo vệ dữ liệu cá nhân ----------
 \chapter{Tuân Thủ Bảo Vệ Dữ Liệu Cá Nhân}
 \label{app:baomat}
-\wip{Đối chiếu thiết kế hệ thống với Luật Bảo vệ dữ liệu cá nhân (hiệu lực 01/01/2026):
-kiểm soát truy cập, mã hóa trường nhạy cảm, tự động xóa dữ liệu sau thời hạn kể từ khi xe rời bãi.}
+
+Biển số xe và ảnh phương tiện là dữ liệu cá nhân theo Luật Bảo vệ dữ liệu cá nhân (Luật số
+91/2025/QH15, hiệu lực từ ngày 01/01/2026)~\autocite{vn2025lutbvdlcn}. Phụ lục này đối chiếu
+các nhóm nghĩa vụ chính của luật với biện pháp kỹ thuật đã hiện thực trong hệ thống; phần
+thân bài trình bày chi tiết tại Mục~\ref{sec:csdl}.
+
+\begin{table}[htbp]
+\centering
+\caption{Đối chiếu nghĩa vụ bảo vệ dữ liệu cá nhân với biện pháp kỹ thuật của hệ thống.}
+\label{tab:baomat-mapping}
+
+\vspace{4pt}
+\begin{tabular}{p{4cm}p{9cm}}
+\toprule
+\textbf{Nghĩa vụ theo luật} & \textbf{Biện pháp kỹ thuật} \\
+\midrule
+Kiểm soát truy cập dữ liệu cá nhân &
+  Xác thực bắt buộc cho mọi chức năng nghiệp vụ; phân ba vai nhân viên, quản lý và quản trị, chặn truy cập trái quyền bằng mã 403; thống kê và xuất CSV chỉ dành cho quản lý và quản trị. \\
+\midrule
+Bảo mật chuỗi biển số &
+  Lưu song song một trường băm (đối chiếu nhanh, không giải ngược được) và một trường mã hóa đối xứng của chuỗi biển thật; áp dụng đồng nhất cho mọi bảng có chứa biển số. \\
+\midrule
+Bảo mật ảnh phương tiện &
+  Ảnh toàn cảnh và ảnh cắt biển được mã hóa khi lưu; đường dẫn thực không trả trực tiếp mà truy cập qua chức năng có kiểm tra quyền và ghi nhật ký. \\
+\midrule
+Hạn chế thời gian lưu trữ &
+  Khi phiên kết thúc, mỗi ảnh được đặt thời hạn xóa bằng thời điểm xe ra cộng số ngày lưu (mặc định 30 ngày); một tiến trình nền quét định kỳ và xóa bản ghi cùng file ảnh quá hạn. \\
+\midrule
+Truy vết và đối soát &
+  Nhật ký kiểm toán ghi lại người thực hiện, hành động và đối tượng cho các thao tác nhạy cảm (sửa biển thủ công, truy cập ảnh, thay bảng giá). \\
+\midrule
+Hạn chế xử lý sinh trắc &
+  Hệ thống không thực hiện nhận dạng khuôn mặt tự động; ảnh chỉ phục vụ nhân viên đối chiếu bằng mắt khi có tranh chấp. \\
+\bottomrule
+\end{tabular}
+\end{table}

@@ -28,16 +28,23 @@
 \pagenumbering{roman}
 \setcounter{page}{1}
 
-\input{frontmatter/abstract}       % Tóm tắt nội dung + Từ khóa
+\input{frontmatter/loicamon}        % Lời cảm ơn
 
 \tableofcontents
 \listoffigures
 \listoftables
 
+\input{frontmatter/vietat}          % Danh mục từ viết tắt
+
 % ============================ MAIN MATTER ============================
+% Tóm tắt là mốc bắt đầu đánh số Ả Rập (trang 1) theo hình thức BieuMau. Đặt
+% abstract SAU các danh mục để đúng thứ tự front matter; postprocess.py cắt mọi
+% thứ trước heading "Tóm tắt" khỏi body.docx nên vietat không bị lặp trong DOCX.
 \cleardoublepage
 \pagenumbering{arabic}
 \setcounter{page}{1}
+
+\input{frontmatter/abstract}       % Tóm tắt nội dung + Từ khóa
 
 \input{chapters/01-gioithieu}      % Chương 1: Giới thiệu
 \input{chapters/02-lienquan}       % Chương 2: Tổng quan công trình liên quan
