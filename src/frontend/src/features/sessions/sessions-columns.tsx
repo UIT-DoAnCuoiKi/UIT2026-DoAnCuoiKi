@@ -22,6 +22,11 @@ export const sessionColumns: ColumnDef<SessionListItem, unknown>[] = [
     ),
   },
   {
+    header: "Mã phiếu",
+    accessorKey: "code",
+    cell: ({ row }) => <span className="tnum text-muted">{row.original.code ?? "—"}</span>,
+  },
+  {
     header: "Nhóm xe",
     accessorKey: "vehicle_group",
     cell: ({ row }) => <GroupCell code={row.original.vehicle_group} />,

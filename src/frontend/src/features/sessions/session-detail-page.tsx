@@ -263,6 +263,7 @@ export function SessionDetailPage() {
               );
             })()}
           </Field>
+          <Field label="Mã phiếu">{data.code ?? "—"}</Field>
           <Field label="Giờ vào">{formatDateTime(data.entry_time)}</Field>
           <Field label="Giờ ra">{formatDateTime(data.exit_time)}</Field>
           <Field label="Thời lượng">{formatDuration(data.entry_time, data.exit_time)}</Field>

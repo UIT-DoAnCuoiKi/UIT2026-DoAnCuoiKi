@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { formatDateTime, formatMinutes, formatVnd } from "@/lib/format";
 import { paymentMethodLabel } from "@/lib/labels";
+import { usePrintOnly } from "./use-print-only";
 
 export function Receipt({
   sessionId,
@@ -20,9 +21,10 @@ export function Receipt({
   exitTime?: string | null;
   minutes?: number | null;
 }) {
+  const { ref, print } = usePrintOnly();
   return (
     <div className="space-y-2">
-      <div className="rounded-[var(--radius-control)] border border-line p-4 text-[13px]" data-receipt>
+      <div ref={ref} className="rounded-[var(--radius-control)] border border-line p-4 text-[13px]" data-receipt>
         <p className="text-center text-sm font-semibold">Biên lai gửi xe</p>
         <p>Mã phiên: #{sessionId}</p>
         <p>Biển số: {plate ?? "—"}</p>
@@ -32,7 +34,7 @@ export function Receipt({
         <p>Phí: <span className="tnum">{formatVnd(amount)}</span></p>
         <p>Phương thức: {paymentMethodLabel(method)}</p>
       </div>
-      <Button variant="outline" onClick={() => window.print()}>
+      <Button variant="outline" onClick={print}>
         In phiếu
       </Button>
     </div>

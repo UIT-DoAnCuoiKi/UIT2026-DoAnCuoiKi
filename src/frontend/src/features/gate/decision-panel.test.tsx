@@ -19,6 +19,7 @@ vi.mock("@/api/generated/sessions/sessions", () => ({
   useConfirmEntry: () => ({ mutateAsync: confirmEntry, isPending: false }),
   useConfirmExit: () => ({ mutateAsync: confirmExit, isPending: false }),
   usePreviewExit: () => ({ mutateAsync: previewExit, isPending: false }),
+  useListSessions: () => ({ data: { items: [], total: 0 } }),
   useManualSession: () => ({ mutateAsync: manualFn, isPending: false }),
 }));
 vi.mock("@/api/generated/readings/readings", () => ({

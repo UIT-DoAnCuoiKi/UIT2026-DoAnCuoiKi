@@ -57,7 +57,7 @@ export function CameraView({
       {streaming ? (
         <>
           <video ref={videoRef} autoPlay muted playsInline className="h-full w-full object-cover" />
-          <div className="absolute inset-x-0 top-0 flex items-center gap-2 bg-gradient-to-b from-black/55 to-transparent p-2">
+          <div className="absolute inset-x-0 top-0 flex flex-wrap items-center gap-1.5 bg-gradient-to-b from-black/55 to-transparent p-2">
             <select
               aria-label="Chọn camera"
               className="h-8 min-w-0 flex-1 rounded-[var(--radius-control)] border border-line bg-bg/90 px-2 text-[12px]"

@@ -21,3 +21,14 @@ test("formatPlate uppercases and trims", () => {
   expect(formatPlate(" 51f-12345 ")).toBe("51F-12345");
   expect(formatPlate(null)).toBe("—");
 });
+
+test("chuoi khong co mui gio duoc hieu la UTC", () => {
+  // 13:26 UTC = 20:26 giờ Việt Nam; trước đây hiển thị thành 13:26.
+  const co_z = formatDateTime("2026-09-17T13:26:00Z");
+  const khong_z = formatDateTime("2026-09-17T13:26:00");
+  expect(khong_z).toBe(co_z);
+});
+
+test("thoi luong tinh dung khi mot dau co Z mot dau khong", () => {
+  expect(formatDuration("2026-09-17T13:00:00", "2026-09-17T14:30:00Z")).toBe("1 giờ 30 phút");
+});

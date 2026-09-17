@@ -113,3 +113,29 @@
     }
   }
 }
+
+/* Khi in phiếu gửi xe hoặc biên lai: chỉ in đúng mảnh giấy đó, không in cả màn cổng.
+   Máy in nhiệt ở trạm cổng thường dùng khổ giấy hẹp nên đặt bề rộng theo 80 mm. */
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  [data-print-now],
+  [data-print-now] * {
+    visibility: visible !important;
+  }
+  [data-print-now] {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 72mm;
+    border: 0 !important;
+    padding: 0 !important;
+  }
+  /* Khổ 80 mm là cỡ giấy phổ biến của máy in nhiệt ở quầy; Chrome không nhận
+     chiều cao auto nên đặt chiều cao cố định vừa một phiếu. */
+  @page {
+    size: 80mm 120mm;
+    margin: 3mm;
+  }
+}
