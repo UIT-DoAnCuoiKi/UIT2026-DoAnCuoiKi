@@ -274,9 +274,9 @@ export const GatePanel = forwardRef<
   return (
     <div
       onClick={onActivate}
-      className={active ? "h-full rounded-[var(--radius-card)] ring-2 ring-ink" : "h-full"}
+      className={active ? "lg:h-full rounded-[var(--radius-card)] ring-2 ring-ink" : "lg:h-full"}
     >
-      <SurfaceCard variant="white" className="flex h-full flex-col gap-3 overflow-hidden">
+      <SurfaceCard variant="white" className="flex flex-col gap-3 overflow-hidden lg:h-full">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-sm font-semibold">
             {direction === "in" ? "Hướng VÀO" : "Hướng RA"}
@@ -293,12 +293,12 @@ export const GatePanel = forwardRef<
             bên trong DecisionPanel). Cùng một bố cục cho cả 2 chế độ hiển thị:
             chia đôi thì mỗi panel hẹp hơn nhưng thứ tự ưu tiên vẫn y hệt. */}
         <div
-          className={`grid shrink-0 grid-cols-2 gap-2 ${wide ? "h-[34dvh]" : "h-[22dvh]"}`}
+          className={`grid shrink-0 grid-cols-2 gap-2 h-[26vh] min-h-[150px] ${wide ? "lg:h-[34dvh]" : "lg:h-[22dvh]"}`}
         >
           {cameraFigure}
           {captureFigure}
         </div>
-        <div className="min-h-0 flex-1">{decisionArea}</div>
+        <div className="lg:min-h-0 lg:flex-1">{decisionArea}</div>
       </SurfaceCard>
     </div>
   );

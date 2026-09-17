@@ -9,6 +9,12 @@ const dt = new Intl.DateTimeFormat("vi-VN", {
   minute: "2-digit",
 });
 
+/** Backend lưu giờ UTC nhưng trả chuỗi không kèm Z, thiếu nó thì trình duyệt
+    hiểu nhầm thành giờ địa phương và hiển thị sớm hơn đúng phần chênh múi giờ. */
+function parseUtc(iso: string): Date {
+  return new Date(/(Z|[+-]\d{2}:?\d{2})$/.test(iso) ? iso : `${iso}Z`);
+}
+
 export function formatVnd(n: number | null | undefined): string {
   if (n === null || n === undefined) return DASH;
   return vnd.format(n);
@@ -16,14 +22,14 @@ export function formatVnd(n: number | null | undefined): string {
 
 export function formatDateTime(iso?: string | null): string {
   if (!iso) return DASH;
-  const d = new Date(iso);
+  const d = parseUtc(iso);
   if (Number.isNaN(d.getTime())) return DASH;
   return dt.format(d);
 }
 
 export function formatDuration(startISO?: string | null, endISO?: string | null): string {
   if (!startISO || !endISO) return DASH;
-  const ms = new Date(endISO).getTime() - new Date(startISO).getTime();
+  const ms = parseUtc(endISO).getTime() - parseUtc(startISO).getTime();
   if (!Number.isFinite(ms) || ms < 0) return DASH;
   const mins = Math.floor(ms / 60000);
   const h = Math.floor(mins / 60);

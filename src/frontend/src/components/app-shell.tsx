@@ -18,7 +18,7 @@ export function AppShell() {
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar onToggleSidebar={() => setCollapsed((c) => !c)} />
-        <main className="min-h-0 flex-1 overflow-auto p-6">
+        <main className="min-h-0 flex-1 overflow-auto p-3 sm:p-6">
           <Outlet />
         </main>
       </div>

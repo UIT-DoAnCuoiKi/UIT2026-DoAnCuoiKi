@@ -1,6 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { toast } from "sonner";
-import { useConfirmEntry, useConfirmExit, useManualSession, usePreviewExit } from "@/api/generated/sessions/sessions";
+import { useConfirmEntry, useConfirmExit, useListSessions, useManualSession, usePreviewExit } from "@/api/generated/sessions/sessions";
 import type { ExitPreview } from "@/api/generated/model";
 import { usePatchPlate } from "@/api/generated/readings/readings";
 import { useCreatePayment } from "@/api/generated/payments/payments";
@@ -10,12 +10,15 @@ import type { GateCapture } from "./use-gate-socket";
 import { PlateField } from "@/components/plate-field";
 import { StatusChip } from "@/components/status-chip";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { RecognitionResult } from "./recognition-result";
 import { ExitReview, feeExplanation } from "./exit-review";
 import { PayRow, PAY_METHODS } from "./pay-row";
+import { Ticket } from "./ticket";
+import { AXIOS_INSTANCE } from "@/api/axios-instance";
 import { VEHICLE_TYPE_OPTIONS, vehicleTypeLabel } from "@/lib/labels";
 import { groupForVehicleType } from "@/lib/vehicle-groups";
-import { formatVnd } from "@/lib/format";
+import { formatDateTime, formatVnd } from "@/lib/format";
 import { PLATE_COLOR_OPTIONS, plateColor } from "./plate-color";
 
 export type DecisionPanelHandle = {
@@ -79,6 +82,21 @@ export const DecisionPanel = forwardRef<DecisionPanelHandle, Props>(function Dec
   // Kết quả tính thử lượt RA: hiện đối chiếu ảnh vào/ra + phí dự tính, phiên chưa đóng.
   const [exitPreview, setExitPreview] = useState<ExitPreview | null>(null);
   const [dupBlocked, setDupBlocked] = useState(false);
+  // Phiếu in sau khi xe vào, và mã quét lại ở làn ra.
+  const [ticket, setTicket] = useState<{ code: string; plate?: string | null; entryTime?: string | null } | null>(null);
+  const [scanCode, setScanCode] = useState("");
+  const { data: inLot } = useListSessions(
+    { status: "in_lot", limit: 200 },
+    { query: { enabled: direction === "out" } },
+  );
+  // Gõ vài ký tự biển số hoặc phần đuôi mã là ra ngay xe cần cho ra, khỏi gõ hết mã.
+  const goiY = (() => {
+    const key = scanCode.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (key.length < 2) return [];
+    return (inLot?.items ?? [])
+      .filter((s) => ((s.code ?? "") + (s.plate_text ?? "")).toUpperCase().replace(/[^A-Z0-9]/g, "").includes(key))
+      .slice(0, 5);
+  })();
   const [payFor, setPayFor] = useState<{
     sessionId: number;
     amount: number;
@@ -107,8 +125,8 @@ export const DecisionPanel = forwardRef<DecisionPanelHandle, Props>(function Dec
   }, [capture.reading_id]);
 
   useEffect(() => {
-    onPayOpenChange?.(payFor !== null);
-  }, [payFor, onPayOpenChange]);
+    onPayOpenChange?.(payFor !== null || ticket !== null);
+  }, [payFor, ticket, onPayOpenChange]);
 
   const busy =
     confirmEntry.isPending ||
@@ -175,7 +193,9 @@ export const DecisionPanel = forwardRef<DecisionPanelHandle, Props>(function Dec
       // session.warning; hiện cho nhân viên biết vẫn cần lưu ý dù đã cho vào.
       if (session?.warning) toast.warning(session.warning);
       else toast.success(plateTrim ? "Đã xác nhận VÀO" : "Đã tạo phiên chờ (vào không biển)");
-      onDone();
+      // Có mã phiếu thì dừng lại ở phiếu để nhân viên in đưa khách, rồi mới đóng.
+      if (session?.code) setTicket({ code: session.code, plate: session.plate_text, entryTime: session.entry_time });
+      else onDone();
     } catch (e) {
       // BE trả 409 cho hai nguyên nhân khác nhau, phân biệt bằng error_code:
       // đoán theo mỗi mã HTTP sẽ báo nhầm "biển trùng" khi thật ra là bãi đầy,
@@ -192,6 +212,30 @@ export const DecisionPanel = forwardRef<DecisionPanelHandle, Props>(function Dec
       }
     } finally {
       inFlight.current = false;
+    }
+  };
+
+  /** Quét mã phiếu ở làn ra: mã chỉ ra đúng phiên, biển số còn lại là kiểm tra chéo. */
+  const doScanCode = async (sessionId?: number) => {
+    if (sessionId) {
+      setScanCode("");
+      await doExitPreview(sessionId);
+      return;
+    }
+    const code = scanCode.trim();
+    if (!code || busy || inFlight.current) return;
+    if (goiY.length === 1) {          // gõ dở nhưng chỉ còn đúng một xe khớp
+      setScanCode("");
+      await doExitPreview(goiY[0].id);
+      return;
+    }
+    try {
+      const { data } = await AXIOS_INSTANCE.get<{ id: number }>(`/sessions/by-code/${encodeURIComponent(code)}`);
+      setScanCode("");
+      await doExitPreview(data.id);
+    } catch (e) {
+      const status = (e as { response?: { status?: number } })?.response?.status;
+      toast.error(status === 404 ? "Không có xe nào trong bãi khớp mã phiếu" : "Không tra được mã phiếu");
     }
   };
 
@@ -320,7 +364,9 @@ export const DecisionPanel = forwardRef<DecisionPanelHandle, Props>(function Dec
 
   useImperativeHandle(ref, () => ({
     confirm: () => {
-      if (payFor) {
+      if (ticket) {
+        onDone();
+      } else if (payFor) {
         if (paid) onDone();
         else confirmPay();
       } else {
@@ -330,7 +376,9 @@ export const DecisionPanel = forwardRef<DecisionPanelHandle, Props>(function Dec
     manual: () => setManualOpen(true),
     reset: resetEdits,
     cancel: () => {
-      if (payFor) {
+      if (ticket) {
+        onDone();
+      } else if (payFor) {
         if (!paid) setPayFor(null);
       } else if (exitPreview) {
         setExitPreview(null);
@@ -349,6 +397,21 @@ export const DecisionPanel = forwardRef<DecisionPanelHandle, Props>(function Dec
 
   const entryDisabled = busy || !plateTrim;
   const exitDisabled = busy;
+
+  if (ticket) {
+    return (
+      <Ticket
+        code={ticket.code}
+        plate={ticket.plate}
+        entryTime={ticket.entryTime}
+        vehicleLabel={vehicleTypeLabel(vType)}
+        onDone={() => {
+          setTicket(null);
+          onDone();
+        }}
+      />
+    );
+  }
 
   // Đối chiếu vào/ra trước khi chốt: chiếm trọn panel để ảnh đủ to mà nhìn.
   if (exitPreview) {
@@ -386,8 +449,46 @@ export const DecisionPanel = forwardRef<DecisionPanelHandle, Props>(function Dec
   // thanh thao tác chính ghim đáy nên biển số và nút xác nhận không bao giờ bị
   // đẩy khỏi màn hình, trước đây nhân viên phải cuộn mới bấm được nút chính.
   return (
-    <div className="flex h-full min-h-0 flex-col gap-2">
-      <div className="min-h-0 flex-1 space-y-2 overflow-auto">
+    <div className="flex flex-col gap-2 lg:h-full lg:min-h-0">
+      <div className="space-y-2 lg:min-h-0 lg:flex-1 lg:overflow-auto">
+        {direction === "out" && (
+          <div className="flex items-end gap-2">
+            <Input
+              id={`scan-${direction}`}
+              value={scanCode}
+              onChange={(e) => setScanCode(e.target.value.toUpperCase())}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void doScanCode();
+                }
+              }}
+              placeholder="Quét mã phiếu hoặc nhập tay"
+              className="h-9 flex-1 tnum"
+              aria-label="Mã phiếu gửi xe"
+            />
+            <Button variant="outline" className="h-9" onClick={() => void doScanCode()} disabled={busy || !scanCode.trim()}>
+              Tra mã
+            </Button>
+          </div>
+        )}
+        {direction === "out" && goiY.length > 0 && (
+          <ul className="space-y-1" aria-label="Gợi ý xe trong bãi">
+            {goiY.map((s) => (
+              <li key={s.id}>
+                <button
+                  type="button"
+                  className="w-full rounded-[var(--radius-control)] border border-line px-2 py-1.5 text-left text-[13px] hover:bg-surface"
+                  onClick={() => void doScanCode(s.id)}
+                >
+                  <span className="font-medium">{s.plate_text ?? "—"}</span>
+                  <span className="ml-2 tnum text-muted">{s.code}</span>
+                  <span className="ml-2 text-muted">vào {formatDateTime(s.entry_time)}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
         <div className="flex items-center justify-between gap-2">
           <StatusChip kind="review" value={state} />
           <div className="flex items-center gap-2">

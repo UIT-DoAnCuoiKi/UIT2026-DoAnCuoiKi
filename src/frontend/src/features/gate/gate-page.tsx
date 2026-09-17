@@ -117,7 +117,7 @@ export function GatePage() {
   const showOut = layout === "split" || layout === "out";
 
   return (
-    <div className="flex h-full flex-col gap-[14px]">
+    <div className="flex flex-col gap-[14px] lg:h-full">
       {degraded && (
         <div role="status" className="rounded-[var(--radius-control)] bg-tile-peri px-4 py-2 text-[13px] text-[#1c1c1c]">
           Mất kết nối realtime. Đang dùng chế độ dự phòng (polling).
@@ -175,8 +175,8 @@ export function GatePage() {
       <div
         className={
           layout === "split"
-            ? "grid min-h-0 flex-1 grid-rows-1 grid-cols-1 gap-[14px] lg:grid-cols-2"
-            : "grid min-h-0 flex-1 grid-rows-1 grid-cols-1 gap-[14px]"
+            ? "grid grid-cols-1 gap-[14px] lg:min-h-0 lg:flex-1 lg:grid-rows-1 lg:grid-cols-2"
+            : "grid grid-cols-1 gap-[14px] lg:min-h-0 lg:flex-1 lg:grid-rows-1"
         }
       >
         {showIn && (

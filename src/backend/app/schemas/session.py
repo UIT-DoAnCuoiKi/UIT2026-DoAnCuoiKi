@@ -49,6 +49,7 @@ class SessionPatch(BaseModel):
 
 class SessionOut(BaseModel):
     id: int
+    code: str | None = None   # mã in trên phiếu vào, 8 ký tự đầu của uuid phiên
     status: str
     vehicle_group: str | None = None
     color: str | None = None

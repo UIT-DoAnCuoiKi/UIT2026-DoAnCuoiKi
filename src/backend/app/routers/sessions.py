@@ -27,10 +27,26 @@ from app.services.vehicle_groups import group_for
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 
 
+def _ticket_code(s: ParkingSession, plate_text: str | None = None) -> str | None:
+    """Mã in trên phiếu vào, dạng BIENSO-XXXXX.
+
+    Phần đầu là biển số bỏ dấu phân cách để nhân viên gõ tay nhanh và đoán được
+    ngay xe nào; phần sau lấy từ uuid của phiên nên không đoán được, tránh việc
+    chỉ nhìn biển số là dựng lại được mã. Dùng dấu nối vì mã vạch Code39 trên
+    phiếu không mã hóa được dấu gạch dưới.
+    """
+    if not s.uuid:
+        return None
+    suffix = s.uuid.replace("-", "")[:5].upper()
+    norm = normalize_plate(plate_text) if plate_text else ""
+    return f"{norm}-{suffix}" if norm else suffix
+
+
 def _session_out(s: ParkingSession, warning: str | None = None) -> SessionOut:
     text = crypto.decrypt_text(s.plate_ciphertext) if s.plate_ciphertext else None
     return SessionOut(
         id=s.id,
+        code=_ticket_code(s, text),
         status=s.status,
         vehicle_group=s.vehicle_group or None,
         color=s.color,
@@ -476,6 +492,26 @@ def lost_ticket(body: LostTicketRequest, db: Session = Depends(get_db), user: Us
     db.refresh(session)
     enqueue_session(db, session)
     return _session_out(session)
+
+
+@router.get("/by-code/{code}", response_model=SessionOut)
+def session_by_code(code: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)) -> SessionOut:
+    """Tra phiên đang trong bãi theo mã phiếu quét được ở làn ra.
+
+    Nhận cả mã đầy đủ in trên phiếu (BIENSO-XXXXX) lẫn riêng phần đuôi, vì nhân
+    viên gõ tay thường chỉ gõ phần đuôi khi biển số đã hiện trên màn hình.
+    """
+    key = code.strip().upper()
+    suffix = key.rsplit("-", 1)[-1]   # phần ngẫu nhiên; bỏ phần biển số nếu có
+    if len(suffix) < 5:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "mã phiếu phải có ít nhất 5 ký tự phần đuôi")
+    in_lot = db.scalars(select(ParkingSession).where(ParkingSession.status == "in_lot")).all()
+    hits = [s for s in in_lot if s.uuid and s.uuid.replace("-", "").upper().startswith(suffix)]
+    if not hits:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "không có phiên nào trong bãi khớp mã phiếu")
+    if len(hits) > 1:
+        raise HTTPException(status.HTTP_409_CONFLICT, "mã phiếu khớp nhiều phiên, cần quét đủ mã")
+    return _session_out(hits[0])
 
 
 @router.get("/overstay", response_model=list[SessionOut])

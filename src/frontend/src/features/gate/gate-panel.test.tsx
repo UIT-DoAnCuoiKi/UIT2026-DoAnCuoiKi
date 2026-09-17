@@ -43,6 +43,7 @@ vi.mock("@/api/generated/sessions/sessions", () => ({
   useConfirmExit: () => ({ mutateAsync: vi.fn(), isPending: false }),
   usePreviewExit: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useManualSession: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useListSessions: () => ({ data: { items: [], total: 0 } }),
 }));
 vi.mock("@/api/generated/readings/readings", () => ({ usePatchPlate: () => ({ mutateAsync: vi.fn(), isPending: false }) }));
 vi.mock("@/api/generated/payments/payments", () => ({ useCreatePayment: () => ({ mutateAsync: vi.fn(), isPending: false }) }));
