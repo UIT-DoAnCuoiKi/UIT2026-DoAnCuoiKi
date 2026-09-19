@@ -8,11 +8,17 @@ const pct = (v?: number | null) => (v == null ? null : `${Math.round(v * 100)}%`
 // Ảnh khung hình và các trường sửa tay (loại xe, màu biển, nhóm phí) nằm ở
 // DecisionPanel; component này chỉ tóm tắt độ tin và cảnh báo.
 export function RecognitionResult({ capture }: { capture: GateCapture }) {
+  const det = pct(capture.det_conf);
   const ocr = pct(capture.ocr_conf);
   const color = pct(capture.color_conf);
   return (
     <>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-muted">
+        {det && (
+          <span>
+            Độ tin phát hiện biển: <span className="font-medium text-ink">{det}</span>
+          </span>
+        )}
         {ocr && (
           <span>
             Độ tin OCR: <span className="font-medium text-ink">{ocr}</span>

@@ -44,6 +44,7 @@ class CaptureResponse(BaseModel):
     vehicle_type: str | None = None
     vehicle_group: str | None = None
     color: str | None = None
+    det_conf: float | None = None
     ocr_conf: float | None = None
     color_conf: float | None = None
     image_asset_id: int | None = None

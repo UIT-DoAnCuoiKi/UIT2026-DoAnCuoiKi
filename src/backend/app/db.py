@@ -19,3 +19,8 @@ def get_db() -> Iterator[Session]:
         yield db
     finally:
         db.close()
+
+
+def db_session_factory() -> type[Session]:
+    """Cho handler sống lâu (WebSocket) tự mở và đóng session, thay vì Depends(get_db) giữ connection tới hết handler."""
+    return SessionLocal

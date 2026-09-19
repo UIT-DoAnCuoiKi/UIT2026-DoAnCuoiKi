@@ -11,6 +11,7 @@ export type GateCapture = {
   vehicle_group?: string | null;
   vehicle_type?: string | null;
   color?: string | null;
+  det_conf?: number | null;
   ocr_conf?: number | null;
   color_conf?: number | null;
   plate_valid?: boolean | null;
@@ -62,7 +63,10 @@ function wsUrl(): string {
   const base =
     (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_API_BASE ??
     "http://localhost:8000";
-  return base.replace(/^http/, "ws") + "/ws/gate";
+  const path = base.replace(/^http/, "ws") + "/ws/gate";
+  // WebSocket của trình duyệt không gắn được header Authorization nên token đi qua query string.
+  const token = typeof localStorage !== "undefined" ? localStorage.getItem("token") : null;
+  return token ? `${path}?token=${encodeURIComponent(token)}` : path;
 }
 
 export function useGateSocket(opts?: { lane?: string }): GateState & {

@@ -41,3 +41,15 @@ def test_run_returns_wellformed_dict_with_valid_plate():
         assert isinstance(plate["plate_text"], str)
         assert isinstance(plate["plate_valid"], bool)
     assert any(p["plate_valid"] for p in result["plates"]), "không có biển nào đúng định dạng VN"
+
+
+@pytest.mark.slow
+def test_plate_below_min_conf_is_not_read():
+    img_bgr = cv2.imread(str(SAMPLE))
+    assert img_bgr is not None, f"không đọc được ảnh mẫu: {SAMPLE}"
+
+    assert OnnxAlprPipeline()._plate_detector.conf == 0.7, "ngưỡng mặc định phải là 0,7"
+
+    # Ngưỡng 0,999 loại mọi hộp nên pipeline không đọc biển nào
+    result = OnnxAlprPipeline(plate_min_conf=0.999).run(img_bgr)
+    assert result["plates"] == []

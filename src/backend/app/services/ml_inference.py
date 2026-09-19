@@ -16,6 +16,7 @@ Các import nặng (cv2, cây src/ml, runner) nằm trong hàm để suite test 
 INFERENCE_ENGINE=ml. Đường dẫn model mặc định trỏ vào repo (giải trong
 onnx_pipeline), ghi đè bằng biến môi trường ML_COARSE_WEIGHTS, ML_PLATE_WEIGHTS,
 ML_OCR_ONNX, ML_TYPE_ONNX, ML_TYPE_CLASSES, ML_STYLE_ONNX, ML_STYLE_CLASSES.
+ML_PLATE_MIN_CONF là ngưỡng độ tin của detector biển (mặc định 0,7), dưới đó không đọc.
 """
 import os
 import sys
@@ -77,9 +78,11 @@ def get_ml_engine() -> "MlInferenceEngine":
 
     from pipeline.onnx_pipeline import OnnxAlprPipeline
 
+    plate_min_conf = os.environ.get("ML_PLATE_MIN_CONF")
     pipeline = OnnxAlprPipeline(
         coarse_weights=os.environ.get("ML_COARSE_WEIGHTS"),
         plate_weights=os.environ.get("ML_PLATE_WEIGHTS"),
+        plate_min_conf=float(plate_min_conf) if plate_min_conf else None,
         ocr_onnx=os.environ.get("ML_OCR_ONNX"),
         type_onnx=os.environ.get("ML_TYPE_ONNX"),
         type_classes_path=os.environ.get("ML_TYPE_CLASSES"),

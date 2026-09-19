@@ -54,6 +54,9 @@ _DEFAULTS = {
     "style_classes": _ML_DIR / "data" / "vehicle-style-classes.json",
 }
 
+# Trên val A1, 0,7 giữ 95,8% biển thật (0,25 giữ 96,8%), hộp nhầm giảm 64 xuống 30: eval_plate_det_conf.py
+_DEFAULT_PLATE_MIN_CONF = 0.7
+
 
 def encode_crop_b64(crop_bgr) -> str:
     """PNG-encode a BGR crop to a base64 ascii string. Returns "" on failure."""
@@ -200,6 +203,7 @@ class OnnxAlprPipeline:
         style_classes_path: str | None = None,
         device: str = "cpu",
         conf: float | None = None,
+        plate_min_conf: float | None = None,
     ) -> None:
         _ensure_ml_path()
 
@@ -241,7 +245,14 @@ class OnnxAlprPipeline:
         # CRNNRecognizer) để truyền .onnx thật sự chạy qua route onnxruntime,
         # không lặng lẽ rơi về route "pt" (vẫn cần torch) chỉ vì thiếu backend=.
         plate_backend = "onnx" if plate_weights.lower().endswith(".onnx") else "pt"
-        det_kwargs = {} if conf is None else {"conf": conf}
+        # `conf` ghi đè cả hai detector (để test hạ ngưỡng trên ảnh giả).
+        if conf is not None:
+            plate_conf = conf
+        elif plate_min_conf is not None:
+            plate_conf = plate_min_conf
+        else:
+            plate_conf = _DEFAULT_PLATE_MIN_CONF
+        det_kwargs = {"conf": plate_conf}
         if plate_backend == "onnx":
             det_kwargs["sess_options"] = _single_threaded_session_options()
         self._plate_detector = PlateDetector(plate_weights, backend=plate_backend, **det_kwargs)

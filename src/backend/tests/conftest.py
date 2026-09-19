@@ -39,6 +39,7 @@ def db_session():
 def client(db_session):
     from fastapi.testclient import TestClient
 
+    from app.db import db_session_factory
     from app.deps import get_db
     from app.main import create_app
 
@@ -47,6 +48,8 @@ def client(db_session):
 
     app = create_app()
     app.dependency_overrides[get_db] = _override_get_db
+    # /ws/gate không dùng Depends(get_db) nên cần override riêng để trả về db_session của test.
+    app.dependency_overrides[db_session_factory] = lambda: (lambda: db_session)
     return TestClient(app)
 
 

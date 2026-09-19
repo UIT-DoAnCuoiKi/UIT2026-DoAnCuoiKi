@@ -1,5 +1,8 @@
 import json
 
+import pytest
+from starlette.websockets import WebSocketDisconnect
+
 
 def test_publish_noop_without_loop():
     from app.services.gate_hub import GateHub
@@ -23,13 +26,28 @@ def test_captures_latest_returns_recent(client, db_session, tmp_path, monkeypatc
     assert "vehicle_type" in body and "color" in body
     assert "plate_valid" in body and "image_asset_id" in body
     assert "lane" in body and "duplicate" in body
+    assert body["det_conf"] == 0.9
 
 
-def test_ws_gate_receives_event(client, tmp_path, monkeypatch):
+def test_ws_gate_requires_token(client):
+    # Không token thì server đóng kết nối (1008) trước accept().
+    with pytest.raises(WebSocketDisconnect):
+        with client.websocket_connect("/ws/gate"):
+            pass
+
+
+def test_ws_gate_rejects_invalid_token(client):
+    with pytest.raises(WebSocketDisconnect):
+        with client.websocket_connect("/ws/gate?token=not-a-real-token"):
+            pass
+
+
+def test_ws_gate_receives_event(client, staff_headers, tmp_path, monkeypatch):
     from app.config import settings
     monkeypatch.setattr(settings, "image_storage_dir", str(tmp_path))
+    token = staff_headers["Authorization"].removeprefix("Bearer ")
     payload = {"vehicle_type": "car", "plates": [{"plate_text": "30A-1", "det_conf": 0.9, "ocr_conf": 0.9, "plate_valid": True}]}
-    with client.websocket_connect("/ws/gate") as ws:
+    with client.websocket_connect(f"/ws/gate?token={token}") as ws:
         files = {"image": ("f.jpg", b"x", "image/jpeg")}
         data = {"capture_id": "WS1", "direction": "in", "lane": "lane1", "payload": json.dumps(payload)}
         client.post("/captures", data=data, files=files, headers={"X-Edge-Key": "edge-dev-key"})
@@ -38,6 +56,7 @@ def test_ws_gate_receives_event(client, tmp_path, monkeypatch):
     assert event["direction"] == "in"
     assert set(event) >= {
         "reading_id", "capture_id", "direction", "lane", "review_state",
-        "plate_text", "vehicle_group", "vehicle_type", "color",
+        "plate_text", "vehicle_group", "vehicle_type", "color", "det_conf",
         "plate_valid", "image_asset_id", "duplicate",
     }
+    assert event["det_conf"] == 0.9

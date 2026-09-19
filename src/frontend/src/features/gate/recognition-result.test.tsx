@@ -20,6 +20,17 @@ test("surfaces OCR and color confidence when present", () => {
   expect(screen.getByText("80%")).toBeInTheDocument();
 });
 
+test("shows plate detection confidence when present", () => {
+  render(<RecognitionResult capture={{ ...base, det_conf: 0.83 }} />);
+  expect(screen.getByText(/độ tin phát hiện biển/i)).toBeInTheDocument();
+  expect(screen.getByText("83%")).toBeInTheDocument();
+});
+
+test("hides plate detection confidence when absent", () => {
+  render(<RecognitionResult capture={base} />);
+  expect(screen.queryByText(/độ tin phát hiện biển/i)).not.toBeInTheDocument();
+});
+
 test("shows invalid-format warning", () => {
   render(<RecognitionResult capture={{ ...base, plate_valid: false }} />);
   expect(screen.getByText(/sai định dạng/i)).toBeInTheDocument();
