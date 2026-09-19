@@ -12,7 +12,7 @@ const ITEMS: Item[] = [
   { to: "/config", label: "Cấu hình", Icon: Settings, roles: ["manager", "root"] },
 ];
 
-export function Sidebar({ collapsed }: { collapsed: boolean }) {
+export function Sidebar({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: () => void }) {
   const role = getRole();
   const items = ITEMS.filter((i) => role && i.roles.includes(role));
   return (
@@ -24,6 +24,7 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
         <NavLink
           key={to}
           to={to}
+          onClick={onNavigate}
           className={({ isActive }) =>
             cn(
               "relative flex items-center gap-3 rounded-[var(--radius-control)] px-3 py-2 text-sm text-ink hover:bg-surface",

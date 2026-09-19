@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { fetchImageObjectUrl } from "@/lib/image-blob";
+import { ImageLightbox } from "@/components/image-lightbox";
 
 // Ảnh khung hình đã chụp cho màn Trạm cổng. Ưu tiên object URL cục bộ (đúng khung
 // nhân viên vừa gửi model, không cần gọi lại server). Nếu chỉ có image_asset_id
@@ -38,6 +39,8 @@ export function CapturePreview({
     };
   }, [localUrl, imageAssetId]);
 
+  const [open, setOpen] = useState(false);
+
   const src = localUrl ?? fetched;
   if (!src) {
     return (
@@ -47,12 +50,22 @@ export function CapturePreview({
     );
   }
   return (
-    <img
-      src={src}
-      alt="Khung hình đã chụp"
-      className={`h-full w-full rounded-[var(--radius-control)] border border-line ${
-        fit === "contain" ? "object-contain" : "object-cover"
-      }`}
-    />
+    <>
+      <button
+        type="button"
+        className="block h-full w-full cursor-zoom-in appearance-none border-0 bg-transparent p-0"
+        onClick={() => setOpen(true)}
+        aria-label="Xem ảnh lớn"
+      >
+        <img
+          src={src}
+          alt="Khung hình đã chụp"
+          className={`h-full w-full rounded-[var(--radius-control)] border border-line ${
+            fit === "contain" ? "object-contain" : "object-cover"
+          }`}
+        />
+      </button>
+      {open && <ImageLightbox src={src} alt="Khung hình đã chụp" onClose={() => setOpen(false)} />}
+    </>
   );
 }

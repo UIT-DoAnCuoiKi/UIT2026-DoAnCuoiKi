@@ -489,26 +489,22 @@ export const DecisionPanel = forwardRef<DecisionPanelHandle, Props>(function Dec
             ))}
           </ul>
         )}
-        <div className="flex items-center justify-between gap-2">
+        {/* Phải wrap: SurfaceCard cha có overflow-hidden, nút tràn sẽ bị cắt trên màn hẹp. */}
+        <div className="flex flex-wrap items-center gap-2">
           <StatusChip kind="review" value={state} />
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" className="h-9" onClick={resetEdits} disabled={!hasEdits || busy}>
-              Hoàn tác sửa
-            </Button>
-            <Button variant="outline" className="h-9" onClick={saveEdits} disabled={!editsChanged || busy}>
-              Lưu chỉnh sửa
-            </Button>
-            <Button variant="outline" className="h-9" onClick={onRecapture} disabled={busy}>
-              Nhận lại
-            </Button>
-            {/* Khác với "Hoàn tác sửa" (chỉ trả biển/loại xe/màu về đúng giá trị
-                model đã nhận, luôn tắt khi chưa sửa gì), nút này xoá hẳn cả ảnh
-                lẫn kết quả của lượt hiện tại, cho lượt chụp mới hoàn toàn. Trước
-                đây không có cách nào bỏ một lượt chụp hỏng ngoài phím tắt Esc. */}
-            <Button variant="ghost" className="h-9" onClick={onDone} disabled={busy}>
-              Xoá lượt
-            </Button>
-          </div>
+          <Button variant="ghost" className="h-9" onClick={resetEdits} disabled={!hasEdits || busy}>
+            Hoàn tác sửa
+          </Button>
+          <Button variant="outline" className="h-9" onClick={saveEdits} disabled={!editsChanged || busy}>
+            Lưu chỉnh sửa
+          </Button>
+          <Button variant="outline" className="h-9" onClick={onRecapture} disabled={busy}>
+            Nhận lại
+          </Button>
+          {/* Khác "Hoàn tác sửa" (chỉ trả biển, loại xe, màu về giá trị của model): nút này xoá cả ảnh và kết quả của lượt. */}
+          <Button variant="ghost" className="h-9" onClick={onDone} disabled={busy}>
+            Xoá lượt
+          </Button>
         </div>
 
         <RecognitionResult capture={capture} />

@@ -5,12 +5,27 @@ import { clearToken } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-export function Topbar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
+export function Topbar({
+  onToggleSidebar,
+  onOpenMobileMenu,
+}: {
+  onToggleSidebar: () => void;
+  onOpenMobileMenu: () => void;
+}) {
   const { theme, toggle } = useTheme();
   const nav = useNavigate();
   return (
-    <header className="flex h-14 items-center gap-3 border-b border-line px-6">
-      <Button variant="ghost" size="icon" aria-label="Gập thanh bên" onClick={onToggleSidebar}>
+    <header className="flex h-14 items-center gap-3 border-b border-line px-3 sm:px-6">
+      {/* Desktop: gập thanh bên. Mobile: mở drawer, vì thanh bên chính ẩn dưới md. */}
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label="Mở menu"
+        onClick={() => {
+          onToggleSidebar();
+          onOpenMobileMenu();
+        }}
+      >
         <PanelLeft size={18} />
       </Button>
       <div className="relative hidden md:block">
