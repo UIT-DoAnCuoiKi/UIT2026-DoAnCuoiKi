@@ -34,6 +34,13 @@ const CAMERA_ROLE: Record<string, string> = {
   overview: "Toàn cảnh",
 };
 
+const PRICE_MODE: Record<string, string> = {
+  flat: "Trọn lượt",
+  block: "Theo khối thời gian",
+};
+
+export const PRICE_MODE_OPTIONS = Object.entries(PRICE_MODE).map(([code, label]) => ({ code, label }));
+
 // Danh sách chọn loại xe cho thao tác sửa tay ở trạm cổng.
 export const VEHICLE_TYPE_OPTIONS = Object.entries(VEHICLE_TYPE).map(([code, label]) => ({ code, label }));
 
@@ -60,4 +67,9 @@ export function roleLabel(code?: string | null): string {
 export function cameraRoleLabel(code?: string | null): string {
   if (!code) return "—";
   return CAMERA_ROLE[code.toLowerCase()] ?? code;
+}
+
+export function priceModeLabel(code?: string | null): string {
+  if (!code) return "—";
+  return PRICE_MODE[code.toLowerCase()] ?? code;
 }
